@@ -22,6 +22,7 @@ class MoveSystem (
         val physicsComponent = physicsComponents[entity]
         val mass = physicsComponent.body.mass
         val (velocityX, velocityY) = physicsComponent.body.linearVelocity
+        moveComponent.direction = getEntityDirection(moveComponent.cos, moveComponent.sin)
 
         if ((moveComponent.cos == 0f && moveComponent.sin == 0f) || moveComponent.isRooted) {
             physicsComponent.impulse.set(
@@ -40,6 +41,16 @@ class MoveSystem (
             if (moveComponent.cos != 0f) {
                 imageComponent.image.flipX = moveComponent.cos < 0
             }
+        }
+    }
+
+    private fun getEntityDirection(cos : Float, sin : Float) : String {
+        return if (cos == 0f && sin == 1f) {
+            "side"
+        } else if (cos == 1f && sin == 0f) {
+            "away"
+        } else {
+            "to"
         }
     }
 }

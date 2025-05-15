@@ -10,7 +10,13 @@ enum class AnimationModel {
 }
 
 enum class AnimationType {
-    IDLETO, IDLESIDE, IDLEAWAY, MOVETO, MOVESIDE, MOVEAWAY, ATTACKTO, ATTACKSIDE, ATTACKAWAY, DEATH, OPEN;
+    IDLE, MOVE, ATTACK, DEATH, OPEN;
+
+    val atlasKey : String = this.toString().lowercase()
+}
+
+enum class AnimationDirection {
+    TO, SIDE, AWAY;
 
     val atlasKey : String = this.toString().lowercase()
 }
@@ -30,9 +36,26 @@ data class AnimationComponent(
         nextAnimation = "${model.atlasKey}/${type.atlasKey}"
     }
 
+    fun nextAnimation(type : AnimationType, direction : AnimationDirection) {
+        nextAnimation = "${model.atlasKey}/${type.atlasKey}${direction.atlasKey}"
+    }
+
     fun nextAnimation(model : AnimationModel, type : AnimationType) {
         this.model = model
-        nextAnimation = "${model.atlasKey}/${type.atlasKey}"
+        nextAnimation = if (needsDirection(type)) {
+            "${model.atlasKey}/${type.atlasKey}to"
+        } else {
+            "${model.atlasKey}/${type.atlasKey}"
+        }
+    }
+
+    fun nextAnimation(model : AnimationModel, type : AnimationType, direction : AnimationDirection) {
+        this.model = model
+        nextAnimation = "${model.atlasKey}/${type.atlasKey}${direction.atlasKey}"
+    }
+
+    fun needsDirection(type: AnimationType) : Boolean {
+        return type == AnimationType.IDLE || type == AnimationType.MOVE || type == AnimationType.ATTACK
     }
 
     companion object {

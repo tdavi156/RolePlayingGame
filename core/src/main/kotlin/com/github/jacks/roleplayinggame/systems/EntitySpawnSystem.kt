@@ -26,6 +26,7 @@ import ktx.tiled.*
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType.DynamicBody
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType.StaticBody
 import com.github.jacks.roleplayinggame.actors.FlipImage
+import com.github.jacks.roleplayinggame.components.AnimationDirection
 import com.github.jacks.roleplayinggame.components.AttackComponent
 import com.github.jacks.roleplayinggame.components.CollisionComponent
 import com.github.jacks.roleplayinggame.components.DEFAULT_ATTACK_DAMAGE
@@ -63,7 +64,7 @@ class EntitySpawnSystem(
                     }
                 }
                 add<AnimationComponent> {
-                    nextAnimation(configuration.model, AnimationType.IDLETO)
+                    nextAnimation(configuration.model, AnimationType.IDLE)
                 }
 
                 // Creates the physics box around the entity. Scaled and offset from the configuration
@@ -157,9 +158,9 @@ class EntitySpawnSystem(
     }
 
     private fun size(model : AnimationModel) = cachedSizes.getOrPut(model) {
-        val regions = atlas.findRegions("${model.atlasKey}/${AnimationType.IDLETO.atlasKey}")
+        val regions = atlas.findRegions("${model.atlasKey}/${AnimationType.IDLE.atlasKey}${AnimationDirection.TO.atlasKey}")
         if (regions.isEmpty) {
-            gdxError("There are no regions for the idleto animation for the $model model")
+            gdxError("There are no regions for the idle animation for the $model model")
         }
         val firstFrame = regions.first()
         vec2(firstFrame.originalWidth * UNIT_SCALE, firstFrame.originalHeight * UNIT_SCALE)

@@ -6,7 +6,7 @@ import com.github.jacks.roleplayinggame.components.AnimationType
 enum class DefaultState : EntityState {
     IDLE {
         override fun enter(entity: AiEntity) {
-            entity.animation(AnimationType.IDLETO)
+            entity.animation(AnimationType.IDLE)
         }
 
         override fun update(entity: AiEntity) {
@@ -18,7 +18,7 @@ enum class DefaultState : EntityState {
     },
     MOVE {
         override fun enter(entity: AiEntity) {
-            entity.animation(AnimationType.MOVETO)
+            entity.animation(AnimationType.MOVE)
         }
 
         override fun update(entity: AiEntity) {
@@ -30,7 +30,7 @@ enum class DefaultState : EntityState {
     },
     ATTACK {
         override fun enter(entity: AiEntity) {
-            entity.animation(AnimationType.ATTACKTO, Animation.PlayMode.NORMAL)
+            entity.animation(AnimationType.ATTACK, Animation.PlayMode.NORMAL)
             entity.root(true)
             entity.startAttack()
         }
@@ -44,7 +44,7 @@ enum class DefaultState : EntityState {
             if (attackComponent.isReady && !attackComponent.doAttack) {
                 entity.changeToPreviousState()
             } else if (attackComponent.isReady && attackComponent.doAttack) {
-                entity.animation(AnimationType.ATTACKTO, Animation.PlayMode.NORMAL, true)
+                entity.animation(AnimationType.ATTACK, Animation.PlayMode.NORMAL, true)
                 entity.startAttack()
             }
         }

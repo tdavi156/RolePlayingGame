@@ -2,6 +2,7 @@ package com.github.jacks.roleplayinggame.ai
 
 import com.badlogic.gdx.graphics.g2d.Animation.PlayMode
 import com.github.jacks.roleplayinggame.components.AnimationComponent
+import com.github.jacks.roleplayinggame.components.AnimationDirection
 import com.github.jacks.roleplayinggame.components.AnimationType
 import com.github.jacks.roleplayinggame.components.AttackComponent
 import com.github.jacks.roleplayinggame.components.MoveComponent
@@ -31,9 +32,21 @@ data class AiEntity(
     val attackComponent : AttackComponent
         get() = attackComponents[entity]
 
+    val direction : AnimationDirection
+        get() {
+            val direction = moveComponents[entity].direction
+            return if (direction == "away") {
+                AnimationDirection.AWAY
+            } else if (direction == "side") {
+                AnimationDirection.SIDE
+            } else {
+                AnimationDirection.TO
+            }
+        }
+
     fun animation(type : AnimationType, mode : PlayMode = PlayMode.LOOP, resetAnimation : Boolean = false) {
         with(animationComponents[entity]) {
-            nextAnimation(type)
+            nextAnimation(type, direction)
             playMode = mode
             if (resetAnimation) {
                 stateTime = 0f

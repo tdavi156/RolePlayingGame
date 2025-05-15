@@ -61,23 +61,72 @@ class AttackSystem(
             val halfWidth = width * 0.5f
             val halfHeight = height * 0.5f
 
+
+            /*
+
+
+            ___
+            | |
+            ---
+
+
+             */
             if (attackLeft) {
-                AABB_RECT.set(
+                AABB_RECT_1.set(
                     x + offX - halfWidth - attackComponent.extraRange,
                     y + offY - halfHeight,
                     x + offX + halfWidth,
                     y + offY + halfHeight
                 )
+                AABB_RECT_2.set(
+                    x + offX - halfWidth - attackComponent.extraRange * 2,
+                    y + offY - halfHeight - attackComponent.extraRange,
+                    x + offX + halfWidth,
+                    y + offY + halfHeight
+                )
             } else {
-                AABB_RECT.set(
+                AABB_RECT_1.set(
                     x + offX - halfWidth,
                     y + offY - halfHeight,
                     x + offX + halfWidth + attackComponent.extraRange,
                     y + offY + halfHeight
                 )
+                AABB_RECT_2.set(
+                    x + offX + halfWidth,
+                    y + offY - halfHeight * 1.5f,
+                    x + offX + halfWidth + attackComponent.extraRange,
+                    y + offY + halfHeight * 1.5f
+                )
             }
 
-            physicsWorld.query(AABB_RECT.x, AABB_RECT.y, AABB_RECT.width, AABB_RECT.height) { fixture ->
+            physicsWorld.query(AABB_RECT_1.x, AABB_RECT_1.y, AABB_RECT_1.width, AABB_RECT_1.height) { fixture ->
+                val fixtureEntity = fixture.entity
+
+                if (fixture.userData != HIT_BOX_SENSOR) {
+                    return@query true
+                }
+
+                if (fixtureEntity == entity) {
+                    return@query true
+                }
+
+                // add logic for non-player entities to not damage each other
+
+                configureEntity(fixtureEntity) {
+                    lifeComponents.getOrNull(it)?.let { lifeComponent ->
+                        lifeComponent.takeDamage += attackComponent.damage
+                    }
+
+                    if (entity in playerComponents) {
+                        lootComponents.getOrNull(it)?.let { lootComponent ->
+                            lootComponent.interactEntity = entity
+                        }
+                    }
+                }
+                return@query true
+            }
+
+            physicsWorld.query(AABB_RECT_2.x, AABB_RECT_2.y, AABB_RECT_2.width, AABB_RECT_2.height) { fixture ->
                 val fixtureEntity = fixture.entity
 
                 if (fixture.userData != HIT_BOX_SENSOR) {
@@ -112,6 +161,7 @@ class AttackSystem(
     }
 
     companion object {
-        val AABB_RECT = Rectangle()
+        val AABB_RECT_1 = Rectangle()
+        val AABB_RECT_2 = Rectangle()
     }
 }
