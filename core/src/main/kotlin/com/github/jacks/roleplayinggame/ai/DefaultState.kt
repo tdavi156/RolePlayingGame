@@ -49,7 +49,12 @@ enum class DefaultState : EntityState {
             }
         }
     },
-    DEATH,
+    DEATH {
+        override fun enter(entity: AiEntity) {
+            entity.animation(AnimationType.DEATH, Animation.PlayMode.NORMAL)
+            entity.root(true)
+        }
+    },
     RESPAWN
 }
 

@@ -5,6 +5,8 @@ import com.github.jacks.roleplayinggame.components.AnimationComponent
 import com.github.jacks.roleplayinggame.components.AnimationDirection
 import com.github.jacks.roleplayinggame.components.AnimationType
 import com.github.jacks.roleplayinggame.components.AttackComponent
+import com.github.jacks.roleplayinggame.components.DeathComponent
+import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.MoveComponent
 import com.github.jacks.roleplayinggame.components.StateComponent
 import com.github.quillraven.fleks.ComponentMapper
@@ -18,6 +20,8 @@ data class AiEntity(
     private val moveComponents : ComponentMapper<MoveComponent> = world.mapper(),
     private val attackComponents : ComponentMapper<AttackComponent> = world.mapper(),
     private val stateComponents : ComponentMapper<StateComponent> = world.mapper(),
+    private val deathComponents : ComponentMapper<DeathComponent> = world.mapper(),
+    private val lifeComponents : ComponentMapper<LifeComponent> = world.mapper(),
 ) {
 
     val wantsToMove : Boolean
@@ -28,6 +32,9 @@ data class AiEntity(
 
     val wantsToAttack : Boolean
         get() = attackComponents.getOrNull(entity)?.doAttack ?: false
+
+    val readyToDie : Boolean
+        get() = lifeComponents.getOrNull(entity)?.isDead ?: false
 
     val attackComponent : AttackComponent
         get() = attackComponents[entity]

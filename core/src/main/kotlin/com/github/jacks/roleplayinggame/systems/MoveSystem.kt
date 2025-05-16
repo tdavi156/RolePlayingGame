@@ -44,13 +44,37 @@ class MoveSystem (
         }
     }
 
+    /*
+    when (keycode) {
+                UP -> playerSin = if (Gdx.input.isKeyPressed(DOWN)) -1f else 0f
+                W -> playerSin = if (Gdx.input.isKeyPressed(S)) -1f else 0f
+                DOWN -> playerSin = if (Gdx.input.isKeyPressed(UP)) 1f else 0f
+                S -> playerSin = if (Gdx.input.isKeyPressed(W)) 1f else 0f
+                LEFT -> playerCos = if (Gdx.input.isKeyPressed(RIGHT)) 1f else 0f
+                A -> playerCos = if (Gdx.input.isKeyPressed(D)) 1f else 0f
+                RIGHT -> playerCos = if (Gdx.input.isKeyPressed(LEFT)) -1f else 0f
+                D -> playerCos = if (Gdx.input.isKeyPressed(A)) -1f else 0f
+            }
+     */
     private fun getEntityDirection(cos : Float, sin : Float) : String {
-        return if (cos == 0f && sin == 1f) {
+        when (sin) {
+            0f -> return "side"
+            1f -> return "away"
+            -1f -> return "to"
+        }
+        return "to"
+        /*
+        return if (sin == 0f && (cos == -1f || cos == 1f)) {
             "side"
-        } else if (cos == 1f && sin == 0f) {
+        } else if (sin == 1f) {
             "away"
+        } else if (sin == -1f) {
+            "to"
         } else {
+            //previousDirection.toString()
             "to"
         }
+
+         */
     }
 }

@@ -111,6 +111,10 @@ class AttackSystem(
                 }
 
                 // add logic for non-player entities to not damage each other
+                if (entity !in playerComponents) {
+
+                }
+
 
                 configureEntity(fixtureEntity) {
                     lifeComponents.getOrNull(it)?.let { lifeComponent ->

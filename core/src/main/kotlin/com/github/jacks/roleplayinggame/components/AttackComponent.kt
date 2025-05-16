@@ -1,7 +1,7 @@
 package com.github.jacks.roleplayinggame.components
 
 enum class AttackState {
-    READY, PREPARE, ATTACKING, DEAL_DAMAGE,
+    READY, PREPARED, ATTACKING, DEAL_DAMAGE,
 }
 
 data class AttackComponent(
@@ -16,12 +16,12 @@ data class AttackComponent(
         get() = state == AttackState.READY
 
     val isPrepared : Boolean
-        get() = state == AttackState.PREPARE
+        get() = state == AttackState.PREPARED
 
     val isAttacking : Boolean
         get() = state == AttackState.ATTACKING
 
     fun startAttack() {
-        state = AttackState.PREPARE
+        state = AttackState.PREPARED
     }
 }
