@@ -17,6 +17,7 @@ data class SpawnConfiguration(
     val attackRange : Float = 0f,
     val lifeScaling : Float = 0f,
     val lootable : Boolean = false,
+    val aiTreePath : String = "",
     val physicsScaling : Vector2 = vec2(1f, 1f),
     val physicsOffset : Vector2 = vec2(0f, 0f),
     val bodyType : BodyType = BodyType.DynamicBody

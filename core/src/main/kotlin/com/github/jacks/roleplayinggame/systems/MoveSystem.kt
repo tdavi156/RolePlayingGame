@@ -22,7 +22,7 @@ class MoveSystem (
         val physicsComponent = physicsComponents[entity]
         val mass = physicsComponent.body.mass
         val (velocityX, velocityY) = physicsComponent.body.linearVelocity
-        moveComponent.direction = getEntityDirection(moveComponent.cos, moveComponent.sin)
+        //moveComponent.direction = getEntityDirection(moveComponent.cos, moveComponent.sin)
 
         if ((moveComponent.cos == 0f && moveComponent.sin == 0f) || moveComponent.isRooted) {
             physicsComponent.impulse.set(

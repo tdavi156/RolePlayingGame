@@ -2,14 +2,18 @@ package com.github.jacks.roleplayinggame.systems
 
 import com.badlogic.gdx.math.Rectangle
 import com.badlogic.gdx.physics.box2d.World
+import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.AnimationComponent
 import com.github.jacks.roleplayinggame.components.AttackComponent
 import com.github.jacks.roleplayinggame.components.AttackState
 import com.github.jacks.roleplayinggame.components.ImageComponent
 import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.LootComponent
+import com.github.jacks.roleplayinggame.components.MoveComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
+import com.github.jacks.roleplayinggame.events.EntityAttackEvent
+import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.systems.EntitySpawnSystem.Companion.HIT_BOX_SENSOR
 import com.github.quillraven.fleks.AllOf
 import com.github.quillraven.fleks.ComponentMapper
@@ -28,7 +32,9 @@ class AttackSystem(
     private val lootComponents : ComponentMapper<LootComponent>,
     private val playerComponents : ComponentMapper<PlayerComponent>,
     private val animationComponents : ComponentMapper<AnimationComponent>,
-    private val physicsWorld : World
+    private val moveComponents : ComponentMapper<MoveComponent>,
+    private val physicsWorld : World,
+    private val stage : Stage
 ) : IteratingSystem() {
 
     override fun onTickEntity(entity: Entity) {
@@ -44,6 +50,7 @@ class AttackSystem(
             attackComponent.doAttack = false
             attackComponent.state = AttackState.ATTACKING
             attackComponent.delay = attackComponent.maxDelay
+            stage.fire(EntityAttackEvent(animationComponents[entity].model))
             return
         }
 
@@ -54,6 +61,7 @@ class AttackSystem(
 
             val image = imageComponents[entity].image
             val physicsComponent = physicsComponents[entity]
+            val moveComponent = moveComponents[entity]
             val attackLeft = image.flipX
             val (x, y) = physicsComponent.body.position
             val (offX, offY) = physicsComponent.offset
@@ -71,35 +79,42 @@ class AttackSystem(
 
 
              */
-            if (attackLeft) {
-                AABB_RECT_1.set(
-                    x + offX - halfWidth - attackComponent.extraRange,
-                    y + offY - halfHeight,
-                    x + offX + halfWidth,
-                    y + offY + halfHeight
+            // hitbox rectangle dimensions
+            if (moveComponent.direction == "away") {
+                // attack up
+                AABB_RECT.set(
+                    x + offX - halfWidth * 1.5f,
+                    y + offY,
+                    x + offX + width,
+                    y + offY + attackComponent.extraRange
                 )
-                AABB_RECT_2.set(
-                    x + offX - halfWidth - attackComponent.extraRange * 2,
-                    y + offY - halfHeight - attackComponent.extraRange,
+            } else if (moveComponent.direction == "to") {
+                // attack down
+                AABB_RECT.set(
+                    x + offX - halfWidth * 1.7f,
+                    y + offY - (halfHeight * 0.25f) - attackComponent.extraRange,
+                    x + offX + width,
+                    y + offY
+                )
+            } else if (attackLeft) {
+                // attack left
+                AABB_RECT.set(
+                    x + offX - halfWidth - attackComponent.extraRange,
+                    y + offY - halfHeight * 1.7f,
                     x + offX + halfWidth,
-                    y + offY + halfHeight
+                    y + offY + halfHeight * 0.5f
                 )
             } else {
-                AABB_RECT_1.set(
+                // attack right
+                AABB_RECT.set(
                     x + offX - halfWidth,
-                    y + offY - halfHeight,
+                    y + offY - halfHeight * 1.7f,
                     x + offX + halfWidth + attackComponent.extraRange,
-                    y + offY + halfHeight
-                )
-                AABB_RECT_2.set(
-                    x + offX + halfWidth,
-                    y + offY - halfHeight * 1.5f,
-                    x + offX + halfWidth + attackComponent.extraRange,
-                    y + offY + halfHeight * 1.5f
+                    y + offY + halfHeight * 0.5f
                 )
             }
 
-            physicsWorld.query(AABB_RECT_1.x, AABB_RECT_1.y, AABB_RECT_1.width, AABB_RECT_1.height) { fixture ->
+            physicsWorld.query(AABB_RECT.x, AABB_RECT.y, AABB_RECT.width, AABB_RECT.height) { fixture ->
                 val fixtureEntity = fixture.entity
 
                 if (fixture.userData != HIT_BOX_SENSOR) {
@@ -129,33 +144,6 @@ class AttackSystem(
                 }
                 return@query true
             }
-
-            physicsWorld.query(AABB_RECT_2.x, AABB_RECT_2.y, AABB_RECT_2.width, AABB_RECT_2.height) { fixture ->
-                val fixtureEntity = fixture.entity
-
-                if (fixture.userData != HIT_BOX_SENSOR) {
-                    return@query true
-                }
-
-                if (fixtureEntity == entity) {
-                    return@query true
-                }
-
-                // add logic for non-player entities to not damage each other
-
-                configureEntity(fixtureEntity) {
-                    lifeComponents.getOrNull(it)?.let { lifeComponent ->
-                        lifeComponent.takeDamage += attackComponent.damage
-                    }
-
-                    if (entity in playerComponents) {
-                        lootComponents.getOrNull(it)?.let { lootComponent ->
-                            lootComponent.interactEntity = entity
-                        }
-                    }
-                }
-                return@query true
-            }
         }
 
         val isDone = animationComponents.getOrNull(entity)?.isAnimationDone ?: true
@@ -165,7 +153,6 @@ class AttackSystem(
     }
 
     companion object {
-        val AABB_RECT_1 = Rectangle()
-        val AABB_RECT_2 = Rectangle()
+        val AABB_RECT = Rectangle()
     }
 }

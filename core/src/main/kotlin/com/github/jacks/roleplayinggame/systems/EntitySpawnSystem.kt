@@ -26,6 +26,7 @@ import ktx.tiled.*
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType.DynamicBody
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType.StaticBody
 import com.github.jacks.roleplayinggame.actors.FlipImage
+import com.github.jacks.roleplayinggame.components.AiComponent
 import com.github.jacks.roleplayinggame.components.AnimationDirection
 import com.github.jacks.roleplayinggame.components.AttackComponent
 import com.github.jacks.roleplayinggame.components.CollisionComponent
@@ -38,6 +39,7 @@ import com.github.jacks.roleplayinggame.components.MoveComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.StateComponent
 import ktx.box2d.box
+import ktx.box2d.circle
 import kotlin.math.roundToInt
 
 @AllOf([SpawnComponent::class])
@@ -63,12 +65,13 @@ class EntitySpawnSystem(
                         setScaling(Scaling.fill)
                     }
                 }
+
                 add<AnimationComponent> {
                     nextAnimation(configuration.model, AnimationType.IDLE)
                 }
 
                 // Creates the physics box around the entity. Scaled and offset from the configuration
-                physicsComponentFromImage(
+                val physicsComponent = physicsComponentFromImage(
                     physicsWorld,
                     imageComponent.image,
                     configuration.bodyType
@@ -124,6 +127,16 @@ class EntitySpawnSystem(
                 if (configuration.lootable) {
                     add<LootComponent>()
                 }
+
+                if (configuration.aiTreePath.isNotBlank()) {
+                    add<AiComponent>() {
+                        treePath = configuration.aiTreePath
+                    }
+                    physicsComponent.body.circle(4f) {
+                        isSensor = true
+                        userData = AI_SENSOR
+                    }
+                }
             }
         }
         world.remove(entity)
@@ -134,7 +147,8 @@ class EntitySpawnSystem(
             AnimationModel.PLAYER.atlasKey -> SpawnConfiguration(
                 AnimationModel.PLAYER,
                 speedScaling = 1.5f,
-                attackRange = 0.6f,
+                lifeScaling = 1f,
+                attackRange = 0.75f,
                 attackScaling = 5f,
                 physicsScaling = vec2(0.3f, 0.3f,),
                 physicsOffset = vec2(0f, -10f * UNIT_SCALE)
@@ -143,7 +157,8 @@ class EntitySpawnSystem(
                 AnimationModel.SLIME,
                 lifeScaling = 5f,
                 physicsScaling = vec2(0.3f, 0.3f),
-                physicsOffset = vec2(0f, -2f * UNIT_SCALE)
+                physicsOffset = vec2(0f, -2f * UNIT_SCALE),
+                aiTreePath = "slimeBehavior.tree"
             )
             AnimationModel.CHEST.atlasKey -> SpawnConfiguration(
                 AnimationModel.CHEST,
@@ -188,5 +203,6 @@ class EntitySpawnSystem(
 
     companion object {
         const val HIT_BOX_SENSOR = "hitbox"
+        const val AI_SENSOR = "aiSensor"
     }
 }

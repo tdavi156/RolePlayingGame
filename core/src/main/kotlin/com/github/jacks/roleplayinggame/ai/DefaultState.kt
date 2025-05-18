@@ -23,6 +23,7 @@ enum class DefaultState : EntityState {
 
         override fun update(entity: AiEntity) {
             when {
+                entity.directionChanged -> entity.state(MOVE, true)
                 entity.wantsToAttack -> entity.state(ATTACK)
                 !entity.wantsToMove -> entity.state(IDLE)
             }
@@ -51,13 +52,37 @@ enum class DefaultState : EntityState {
     },
     DEATH {
         override fun enter(entity: AiEntity) {
-            entity.animation(AnimationType.DEATH, Animation.PlayMode.NORMAL)
             entity.root(true)
         }
+
+        override fun update(entity: AiEntity) {
+            if (!entity.isDead) {
+                entity.state(RESPAWN)
+            }
+        }
     },
-    RESPAWN
+    RESPAWN {
+        override fun enter(entity: AiEntity) {
+            entity.enableGlobalState(true)
+            entity.animation(AnimationType.DEATH, Animation.PlayMode.REVERSED, true)
+        }
+
+        override fun update(entity: AiEntity) {
+            if (entity.isAnimationDone) {
+                entity.state(IDLE)
+                entity.root(false)
+            }
+        }
+    }
 }
 
 enum class DefaultGlobalState : EntityState {
-    CHECK_ALIVE
+    CHECK_ALIVE {
+        override fun update(entity: AiEntity) {
+            if (entity.isDead) {
+                entity.enableGlobalState(false)
+                entity.state(DefaultState.DEATH, true)
+            }
+        }
+    }
 }

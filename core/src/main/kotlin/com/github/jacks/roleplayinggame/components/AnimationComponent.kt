@@ -37,7 +37,11 @@ data class AnimationComponent(
     }
 
     fun nextAnimation(type : AnimationType, direction : AnimationDirection) {
-        nextAnimation = "${model.atlasKey}/${type.atlasKey}${direction.atlasKey}"
+        nextAnimation = if (needsDirection(type)) {
+            "${model.atlasKey}/${type.atlasKey}${direction.atlasKey}"
+        } else {
+            "${model.atlasKey}/${type.atlasKey}"
+        }
     }
 
     fun nextAnimation(model : AnimationModel, type : AnimationType) {

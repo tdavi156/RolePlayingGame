@@ -1,11 +1,13 @@
 package com.github.jacks.roleplayinggame.screens
 
+import com.badlogic.gdx.ai.GdxAI
 import com.badlogic.gdx.graphics.g2d.TextureAtlas
 import com.badlogic.gdx.maps.tiled.TiledMap
 import com.badlogic.gdx.maps.tiled.TmxMapLoader
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.utils.viewport.ExtendViewport
+import com.github.jacks.roleplayinggame.components.AiComponent.Companion.AiComponentListener
 import com.github.jacks.roleplayinggame.components.FloatingTextComponent.Companion.FloatingTextComponentListener
 import com.github.jacks.roleplayinggame.components.ImageComponent.Companion.ImageComponentListener
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.PhysicsComponentListener
@@ -13,8 +15,10 @@ import com.github.jacks.roleplayinggame.components.StateComponent.Companion.Stat
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.input.PlayerKeyboardInputProcessor
+import com.github.jacks.roleplayinggame.systems.AiSystem
 import com.github.jacks.roleplayinggame.systems.AnimationSystem
 import com.github.jacks.roleplayinggame.systems.AttackSystem
+import com.github.jacks.roleplayinggame.systems.AudioSystem
 import com.github.jacks.roleplayinggame.systems.CameraSystem
 import com.github.jacks.roleplayinggame.systems.CollisionDespawnSystem
 import com.github.jacks.roleplayinggame.systems.CollisionSpawnSystem
@@ -37,7 +41,7 @@ import ktx.math.vec2
 
 class GameScreen : KtxScreen {
 
-    private val gameStage : Stage = Stage(ExtendViewport(32f, 18f))
+    private val gameStage : Stage = Stage(ExtendViewport(16f, 9f))
     private val uiStage : Stage = Stage(ExtendViewport(1280f, 720f))
     private val textureAtlas : TextureAtlas = TextureAtlas("assets/graphics/gameObjects.atlas")
     private var currentMap : TiledMap? = null
@@ -55,6 +59,7 @@ class GameScreen : KtxScreen {
         componentListener<PhysicsComponentListener>()
         componentListener<FloatingTextComponentListener>()
         componentListener<StateComponentListener>()
+        componentListener<AiComponentListener>()
 
         system<EntitySpawnSystem>()
         system<CollisionSpawnSystem>()
@@ -67,9 +72,11 @@ class GameScreen : KtxScreen {
         system<PhysicsSystem>()
         system<AnimationSystem>()
         system<StateSystem>()
+        system<AiSystem>()
         system<CameraSystem>()
         system<FloatingTextSystem>()
         system<RenderSystem>()
+        system<AudioSystem>()
         system<DebugSystem>()
     }
 
@@ -94,7 +101,9 @@ class GameScreen : KtxScreen {
     }
 
     override fun render(delta: Float) {
-        entityWorld.update(delta.coerceAtMost(0.25f))
+        val deltaTime = delta.coerceAtMost(0.25f)
+        GdxAI.getTimepiece().update(deltaTime)
+        entityWorld.update(deltaTime)
     }
 
     override fun dispose() {

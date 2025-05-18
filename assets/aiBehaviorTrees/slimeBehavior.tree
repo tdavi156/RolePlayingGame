@@ -1,0 +1,19 @@
+# Actions
+import idle:"com.github.jacks.roleplayinggame.ai.IdleTask"
+import wander:"com.github.jacks.roleplayinggame.ai.WanderTask"
+import attack:"com.github.jacks.roleplayinggame.ai.AttackTask"
+
+# Conditions
+import hasEnemyNearby?:"com.github.jacks.roleplayinggame.ai.HasEnemyNearby"
+import canAttack?:"com.github.jacks.roleplayinggame.ai.CanAttack"
+
+subtree name:"attack"
+  sequence
+    (hasEnemyNearby?) (canAttack?) attack
+    wait seconds:"uniform,1.25,1.5"
+
+root
+  selector
+    $attack
+    (random success:0.25) idle duration:"uniform,2.0,4.0"
+    wander

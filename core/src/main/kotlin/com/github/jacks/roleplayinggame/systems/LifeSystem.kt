@@ -2,10 +2,13 @@ package com.github.jacks.roleplayinggame.systems
 
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.graphics.g2d.Animation
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.scenes.scene2d.ui.Label
 import com.badlogic.gdx.scenes.scene2d.ui.Label.LabelStyle
+import com.github.jacks.roleplayinggame.components.AnimationComponent
+import com.github.jacks.roleplayinggame.components.AnimationType
 import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.DeathComponent
@@ -25,7 +28,8 @@ class LifeSystem(
     private val lifeComponents : ComponentMapper<LifeComponent>,
     private val deathComponents : ComponentMapper<DeathComponent>,
     private val playerComponents : ComponentMapper<PlayerComponent>,
-    private val physicsComponents : ComponentMapper<PhysicsComponent>
+    private val physicsComponents : ComponentMapper<PhysicsComponent>,
+    private val animationComponents : ComponentMapper<AnimationComponent>
 ) : IteratingSystem() {
 
     private val damageFont = BitmapFont(Gdx.files.internal("assets/fonts/damage.fnt"))
@@ -43,6 +47,11 @@ class LifeSystem(
         }
 
         if (lifeComponent.isDead) {
+            animationComponents.getOrNull(entity)?.let { animationComponent ->
+                animationComponent.nextAnimation(AnimationType.DEATH)
+                animationComponent.playMode = Animation.PlayMode.NORMAL
+            }
+
             configureEntity(entity) {
                 deathComponents.add(it) {
                     if (it in playerComponents) {
