@@ -15,5 +15,5 @@ subtree name:"attack"
 root
   selector
     $attack
-    (random success:0.25) idle duration:"uniform,2.0,4.0"
-    wander
+    (random success:0.75) idle duration:"uniform,4.0,6.0"
+    wander duration:"uniform,2.0,3.0"

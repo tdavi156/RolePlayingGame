@@ -36,6 +36,10 @@ class IdleTask(
             return Status.SUCCEEDED
         }
 
+        if (entity.canAttack() && entity.hasEnemyNearby()) {
+            return Status.SUCCEEDED
+        }
+
         return Status.RUNNING
     }
 
@@ -45,14 +49,19 @@ class IdleTask(
     }
 }
 
-class WanderTask : Action() {
-
+class WanderTask(
+    @JvmField
+    @TaskAttribute(required = true)
+    var duration : FloatDistribution? = null
+) : Action() {
+    private var currentDuration = 0f
     private val startPosition = vec2()
     private val targetPosition = vec2()
 
     override fun execute(): Status {
         if (status != Status.RUNNING) {
             entity.animation(AnimationType.MOVE)
+            currentDuration = duration?.nextFloat() ?: 1f
             if (startPosition.isZero) {
                 startPosition.set(entity.position)
             }
@@ -65,6 +74,16 @@ class WanderTask : Action() {
 
         if (entity.inRange(0.5f, targetPosition)) {
             entity.stopMove()
+            return Status.SUCCEEDED
+        }
+
+        if (entity.canAttack() && entity.hasEnemyNearby()) {
+            entity.stopMove()
+            return Status.SUCCEEDED
+        }
+
+        currentDuration -= GdxAI.getTimepiece().deltaTime
+        if (currentDuration <= 0) {
             return Status.SUCCEEDED
         }
 
