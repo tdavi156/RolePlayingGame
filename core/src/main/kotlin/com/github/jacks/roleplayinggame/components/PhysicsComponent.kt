@@ -14,6 +14,7 @@ import com.github.quillraven.fleks.EntityCreateCfg
 import ktx.app.gdxError
 import ktx.box2d.BodyDefinition
 import ktx.box2d.body
+import ktx.box2d.box
 import ktx.box2d.circle
 import ktx.box2d.loop
 import ktx.math.vec2
@@ -26,6 +27,7 @@ class PhysicsComponent {
     lateinit var body : Body
 
     companion object {
+        private val TEMP_VEC = vec2()
         fun EntityCreateCfg.physicsComponentFromShape2D(
             world : World,
             x : Int,
@@ -50,7 +52,10 @@ class PhysicsComponent {
                                 vec2(bodyWidth, bodyHeight),
                                 vec2(0f, bodyHeight)
                             )
-                            circle(SPAWN_AREA_SIZE + 2f) { isSensor = true }
+                            TEMP_VEC.set(bodyWidth * 0.5f, bodyHeight * 0.5f)
+                            box(SPAWN_AREA_SIZE + 2f, SPAWN_AREA_SIZE + 2f, TEMP_VEC) {
+                                isSensor = true
+                            }
                         }
                     }
                 }

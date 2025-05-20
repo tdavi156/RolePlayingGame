@@ -5,7 +5,6 @@ import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.physics.box2d.World
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
-import com.badlogic.gdx.scenes.scene2d.ui.Image
 import com.badlogic.gdx.utils.Scaling
 import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
 import com.github.jacks.roleplayinggame.components.AnimationComponent
@@ -23,7 +22,6 @@ import com.github.quillraven.fleks.IteratingSystem
 import ktx.app.gdxError
 import ktx.math.vec2
 import ktx.tiled.*
-import com.badlogic.gdx.physics.box2d.BodyDef.BodyType.DynamicBody
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType.StaticBody
 import com.github.jacks.roleplayinggame.actors.FlipImage
 import com.github.jacks.roleplayinggame.components.AiComponent
@@ -54,7 +52,7 @@ class EntitySpawnSystem(
 
     override fun onTickEntity(entity: Entity) {
         with(spawnComponents[entity]) {
-            val configuration = spawnConfiguration(type)
+            val configuration = spawnConfiguration(name)
             val relativeSize = size(configuration.model)
 
             world.entity {
@@ -115,7 +113,7 @@ class EntitySpawnSystem(
                     }
                 }
 
-                if (type == AnimationModel.PLAYER.atlasKey) {
+                if (name == AnimationModel.PLAYER.atlasKey) {
                     add<PlayerComponent>()
                     add<StateComponent>()
                 }
@@ -156,6 +154,7 @@ class EntitySpawnSystem(
             AnimationModel.SLIME.atlasKey -> SpawnConfiguration(
                 AnimationModel.SLIME,
                 lifeScaling = 5f,
+                attackRange = 1f,
                 physicsScaling = vec2(0.3f, 0.3f),
                 physicsOffset = vec2(0f, -2f * UNIT_SCALE),
                 aiTreePath = "slimeBehavior.tree"
@@ -186,10 +185,10 @@ class EntitySpawnSystem(
             is MapChangeEvent -> {
                 val entityLayer = event.map.layer("entities")
                 entityLayer.objects.forEach { mapObject ->
-                    val type = mapObject.type ?: gdxError("Map Object $mapObject has no type")
+                    val name = mapObject.name ?: gdxError("Map Object $mapObject has no name")
                     world.entity {
                         add<SpawnComponent> {
-                            this.type = type
+                            this.name = name
                             this.location.set(mapObject.x * UNIT_SCALE, mapObject.y * UNIT_SCALE)
                         }
                     }

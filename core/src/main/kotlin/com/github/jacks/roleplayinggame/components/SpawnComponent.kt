@@ -24,7 +24,7 @@ data class SpawnConfiguration(
 )
 
 data class SpawnComponent(
-    var type : String = "",
+    var name : String = "",
     var location : Vector2 = vec2()
 ) {
 }

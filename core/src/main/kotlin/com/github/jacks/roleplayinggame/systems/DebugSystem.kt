@@ -25,7 +25,7 @@ class DebugSystem(
     }
 
     override fun onTick() {
-        //physicsRenderer.render(physicsWorld, stage.camera.combined)
+        physicsRenderer.render(physicsWorld, stage.camera.combined)
         shapeRenderer.use(ShapeRenderer.ShapeType.Line, stage.camera.combined) {
             it.setColor(1f, 0f, 0f, 0f)
             it.rect(AABB_RECT.x, AABB_RECT.y, AABB_RECT.width - AABB_RECT.x, AABB_RECT.height - AABB_RECT.y)

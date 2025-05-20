@@ -21,14 +21,14 @@
   </data>
  </layer>
  <objectgroup id="4" name="entities">
-  <object id="2" type="player" gid="649" x="49" y="243.5" width="48" height="48"/>
-  <object id="3" type="slime" gid="650" x="167.5" y="245" width="32" height="32"/>
-  <object id="4" type="slime" gid="650" x="93.5" y="170.5" width="32" height="32"/>
-  <object id="6" type="chest" gid="652" x="23.5" y="254" width="16" height="16"/>
-  <object id="7" type="slime" gid="650" x="112" y="272" width="32" height="32"/>
-  <object id="8" type="slime" gid="650" x="16" y="192" width="32" height="32"/>
-  <object id="9" type="slime" gid="650" x="224" y="272" width="32" height="32"/>
-  <object id="10" type="chest" gid="652" x="64" y="272" width="16" height="16"/>
-  <object id="11" type="chest" gid="652" x="176" y="272" width="16" height="16"/>
+  <object id="2" name="player" gid="649" x="49" y="243.5" width="48" height="48"/>
+  <object id="3" name="slime" gid="650" x="167.5" y="245" width="32" height="32"/>
+  <object id="4" name="slime" gid="650" x="93.5" y="170.5" width="32" height="32"/>
+  <object id="6" name="chest" gid="652" x="23.5" y="254" width="16" height="16"/>
+  <object id="7" name="slime" gid="650" x="112" y="272" width="32" height="32"/>
+  <object id="8" name="slime" gid="650" x="16" y="192" width="32" height="32"/>
+  <object id="9" name="slime" gid="650" x="224" y="272" width="32" height="32"/>
+  <object id="10" name="chest" gid="652" x="64" y="272" width="16" height="16"/>
+  <object id="11" name="chest" gid="652" x="176" y="272" width="16" height="16"/>
  </objectgroup>
 </map>

@@ -116,6 +116,7 @@ class AttackSystem(
 
             physicsWorld.query(AABB_RECT.x, AABB_RECT.y, AABB_RECT.width, AABB_RECT.height) { fixture ->
                 val fixtureEntity = fixture.entity
+                val isAttackerPlayer = entity in playerComponents
 
                 if (fixture.userData != HIT_BOX_SENSOR) {
                     return@query true
@@ -126,8 +127,8 @@ class AttackSystem(
                 }
 
                 // add logic for non-player entities to not damage each other
-                if (entity !in playerComponents) {
-
+                if (!isAttackerPlayer && fixtureEntity !in playerComponents) {
+                    return@query true
                 }
 
 
@@ -136,7 +137,7 @@ class AttackSystem(
                         lifeComponent.takeDamage += attackComponent.damage
                     }
 
-                    if (entity in playerComponents) {
+                    if (isAttackerPlayer) {
                         lootComponents.getOrNull(it)?.let { lootComponent ->
                             lootComponent.interactEntity = entity
                         }

@@ -33,6 +33,7 @@ import com.github.jacks.roleplayinggame.systems.PhysicsSystem
 import com.github.jacks.roleplayinggame.systems.RenderSystem
 import com.github.jacks.roleplayinggame.systems.StateSystem
 import com.github.quillraven.fleks.World
+import com.github.quillraven.fleks.world
 import ktx.app.KtxScreen
 import ktx.assets.disposeSafely
 import ktx.box2d.createWorld
@@ -49,35 +50,41 @@ class GameScreen : KtxScreen {
         autoClearForces = false
     }
 
-    private val entityWorld : World = World {
-        inject(gameStage)
-        inject("uiStage", uiStage)
-        inject(textureAtlas)
-        inject(physicsWorld)
+    private val entityWorld : World = world {
+        injectables {
+            add(gameStage)
+            add("uiStage", uiStage)
+            add(textureAtlas)
+            add(physicsWorld)
+        }
 
-        componentListener<ImageComponentListener>()
-        componentListener<PhysicsComponentListener>()
-        componentListener<FloatingTextComponentListener>()
-        componentListener<StateComponentListener>()
-        componentListener<AiComponentListener>()
+        components {
+            add<ImageComponentListener>()
+            add<PhysicsComponentListener>()
+            add<FloatingTextComponentListener>()
+            add<StateComponentListener>()
+            add<AiComponentListener>()
+        }
 
-        system<EntitySpawnSystem>()
-        system<CollisionSpawnSystem>()
-        system<CollisionDespawnSystem>()
-        system<MoveSystem>()
-        system<AttackSystem>()
-        system<LootSystem>()
-        system<DeathSystem>()
-        system<LifeSystem>()
-        system<PhysicsSystem>()
-        system<AnimationSystem>()
-        system<StateSystem>()
-        system<AiSystem>()
-        system<CameraSystem>()
-        system<FloatingTextSystem>()
-        system<RenderSystem>()
-        system<AudioSystem>()
-        system<DebugSystem>()
+        systems {
+            add<EntitySpawnSystem>()
+            add<CollisionSpawnSystem>()
+            add<CollisionDespawnSystem>()
+            add<MoveSystem>()
+            add<AttackSystem>()
+            add<LootSystem>()
+            add<DeathSystem>()
+            add<LifeSystem>()
+            add<PhysicsSystem>()
+            add<AnimationSystem>()
+            add<StateSystem>()
+            add<AiSystem>()
+            add<CameraSystem>()
+            add<FloatingTextSystem>()
+            add<RenderSystem>()
+            add<AudioSystem>()
+            add<DebugSystem>()
+        }
     }
 
     override fun show() {
