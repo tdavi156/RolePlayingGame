@@ -10,10 +10,10 @@ import canAttack?:"com.github.jacks.roleplayinggame.ai.CanAttack"
 subtree name:"attack"
   sequence
     (hasEnemyNearby?) (canAttack?) attack
-    wait seconds:"uniform,1.25,1.5"
+    wait seconds:"uniform,0.98,1.02"
 
 root
   selector
     $attack
-    (random success:0.75) idle duration:"uniform,4.0,6.0"
+    (random success:0.50) idle duration:"uniform,2.0,4.0"
     wander duration:"uniform,2.0,3.0"

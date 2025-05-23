@@ -29,8 +29,8 @@ class CameraSystem (
             val viewHeight = camera.viewportHeight * 0.5f
 
             camera.position.set(
-                (image.x + (image.width * 0.5f)),
-                (image.y + (image.height * 0.5f)),
+                (image.x + (image.width * 0.5f)).coerceIn(viewWidth, maxMapWidth - viewWidth),
+                (image.y + (image.height * 0.5f)).coerceIn(viewHeight, maxMapHeight - viewHeight),
                 camera.position.z
             )
 

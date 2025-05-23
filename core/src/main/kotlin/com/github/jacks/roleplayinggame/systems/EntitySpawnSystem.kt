@@ -153,7 +153,7 @@ class EntitySpawnSystem(
             )
             AnimationModel.SLIME.atlasKey -> SpawnConfiguration(
                 AnimationModel.SLIME,
-                lifeScaling = 5f,
+                lifeScaling = 2f,
                 attackRange = 1f,
                 physicsScaling = vec2(0.3f, 0.3f),
                 physicsOffset = vec2(0f, -2f * UNIT_SCALE),
