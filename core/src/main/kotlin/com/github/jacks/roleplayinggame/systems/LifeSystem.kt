@@ -5,6 +5,7 @@ import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.g2d.Animation
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.math.Vector2
+import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.ui.Label
 import com.badlogic.gdx.scenes.scene2d.ui.Label.LabelStyle
 import com.github.jacks.roleplayinggame.components.AnimationComponent
@@ -14,6 +15,8 @@ import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.DeathComponent
 import com.github.jacks.roleplayinggame.components.FloatingTextComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
+import com.github.jacks.roleplayinggame.events.EntityDamageEvent
+import com.github.jacks.roleplayinggame.events.fire
 import com.github.quillraven.fleks.AllOf
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.Entity
@@ -29,7 +32,8 @@ class LifeSystem(
     private val deathComponents : ComponentMapper<DeathComponent>,
     private val playerComponents : ComponentMapper<PlayerComponent>,
     private val physicsComponents : ComponentMapper<PhysicsComponent>,
-    private val animationComponents : ComponentMapper<AnimationComponent>
+    private val animationComponents : ComponentMapper<AnimationComponent>,
+    private val gameStage : Stage
 ) : IteratingSystem() {
 
     private val damageFont = BitmapFont(Gdx.files.internal("assets/fonts/damage.fnt"))
@@ -42,6 +46,7 @@ class LifeSystem(
         if (lifeComponent.takeDamage > 0f) {
             val physicsComponent = physicsComponents[entity]
             lifeComponent.health -= lifeComponent.takeDamage
+            gameStage.fire(EntityDamageEvent(entity))
             damageText(lifeComponent.takeDamage.roundToInt().toString(), physicsComponent.body.position, physicsComponent.size)
             lifeComponent.takeDamage = 0f
         }

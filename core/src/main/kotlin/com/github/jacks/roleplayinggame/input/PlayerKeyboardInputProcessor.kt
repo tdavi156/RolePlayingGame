@@ -2,35 +2,56 @@ package com.github.jacks.roleplayinggame.input
 
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input.Keys.*
+import com.badlogic.gdx.InputMultiplexer
+import com.badlogic.gdx.InputProcessor
+import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.AttackComponent
 import com.github.jacks.roleplayinggame.components.MoveComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
-import com.github.jacks.roleplayinggame.systems.AnimationSystem
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.World
 import ktx.app.KtxInputAdapter
 import ktx.log.logger
+import ktx.math.vec2
+
+fun gdxInputProcessor(processor : InputProcessor) {
+    val currentProcessor = Gdx.input.inputProcessor
+    if (currentProcessor == null) {
+        Gdx.input.inputProcessor = processor
+    } else {
+        if (currentProcessor is InputMultiplexer) {
+            if (processor !in currentProcessor.processors) {
+                currentProcessor.addProcessor(processor)
+            }
+        } else {
+            Gdx.input.inputProcessor = InputMultiplexer(currentProcessor, processor)
+        }
+    }
+}
 
 class PlayerKeyboardInputProcessor(
     private val world : World,
+    private val uiStage : Stage,
     private val moveComponents : ComponentMapper<MoveComponent> = world.mapper(),
-    private val attackComponents : ComponentMapper<AttackComponent> = world.mapper()
+    private val attackComponents : ComponentMapper<AttackComponent> = world.mapper(),
 ) : KtxInputAdapter {
 
     private var playerSin = 0f
     private var playerCos = 0f
+    private var normalizedVector = vec2()
     private var playerDirection = TO
     private val playerEntities = world.family(allOf = arrayOf(PlayerComponent::class))
 
     init {
-        Gdx.input.inputProcessor = this
+        gdxInputProcessor(this)
     }
 
     private fun updatePlayerMovement() {
+        normalizedVector.set(playerCos, playerSin).nor()
         playerEntities.forEach { player ->
             with (moveComponents[player]) {
-                cos = playerCos
-                sin = playerSin
+                cos = normalizedVector.x
+                sin = normalizedVector.y
             }
         }
     }
@@ -97,6 +118,8 @@ class PlayerKeyboardInputProcessor(
                 }
             }
             return true
+        } else if (keycode == I) {
+            uiStage.actors.get(1).isVisible = !uiStage.actors.get(1).isVisible
         }
         return false
     }

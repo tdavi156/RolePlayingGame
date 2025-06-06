@@ -15,6 +15,7 @@ import com.github.jacks.roleplayinggame.components.StateComponent.Companion.Stat
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.input.PlayerKeyboardInputProcessor
+import com.github.jacks.roleplayinggame.input.gdxInputProcessor
 import com.github.jacks.roleplayinggame.systems.AiSystem
 import com.github.jacks.roleplayinggame.systems.AnimationSystem
 import com.github.jacks.roleplayinggame.systems.AttackSystem
@@ -26,12 +27,17 @@ import com.github.jacks.roleplayinggame.systems.DeathSystem
 import com.github.jacks.roleplayinggame.systems.DebugSystem
 import com.github.jacks.roleplayinggame.systems.EntitySpawnSystem
 import com.github.jacks.roleplayinggame.systems.FloatingTextSystem
+import com.github.jacks.roleplayinggame.systems.InventorySystem
 import com.github.jacks.roleplayinggame.systems.LifeSystem
 import com.github.jacks.roleplayinggame.systems.LootSystem
 import com.github.jacks.roleplayinggame.systems.MoveSystem
 import com.github.jacks.roleplayinggame.systems.PhysicsSystem
 import com.github.jacks.roleplayinggame.systems.RenderSystem
 import com.github.jacks.roleplayinggame.systems.StateSystem
+import com.github.jacks.roleplayinggame.ui.viewmodels.GameViewModel
+import com.github.jacks.roleplayinggame.ui.viewmodels.InventoryViewModel
+import com.github.jacks.roleplayinggame.ui.views.gameView
+import com.github.jacks.roleplayinggame.ui.views.inventoryView
 import com.github.quillraven.fleks.World
 import com.github.quillraven.fleks.world
 import ktx.app.KtxScreen
@@ -39,11 +45,12 @@ import ktx.assets.disposeSafely
 import ktx.box2d.createWorld
 import ktx.log.logger
 import ktx.math.vec2
+import ktx.scene2d.actors
 
 class GameScreen : KtxScreen {
 
     private val gameStage : Stage = Stage(ExtendViewport(16f, 9f))
-    private val uiStage : Stage = Stage(ExtendViewport(1280f, 720f))
+    private val uiStage : Stage = Stage(ExtendViewport(320f, 180f))
     private val textureAtlas : TextureAtlas = TextureAtlas("assets/graphics/gameObjects.atlas")
     private var currentMap : TiledMap? = null
     private val physicsWorld = createWorld(gravity = vec2()).apply {
@@ -73,6 +80,7 @@ class GameScreen : KtxScreen {
             add<MoveSystem>()
             add<AttackSystem>()
             add<LootSystem>()
+            add<InventorySystem>()
             add<DeathSystem>()
             add<LifeSystem>()
             add<PhysicsSystem>()
@@ -84,6 +92,15 @@ class GameScreen : KtxScreen {
             add<RenderSystem>()
             add<AudioSystem>()
             add<DebugSystem>()
+        }
+    }
+
+    init {
+        uiStage.actors {
+            gameView(GameViewModel(entityWorld, gameStage))
+            inventoryView(InventoryViewModel(entityWorld, gameStage)) {
+                isVisible = false
+            }
         }
     }
 
@@ -99,7 +116,8 @@ class GameScreen : KtxScreen {
         currentMap = TmxMapLoader().load("maps/map_1.tmx")
         gameStage.fire(MapChangeEvent(currentMap!!))
 
-        PlayerKeyboardInputProcessor(entityWorld)
+        PlayerKeyboardInputProcessor(entityWorld, uiStage)
+        gdxInputProcessor(uiStage)
     }
 
     override fun resize(width: Int, height: Int) {

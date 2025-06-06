@@ -4,33 +4,30 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.utils.viewport.ExtendViewport
-import com.github.jacks.roleplayinggame.components.LifeComponent
+import com.github.jacks.roleplayinggame.components.InventoryComponent
+import com.github.jacks.roleplayinggame.components.ItemCategory
 import com.github.jacks.roleplayinggame.components.PlayerComponent
-import com.github.jacks.roleplayinggame.events.EntityDamageEvent
-import com.github.jacks.roleplayinggame.events.fire
-import com.github.jacks.roleplayinggame.ui.Drawables
-import com.github.jacks.roleplayinggame.ui.views.gameView
-import com.github.jacks.roleplayinggame.ui.viewmodels.GameViewModel
-import com.github.jacks.roleplayinggame.ui.views.GameView
+import com.github.jacks.roleplayinggame.input.gdxInputProcessor
+import com.github.jacks.roleplayinggame.ui.viewmodels.InventoryViewModel
+import com.github.jacks.roleplayinggame.ui.viewmodels.ItemModel
+import com.github.jacks.roleplayinggame.ui.views.InventoryView
+import com.github.jacks.roleplayinggame.ui.views.inventoryView
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.world
 import ktx.app.KtxScreen
 import ktx.scene2d.actors
 
-class UIScreen : KtxScreen {
+class InventoryScreen : KtxScreen {
     private val stage : Stage = Stage(ExtendViewport(320f, 180f))
     private val entityWorld = world {  }
     private val playerEntity : Entity
-    private val model = GameViewModel(entityWorld, stage)
-    private lateinit var gameView : GameView
+    private val model = InventoryViewModel(entityWorld, stage)
+    private lateinit var inventoryView : InventoryView
 
     init {
         playerEntity = entityWorld.entity {
             add<PlayerComponent>()
-            add<LifeComponent> {
-                maxHealth = 10f
-                health = 7f
-            }
+            add<InventoryComponent>()
         }
     }
 
@@ -38,9 +35,10 @@ class UIScreen : KtxScreen {
         stage.clear()
         stage.addListener(model)
         stage.actors {
-            gameView = gameView(model)
+            inventoryView = inventoryView(model)
         }
-        //stage.isDebugAll = true
+        gdxInputProcessor(stage)
+        stage.isDebugAll = false
     }
 
     override fun render(delta: Float) {
@@ -48,15 +46,12 @@ class UIScreen : KtxScreen {
             hide()
             show()
         } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) {
-            stage.fire(EntityDamageEvent(playerEntity))
+            inventoryView.item(ItemModel(-1, ItemCategory.BOOTS, "boots", 1, false))
         } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_2)) {
-            gameView.playerLife(0.5f)
+            inventoryView.item(ItemModel(-1, ItemCategory.WEAPON, "sword", 3, false))
         } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_3)) {
-            gameView.playerLife(1f)
         } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_4)) {
-            gameView.showEnemyInfo(Drawables.SLIME, 0.75f)
         } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_5)) {
-            gameView.popup("this is a [#ff0000]test[]!")
         }
 
         stage.act()
@@ -71,3 +66,4 @@ class UIScreen : KtxScreen {
         stage.dispose()
     }
 }
+

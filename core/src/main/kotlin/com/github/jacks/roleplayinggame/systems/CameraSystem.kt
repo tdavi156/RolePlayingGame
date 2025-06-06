@@ -12,6 +12,8 @@ import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import ktx.tiled.height
 import ktx.tiled.width
+import kotlin.math.max
+import kotlin.math.min
 
 @AllOf([PlayerComponent::class, ImageComponent::class])
 class CameraSystem (
@@ -27,18 +29,16 @@ class CameraSystem (
         with(imageComponents[entity]) {
             val viewWidth = camera.viewportWidth * 0.5f
             val viewHeight = camera.viewportHeight * 0.5f
+            val minWidth = min(viewWidth, maxMapWidth - viewWidth)
+            val maxWidth = max(viewWidth, maxMapWidth - viewWidth)
+            val minHeight = min(viewHeight, maxMapHeight - viewHeight)
+            val maxHeight = max(viewHeight, maxMapHeight - viewHeight)
 
             camera.position.set(
-                (image.x + (image.width * 0.5f)).coerceIn(viewWidth, maxMapWidth - viewWidth),
-                (image.y + (image.height * 0.5f)).coerceIn(viewHeight, maxMapHeight - viewHeight),
+                (image.x + (image.width * 0.5f)).coerceIn(minWidth, maxWidth),
+                (image.y + (image.height * 0.5f)).coerceIn(minHeight, maxHeight),
                 camera.position.z
             )
-
-//            camera.position.set(
-//                (image.x + (image.width * 0.5f)).coerceIn(viewWidth, maxMapWidth - viewWidth),
-//                (image.y + (image.height * 0.5f)).coerceIn(viewHeight, maxMapHeight - viewHeight),
-//                camera.position.z
-//            )
         }
     }
 

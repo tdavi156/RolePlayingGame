@@ -31,6 +31,8 @@ import com.github.jacks.roleplayinggame.components.CollisionComponent
 import com.github.jacks.roleplayinggame.components.DEFAULT_ATTACK_DAMAGE
 import com.github.jacks.roleplayinggame.components.DEFAULT_LIFE
 import com.github.jacks.roleplayinggame.components.DEFAULT_SPEED
+import com.github.jacks.roleplayinggame.components.InventoryComponent
+import com.github.jacks.roleplayinggame.components.ItemType
 import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.LootComponent
 import com.github.jacks.roleplayinggame.components.MoveComponent
@@ -116,6 +118,12 @@ class EntitySpawnSystem(
                 if (name == AnimationModel.PLAYER.atlasKey) {
                     add<PlayerComponent>()
                     add<StateComponent>()
+                    add<InventoryComponent> {
+                        itemsToAdd += ItemType.SWORD
+                        itemsToAdd += ItemType.HELMET
+                        itemsToAdd += ItemType.BOOTS
+                        itemsToAdd += ItemType.ARMOR
+                    }
                 }
 
                 if (configuration.bodyType != StaticBody) {
