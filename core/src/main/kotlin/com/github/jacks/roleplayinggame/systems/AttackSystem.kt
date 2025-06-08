@@ -6,6 +6,8 @@ import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.AnimationComponent
 import com.github.jacks.roleplayinggame.components.AttackComponent
 import com.github.jacks.roleplayinggame.components.AttackState
+import com.github.jacks.roleplayinggame.components.DialogComponent
+import com.github.jacks.roleplayinggame.components.DisarmComponent
 import com.github.jacks.roleplayinggame.components.ImageComponent
 import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.LootComponent
@@ -19,11 +21,13 @@ import com.github.quillraven.fleks.AllOf
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
+import com.github.quillraven.fleks.NoneOf
 import ktx.box2d.query
 import ktx.math.component1
 import ktx.math.component2
 
 @AllOf([AttackComponent::class, PhysicsComponent::class, ImageComponent::class])
+@NoneOf([DisarmComponent::class])
 class AttackSystem(
     private val attackComponents : ComponentMapper<AttackComponent>,
     private val physicsComponents : ComponentMapper<PhysicsComponent>,
@@ -33,6 +37,7 @@ class AttackSystem(
     private val playerComponents : ComponentMapper<PlayerComponent>,
     private val animationComponents : ComponentMapper<AnimationComponent>,
     private val moveComponents : ComponentMapper<MoveComponent>,
+    private val dialogComponents : ComponentMapper<DialogComponent>,
     private val physicsWorld : World,
     private val stage : Stage
 ) : IteratingSystem() {
@@ -138,8 +143,11 @@ class AttackSystem(
                     }
 
                     if (isAttackerPlayer) {
+                        dialogComponents.getOrNull(it)?.let { dialogComponent ->
+                            dialogComponent.interactingEntity = entity
+                        }
                         lootComponents.getOrNull(it)?.let { lootComponent ->
-                            lootComponent.interactEntity = entity
+                            lootComponent.interactingEntity = entity
                         }
                     }
                 }

@@ -8,6 +8,8 @@ import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.github.jacks.roleplayinggame.events.EntityAttackEvent
 import com.github.jacks.roleplayinggame.events.EntityDeathEvent
 import com.github.jacks.roleplayinggame.events.EntityLootEvent
+import com.github.jacks.roleplayinggame.events.GamePauseEvent
+import com.github.jacks.roleplayinggame.events.GameResumeEvent
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
 import com.github.quillraven.fleks.IntervalSystem
 import ktx.assets.disposeSafely
@@ -19,6 +21,7 @@ class AudioSystem : EventListener, IntervalSystem() {
     private val musicCache = mutableMapOf<String, Music>()
     private val soundCache = mutableMapOf<String, Sound>()
     private val soundRequests = mutableMapOf<String, Sound>()
+    private var music : Music? = null
 
     override fun onTick() {
         if (soundRequests.isEmpty()) {
@@ -34,18 +37,30 @@ class AudioSystem : EventListener, IntervalSystem() {
             is MapChangeEvent -> {
                 event.map.propertyOrNull<String>("background_music")?.let { path ->
                     log.debug { "Music changed to $path" }
-                    val music = musicCache.getOrPut(path) {
+                    val newMusic = musicCache.getOrPut(path) {
                         Gdx.audio.newMusic(Gdx.files.internal("assets/$path")).apply {
                             isLooping = true
                         }
                     }
-                    music.play()
+                    if (music != null && newMusic != music) {
+                        music?.stop()
+                    }
+                    music = newMusic
+                    music?.play()
                 }
                 return true
             }
             is EntityAttackEvent -> queueSound("assets/audio/${event.model.atlasKey}_attack.wav")
             is EntityDeathEvent -> queueSound("assets/audio/${event.model.atlasKey}_death.wav")
             is EntityLootEvent -> queueSound("assets/audio/${event.model.atlasKey}_open.wav")
+            is GamePauseEvent -> {
+                music?.pause()
+                soundCache.values.forEach { it.pause() }
+            }
+            is GameResumeEvent -> {
+                music?.play()
+                soundCache.values.forEach { it.resume() }
+            }
         }
 
         return false

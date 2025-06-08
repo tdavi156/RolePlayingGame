@@ -12,6 +12,8 @@ import com.github.jacks.roleplayinggame.components.AiComponent
 import com.github.jacks.roleplayinggame.components.CollisionComponent
 import com.github.jacks.roleplayinggame.components.ImageComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
+import com.github.jacks.roleplayinggame.components.PlayerComponent
+import com.github.jacks.roleplayinggame.components.PortalComponent
 import com.github.jacks.roleplayinggame.components.TiledComponent
 import com.github.jacks.roleplayinggame.systems.EntitySpawnSystem.Companion.AI_SENSOR
 import com.github.quillraven.fleks.AllOf
@@ -33,7 +35,9 @@ class PhysicsSystem (
     private val physicsComponents : ComponentMapper<PhysicsComponent>,
     private val tiledComponents : ComponentMapper<TiledComponent>,
     private val collisionComponents : ComponentMapper<CollisionComponent>,
-    private val aiComponents : ComponentMapper<AiComponent>
+    private val aiComponents : ComponentMapper<AiComponent>,
+    private val portalComponents : ComponentMapper<PortalComponent>,
+    private val playerComponents : ComponentMapper<PlayerComponent>
 ) : ContactListener, IteratingSystem(interval = Fixed(1 / 60f)) {
 
     init {
@@ -103,6 +107,12 @@ class PhysicsSystem (
             isEntityBAiSensor && isEntityACollisionFixture -> {
                 aiComponents[entityB].nearbyEntities += entityA
             }
+            entityA in portalComponents && entityB in playerComponents && !contact.fixtureB.isSensor -> {
+                portalComponents[entityA].triggerEntities += entityB
+            }
+            entityB in portalComponents && entityA in playerComponents && !contact.fixtureA.isSensor -> {
+                portalComponents[entityB].triggerEntities += entityA
+            }
         }
     }
 
@@ -127,6 +137,7 @@ class PhysicsSystem (
             isEntityBAiSensor && !contact.fixtureA.isSensor -> {
                 aiComponents[entityB].nearbyEntities -= entityA
             }
+
         }
     }
 

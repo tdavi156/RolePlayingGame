@@ -8,6 +8,9 @@ import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.AttackComponent
 import com.github.jacks.roleplayinggame.components.MoveComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
+import com.github.jacks.roleplayinggame.events.GamePauseEvent
+import com.github.jacks.roleplayinggame.events.GameResumeEvent
+import com.github.jacks.roleplayinggame.events.fire
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.World
 import ktx.app.KtxInputAdapter
@@ -31,6 +34,7 @@ fun gdxInputProcessor(processor : InputProcessor) {
 
 class PlayerKeyboardInputProcessor(
     private val world : World,
+    private val gameStage : Stage,
     private val uiStage : Stage,
     private val moveComponents : ComponentMapper<MoveComponent> = world.mapper(),
     private val attackComponents : ComponentMapper<AttackComponent> = world.mapper(),
@@ -41,6 +45,7 @@ class PlayerKeyboardInputProcessor(
     private var normalizedVector = vec2()
     private var playerDirection = TO
     private val playerEntities = world.family(allOf = arrayOf(PlayerComponent::class))
+    private var paused = false
 
     init {
         gdxInputProcessor(this)
@@ -120,6 +125,9 @@ class PlayerKeyboardInputProcessor(
             return true
         } else if (keycode == I) {
             uiStage.actors.get(1).isVisible = !uiStage.actors.get(1).isVisible
+        } else if (keycode == P) {
+            paused = !paused
+            gameStage.fire(if (paused) GamePauseEvent() else GameResumeEvent())
         }
         return false
     }

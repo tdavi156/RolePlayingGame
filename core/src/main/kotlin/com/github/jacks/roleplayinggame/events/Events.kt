@@ -6,6 +6,7 @@ import com.badlogic.gdx.maps.tiled.TiledMapTileLayer.Cell
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.AnimationModel
+import com.github.jacks.roleplayinggame.dialog.Dialog
 import com.github.quillraven.fleks.Entity
 
 fun Stage.fire(event : Event) {
@@ -25,3 +26,9 @@ class EntityLootEvent(val model : AnimationModel) : Event()
 class EntityDamageEvent(val entity : Entity) : Event()
 
 class EntityAddItemEvent(val entity : Entity, val item : Entity) : Event()
+
+class GamePauseEvent : Event()
+
+class GameResumeEvent : Event()
+
+class EntityDialogEvent(val dialog : Dialog) : Event()

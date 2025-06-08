@@ -21,7 +21,7 @@ class LootSystem(
 
     override fun onTickEntity(entity: Entity) {
         with(lootComponents[entity]) {
-            if (interactEntity == null) {
+            if (interactingEntity == null) {
                 return
             }
 

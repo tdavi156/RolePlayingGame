@@ -8,9 +8,11 @@ import com.badlogic.gdx.scenes.scene2d.ui.Skin
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import ktx.assets.disposeSafely
 import ktx.scene2d.Scene2DSkin
+import ktx.style.SkinDsl
 import ktx.style.label
 import ktx.style.set
 import ktx.style.skin
+import ktx.style.textButton
 
 enum class Drawables(
     val atlasKey : String
@@ -31,7 +33,8 @@ enum class Drawables(
 
 enum class Labels {
     FRAME,
-    TITLE;
+    TITLE,
+    LARGE;
 
     val skinKey = this.name.lowercase()
 }
@@ -47,37 +50,62 @@ enum class Fonts(
     val fontPath = "assets/ui/${this.atlasRegionKey}.fnt"
 }
 
+enum class Buttons {
+    TEXT_BUTTON,
+    IMAGE_BUTTON;
+
+    val skinKey = this.name.lowercase()
+}
+
 operator fun Skin.get(drawable : Drawables) : Drawable = this.getDrawable(drawable.atlasKey)
 operator fun Skin.get(font : Fonts) : BitmapFont = this.getFont(font.skinKey)
 
 fun loadSkin() {
     Scene2DSkin.defaultSkin = skin(TextureAtlas("assets/ui/ui.atlas")) { skin ->
-        Fonts.values().forEach { font ->
-            skin[font.skinKey] = BitmapFont(Gdx.files.internal(font.fontPath), skin.getRegion(font.atlasRegionKey)).apply {
-                data.setScale(font.scaling)
-                data.markupEnabled = true
-            }
-        }
+        loadFonts(skin)
+        loadLabels(skin)
+        loadButtons(skin)
+    }
+}
 
-        label(Labels.FRAME.skinKey) {
-            font = skin[Fonts.DEFAULT]
-            background = skin[Drawables.FRAME_FGD].apply {
-                leftWidth = 3f
-                rightWidth = 3f
-                topHeight = 3f
-                bottomHeight = 3f
-            }
+private fun @SkinDsl Skin.loadFonts(skin: Skin) {
+    Fonts.entries.forEach { font ->
+        skin[font.skinKey] = BitmapFont(Gdx.files.internal(font.fontPath), skin.getRegion(font.atlasRegionKey)).apply {
+            data.setScale(font.scaling)
+            data.markupEnabled = true
         }
-        label(Labels.TITLE.skinKey) {
-            font = skin[Fonts.BIG]
-            fontColor = Color.SLATE
-            background = skin[Drawables.FRAME_FGD].apply {
-                leftWidth = 3f
-                rightWidth = 3f
-                topHeight = 3f
-                bottomHeight = 3f
-            }
+    }
+}
+
+private fun @SkinDsl Skin.loadLabels(skin : Skin) {
+    label(Labels.FRAME.skinKey) {
+        font = skin[Fonts.DEFAULT]
+        background = skin[Drawables.FRAME_FGD].apply {
+            leftWidth = 3f
+            rightWidth = 3f
+            topHeight = 3f
+            bottomHeight = 3f
         }
+    }
+    label(Labels.TITLE.skinKey) {
+        font = skin[Fonts.BIG]
+        fontColor = Color.SLATE
+        background = skin[Drawables.FRAME_FGD].apply {
+            leftWidth = 3f
+            rightWidth = 3f
+            topHeight = 3f
+            bottomHeight = 3f
+        }
+    }
+    label(Labels.LARGE.skinKey) {
+        font = skin[Fonts.BIG]
+        fontColor = Color.WHITE
+    }
+}
+
+private fun @SkinDsl Skin.loadButtons(skin: Skin) {
+    textButton(Buttons.TEXT_BUTTON.skinKey) {
+        font = skin[Fonts.DEFAULT]
     }
 }
 

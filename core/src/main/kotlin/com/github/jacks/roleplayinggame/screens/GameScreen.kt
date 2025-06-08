@@ -7,6 +7,7 @@ import com.badlogic.gdx.maps.tiled.TmxMapLoader
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.utils.viewport.ExtendViewport
+import com.github.jacks.roleplayinggame.RolePlayingGame
 import com.github.jacks.roleplayinggame.components.AiComponent.Companion.AiComponentListener
 import com.github.jacks.roleplayinggame.components.FloatingTextComponent.Companion.FloatingTextComponentListener
 import com.github.jacks.roleplayinggame.components.ImageComponent.Companion.ImageComponentListener
@@ -25,6 +26,7 @@ import com.github.jacks.roleplayinggame.systems.CollisionDespawnSystem
 import com.github.jacks.roleplayinggame.systems.CollisionSpawnSystem
 import com.github.jacks.roleplayinggame.systems.DeathSystem
 import com.github.jacks.roleplayinggame.systems.DebugSystem
+import com.github.jacks.roleplayinggame.systems.DialogSystem
 import com.github.jacks.roleplayinggame.systems.EntitySpawnSystem
 import com.github.jacks.roleplayinggame.systems.FloatingTextSystem
 import com.github.jacks.roleplayinggame.systems.InventorySystem
@@ -32,12 +34,17 @@ import com.github.jacks.roleplayinggame.systems.LifeSystem
 import com.github.jacks.roleplayinggame.systems.LootSystem
 import com.github.jacks.roleplayinggame.systems.MoveSystem
 import com.github.jacks.roleplayinggame.systems.PhysicsSystem
+import com.github.jacks.roleplayinggame.systems.PortalSystem
 import com.github.jacks.roleplayinggame.systems.RenderSystem
 import com.github.jacks.roleplayinggame.systems.StateSystem
+import com.github.jacks.roleplayinggame.ui.viewmodels.DialogViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.GameViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.InventoryViewModel
+import com.github.jacks.roleplayinggame.ui.views.PauseView
+import com.github.jacks.roleplayinggame.ui.views.dialogView
 import com.github.jacks.roleplayinggame.ui.views.gameView
 import com.github.jacks.roleplayinggame.ui.views.inventoryView
+import com.github.jacks.roleplayinggame.ui.views.pauseView
 import com.github.quillraven.fleks.World
 import com.github.quillraven.fleks.world
 import ktx.app.KtxScreen
@@ -47,12 +54,10 @@ import ktx.log.logger
 import ktx.math.vec2
 import ktx.scene2d.actors
 
-class GameScreen : KtxScreen {
-
-    private val gameStage : Stage = Stage(ExtendViewport(16f, 9f))
-    private val uiStage : Stage = Stage(ExtendViewport(320f, 180f))
+class GameScreen(game : RolePlayingGame) : KtxScreen {
+    private val gameStage = game.gameStage
+    private val uiStage = game.uiStage
     private val textureAtlas : TextureAtlas = TextureAtlas("assets/graphics/gameObjects.atlas")
-    private var currentMap : TiledMap? = null
     private val physicsWorld = createWorld(gravity = vec2()).apply {
         autoClearForces = false
     }
@@ -77,9 +82,11 @@ class GameScreen : KtxScreen {
             add<EntitySpawnSystem>()
             add<CollisionSpawnSystem>()
             add<CollisionDespawnSystem>()
+            add<PortalSystem>()
             add<MoveSystem>()
             add<AttackSystem>()
             add<LootSystem>()
+            add<DialogSystem>()
             add<InventorySystem>()
             add<DeathSystem>()
             add<LifeSystem>()
@@ -98,8 +105,12 @@ class GameScreen : KtxScreen {
     init {
         uiStage.actors {
             gameView(GameViewModel(entityWorld, gameStage))
+            dialogView(DialogViewModel(gameStage))
             inventoryView(InventoryViewModel(entityWorld, gameStage)) {
-                isVisible = false
+                this.isVisible = false
+            }
+            pauseView {
+                this.isVisible = false
             }
         }
     }
@@ -113,17 +124,28 @@ class GameScreen : KtxScreen {
             }
         }
 
-        currentMap = TmxMapLoader().load("maps/map_1.tmx")
-        gameStage.fire(MapChangeEvent(currentMap!!))
-
-        PlayerKeyboardInputProcessor(entityWorld, uiStage)
+        entityWorld.system<PortalSystem>().setMap("map_1")
+        PlayerKeyboardInputProcessor(entityWorld, gameStage, uiStage)
         gdxInputProcessor(uiStage)
     }
 
-    override fun resize(width: Int, height: Int) {
-        gameStage.viewport.update(width, height, true)
-        uiStage.viewport.update(width, height, true)
+    private fun pauseWorld(pause : Boolean) {
+        val mandatorySystems = setOf(
+            AnimationSystem::class,
+            CameraSystem::class,
+            RenderSystem::class,
+            DebugSystem::class
+        )
+
+        entityWorld.systems
+            .filter { it::class !in mandatorySystems}
+            .forEach { it.enabled = !pause }
+
+        uiStage.actors.filterIsInstance<PauseView>().first().isVisible = pause
     }
+
+    override fun pause() = pauseWorld(true)
+    override fun resume() = pauseWorld(false)
 
     override fun render(delta: Float) {
         val deltaTime = delta.coerceAtMost(0.25f)
@@ -132,11 +154,8 @@ class GameScreen : KtxScreen {
     }
 
     override fun dispose() {
-        gameStage.disposeSafely()
-        uiStage.disposeSafely()
         textureAtlas.disposeSafely()
         entityWorld.dispose()
-        currentMap?.disposeSafely()
     }
 
     companion object {

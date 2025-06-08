@@ -4,18 +4,18 @@ import com.badlogic.gdx.math.Rectangle
 import com.badlogic.gdx.math.Shape2D
 import com.badlogic.gdx.physics.box2d.Body
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType
+import com.badlogic.gdx.physics.box2d.BodyDef.BodyType.StaticBody
 import com.badlogic.gdx.physics.box2d.World
 import com.badlogic.gdx.scenes.scene2d.ui.Image
 import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
 import com.github.jacks.roleplayinggame.systems.CollisionSpawnSystem.Companion.SPAWN_AREA_SIZE
+import com.github.jacks.roleplayinggame.systems.EntitySpawnSystem.Companion.HIT_BOX_SENSOR
 import com.github.quillraven.fleks.ComponentListener
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.EntityCreateCfg
 import ktx.app.gdxError
-import ktx.box2d.BodyDefinition
 import ktx.box2d.body
 import ktx.box2d.box
-import ktx.box2d.circle
 import ktx.box2d.loop
 import ktx.math.vec2
 
@@ -32,7 +32,8 @@ class PhysicsComponent {
             world : World,
             x : Int,
             y : Int,
-            shape : Shape2D
+            shape : Shape2D,
+            isPortal : Boolean = false
         ) : PhysicsComponent {
             when (shape) {
                 is Rectangle -> {
@@ -51,10 +52,15 @@ class PhysicsComponent {
                                 vec2(bodyWidth, 0f),
                                 vec2(bodyWidth, bodyHeight),
                                 vec2(0f, bodyHeight)
-                            )
-                            TEMP_VEC.set(bodyWidth * 0.5f, bodyHeight * 0.5f)
-                            box(SPAWN_AREA_SIZE + 2f, SPAWN_AREA_SIZE + 2f, TEMP_VEC) {
-                                isSensor = true
+                            ) {
+                                this.isSensor = isPortal
+                            }
+
+                            if (!isPortal) {
+                                TEMP_VEC.set(bodyWidth * 0.5f, bodyHeight * 0.5f)
+                                box(SPAWN_AREA_SIZE + 2f, SPAWN_AREA_SIZE + 2f, TEMP_VEC) {
+                                    isSensor = true
+                                }
                             }
                         }
                     }
@@ -63,23 +69,37 @@ class PhysicsComponent {
             }
         }
 
-        fun EntityCreateCfg.physicsComponentFromImage(
+        fun PhysicsComponent.bodyFromImageAndConfiguration(
             world : World,
             image : Image,
-            bodyType : BodyType,
-            fixtureAction : BodyDefinition.(PhysicsComponent, Float, Float) -> Unit
-        ) : PhysicsComponent {
+            configuration: SpawnConfiguration
+        ) : Body {
             val x = image.x
             val y = image.y
             val width = image.width
             val height = image.height
+            val physicsComponent = this
 
-            return add {
-                body = world.body(bodyType) {
-                    position.set(x + width * 0.5f, y + height * 0.5f)
-                    fixedRotation = true
-                    allowSleep = false
-                    this.fixtureAction(this@add, width, height)
+            return world.body(configuration.bodyType) {
+                position.set(x + width * 0.5f, y + height * 0.5f)
+                fixedRotation = true
+                allowSleep = false
+
+                val scaledWidth = width * configuration.physicsScaling.x
+                val scaledHeight = height * configuration.physicsScaling.y
+                physicsComponent.offset.set(configuration.physicsOffset)
+                physicsComponent.size.set(scaledWidth, scaledHeight)
+
+                box(scaledWidth, scaledHeight, configuration.physicsOffset) {
+                    isSensor = configuration.bodyType != StaticBody
+                    userData = HIT_BOX_SENSOR
+                }
+
+                if (configuration.bodyType != StaticBody) {
+                    val collisionHeight = scaledHeight * 0.4f
+                    val collisionOffset = vec2().apply { set(configuration.physicsOffset) }
+                    collisionOffset.y -= scaledHeight * 0.5f - collisionHeight * 0.5f
+                    box(scaledWidth, collisionHeight, collisionOffset)
                 }
             }
         }

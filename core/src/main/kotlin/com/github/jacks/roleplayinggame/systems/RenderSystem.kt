@@ -1,5 +1,6 @@
 package com.github.jacks.roleplayinggame.systems
 
+import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.OrthographicCamera
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer
@@ -44,6 +45,7 @@ class RenderSystem(
             AnimatedTiledMapTile.updateAnimationBaseTime()
             mapRenderer.setView(orthographicCamera)
             if (backgroundLayers.isNotEmpty()) {
+                gameStage.batch.color = Color.WHITE
                 gameStage.batch.use(orthographicCamera.combined) {
                     backgroundLayers.forEach { mapRenderer.renderTileLayer(it) }
                 }
@@ -53,6 +55,7 @@ class RenderSystem(
             draw()
 
             if (foregroundLayers.isNotEmpty()) {
+                gameStage.batch.color = Color.WHITE
                 gameStage.batch.use(orthographicCamera.combined) {
                     foregroundLayers.forEach { mapRenderer.renderTileLayer(it) }
                 }

@@ -1,5 +1,6 @@
 package com.github.jacks.roleplayinggame.systems
 
+import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.g2d.TextureAtlas
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.physics.box2d.World
@@ -11,7 +12,7 @@ import com.github.jacks.roleplayinggame.components.AnimationComponent
 import com.github.jacks.roleplayinggame.components.AnimationModel
 import com.github.jacks.roleplayinggame.components.AnimationType
 import com.github.jacks.roleplayinggame.components.ImageComponent
-import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.physicsComponentFromImage
+import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.bodyFromImageAndConfiguration
 import com.github.jacks.roleplayinggame.components.SpawnComponent
 import com.github.jacks.roleplayinggame.components.SpawnConfiguration
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
@@ -31,14 +32,16 @@ import com.github.jacks.roleplayinggame.components.CollisionComponent
 import com.github.jacks.roleplayinggame.components.DEFAULT_ATTACK_DAMAGE
 import com.github.jacks.roleplayinggame.components.DEFAULT_LIFE
 import com.github.jacks.roleplayinggame.components.DEFAULT_SPEED
+import com.github.jacks.roleplayinggame.components.DialogComponent
+import com.github.jacks.roleplayinggame.components.DialogId
 import com.github.jacks.roleplayinggame.components.InventoryComponent
 import com.github.jacks.roleplayinggame.components.ItemType
 import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.LootComponent
 import com.github.jacks.roleplayinggame.components.MoveComponent
+import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.StateComponent
-import ktx.box2d.box
 import ktx.box2d.circle
 import kotlin.math.roundToInt
 
@@ -51,6 +54,7 @@ class EntitySpawnSystem(
 
     private val cachedConfigurations = mutableMapOf<String, SpawnConfiguration>()
     private val cachedSizes = mutableMapOf<AnimationModel, Vector2>()
+    private val playerEntities = world.family(allOf = arrayOf(PlayerComponent::class))
 
     override fun onTickEntity(entity: Entity) {
         with(spawnComponents[entity]) {
@@ -63,6 +67,7 @@ class EntitySpawnSystem(
                         setPosition(location.x, location.y)
                         setSize(relativeSize.x, relativeSize.y)
                         setScaling(Scaling.fill)
+                        color = this@with.color
                     }
                 }
 
@@ -70,27 +75,13 @@ class EntitySpawnSystem(
                     nextAnimation(configuration.model, AnimationType.IDLE)
                 }
 
-                // Creates the physics box around the entity. Scaled and offset from the configuration
-                val physicsComponent = physicsComponentFromImage(
-                    physicsWorld,
-                    imageComponent.image,
-                    configuration.bodyType
-                ) { physicsComponent, width, height ->
-                    val scaledWidth = width * configuration.physicsScaling.x
-                    val scaledHeight = height * configuration.physicsScaling.y
-                    physicsComponent.offset.set(configuration.physicsOffset)
-                    physicsComponent.size.set(scaledWidth, scaledHeight)
+                val physicsComponent = add<PhysicsComponent> {
+                    body = bodyFromImageAndConfiguration(physicsWorld, imageComponent.image, configuration)
+                }
 
-                    box(scaledWidth, scaledHeight, configuration.physicsOffset) {
-                        isSensor = configuration.bodyType != StaticBody
-                        userData = HIT_BOX_SENSOR
-                    }
-
-                    if (configuration.bodyType != StaticBody) {
-                        val collisionHeight = scaledHeight * 0.4f
-                        val collisionOffset = vec2().apply { set(configuration.physicsOffset) }
-                        collisionOffset.y -= scaledHeight * 0.5f - collisionHeight * 0.5f
-                        box(scaledWidth, collisionHeight, collisionOffset)
+                if (configuration.dialogId != DialogId.NONE) {
+                    add<DialogComponent> {
+                        dialogId = configuration.dialogId
                     }
                 }
 
@@ -148,18 +139,10 @@ class EntitySpawnSystem(
         world.remove(entity)
     }
 
-    private fun spawnConfiguration(type : String) : SpawnConfiguration = cachedConfigurations.getOrPut(type) {
-        when (type) {
-            AnimationModel.PLAYER.atlasKey -> SpawnConfiguration(
-                AnimationModel.PLAYER,
-                speedScaling = 1.5f,
-                lifeScaling = 1f,
-                attackRange = 0.75f,
-                attackScaling = 5f,
-                physicsScaling = vec2(0.3f, 0.3f,),
-                physicsOffset = vec2(0f, -10f * UNIT_SCALE)
-            )
-            AnimationModel.SLIME.atlasKey -> SpawnConfiguration(
+    private fun spawnConfiguration(name : String) : SpawnConfiguration = cachedConfigurations.getOrPut(name) {
+        when (name) {
+            "player" -> PLAYER_CONFIGURATION
+            "slime" -> SpawnConfiguration(
                 AnimationModel.SLIME,
                 lifeScaling = 2f,
                 attackRange = 1f,
@@ -167,7 +150,14 @@ class EntitySpawnSystem(
                 physicsOffset = vec2(0f, -2f * UNIT_SCALE),
                 aiTreePath = "slimeBehavior.tree"
             )
-            AnimationModel.CHEST.atlasKey -> SpawnConfiguration(
+            "slimeDialog" -> SpawnConfiguration(
+                AnimationModel.SLIME,
+                lifeScaling = 0f,
+                physicsScaling = vec2(0.3f, 0.3f),
+                physicsOffset = vec2(0f, -2f * UNIT_SCALE),
+                dialogId = DialogId.SLIME
+            )
+            "chest" -> SpawnConfiguration(
                 AnimationModel.CHEST,
                 speedScaling = 0f,
                 bodyType = StaticBody,
@@ -175,7 +165,7 @@ class EntitySpawnSystem(
                 lifeScaling = 0f,
                 lootable = true
             )
-            else -> gdxError("Type $type has no spawn configuration")
+            else -> gdxError("Type $name has no spawn configuration")
         }
     }
 
@@ -194,10 +184,16 @@ class EntitySpawnSystem(
                 val entityLayer = event.map.layer("entities")
                 entityLayer.objects.forEach { mapObject ->
                     val name = mapObject.name ?: gdxError("Map Object $mapObject has no name")
+
+                    if (name == "player" && playerEntities.isNotEmpty) {
+                        return@forEach
+                    }
+
                     world.entity {
                         add<SpawnComponent> {
                             this.name = name
                             this.location.set(mapObject.x * UNIT_SCALE, mapObject.y * UNIT_SCALE)
+                            this.color = mapObject.property("color", Color.WHITE)
                         }
                     }
                 }
@@ -211,5 +207,14 @@ class EntitySpawnSystem(
     companion object {
         const val HIT_BOX_SENSOR = "hitbox"
         const val AI_SENSOR = "aiSensor"
+        val PLAYER_CONFIGURATION = SpawnConfiguration(
+            AnimationModel.PLAYER,
+            speedScaling = 1.5f,
+            lifeScaling = 1f,
+            attackRange = 0.75f,
+            attackScaling = 5f,
+            physicsScaling = vec2(0.3f, 0.3f,),
+            physicsOffset = vec2(0f, -10f * UNIT_SCALE)
+        )
     }
 }
