@@ -6,9 +6,8 @@ import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.utils.viewport.ExtendViewport
 import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
-import com.github.jacks.roleplayinggame.events.EntityDamageEvent
+import com.github.jacks.roleplayinggame.events.EntityTakeDamageEvent
 import com.github.jacks.roleplayinggame.events.fire
-import com.github.jacks.roleplayinggame.ui.Drawables
 import com.github.jacks.roleplayinggame.ui.views.gameView
 import com.github.jacks.roleplayinggame.ui.viewmodels.GameViewModel
 import com.github.jacks.roleplayinggame.ui.views.GameView
@@ -48,13 +47,13 @@ class UIScreen : KtxScreen {
             hide()
             show()
         } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) {
-            stage.fire(EntityDamageEvent(playerEntity))
+            stage.fire(EntityTakeDamageEvent(playerEntity))
         } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_2)) {
             gameView.playerLife(0.5f)
         } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_3)) {
             gameView.playerLife(1f)
         } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_4)) {
-            gameView.showEnemyInfo(Drawables.SLIME, 0.75f)
+            //gameView.showEnemyInfo(Drawables.SLIME, 0.75f)
         } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_5)) {
             gameView.popup("this is a [#ff0000]test[]!")
         }

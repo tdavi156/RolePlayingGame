@@ -74,48 +74,47 @@ class AttackSystem(
             val halfWidth = width * 0.5f
             val halfHeight = height * 0.5f
 
-
-            /*
-
-
-            ___
-            | |
-            ---
-
-
-             */
             // hitbox rectangle dimensions
-            if (moveComponent.direction == "away") {
-                // attack up
-                AABB_RECT.set(
-                    x + offX - halfWidth * 1.5f,
-                    y + offY,
-                    x + offX + width,
-                    y + offY + attackComponent.extraRange
-                )
-            } else if (moveComponent.direction == "to") {
-                // attack down
-                AABB_RECT.set(
-                    x + offX - halfWidth * 1.7f,
-                    y + offY - (halfHeight * 0.25f) - attackComponent.extraRange,
-                    x + offX + width,
-                    y + offY
-                )
-            } else if (attackLeft) {
-                // attack left
-                AABB_RECT.set(
-                    x + offX - halfWidth - attackComponent.extraRange,
-                    y + offY - halfHeight * 1.7f,
-                    x + offX + halfWidth,
-                    y + offY + halfHeight * 0.5f
-                )
+            if (entity in playerComponents) {
+                if (moveComponent.direction == "away") {
+                    // attack up
+                    AABB_RECT.set(
+                        x + offX - halfWidth * 1.5f,
+                        y + offY,
+                        x + offX + width,
+                        y + offY + attackComponent.extraRange
+                    )
+                } else if (moveComponent.direction == "to") {
+                    // attack down
+                    AABB_RECT.set(
+                        x + offX - halfWidth * 1.7f,
+                        y + offY - (halfHeight * 0.25f) - attackComponent.extraRange,
+                        x + offX + width,
+                        y + offY
+                    )
+                } else if (attackLeft) {
+                    // attack left
+                    AABB_RECT.set(
+                        x + offX - halfWidth - attackComponent.extraRange,
+                        y + offY - halfHeight * 1.7f,
+                        x + offX + halfWidth,
+                        y + offY + halfHeight * 0.5f
+                    )
+                } else {
+                    // attack right
+                    AABB_RECT.set(
+                        x + offX - halfWidth,
+                        y + offY - halfHeight * 1.7f,
+                        x + offX + halfWidth + attackComponent.extraRange,
+                        y + offY + halfHeight * 0.5f
+                    )
+                }
             } else {
-                // attack right
                 AABB_RECT.set(
-                    x + offX - halfWidth,
-                    y + offY - halfHeight * 1.7f,
-                    x + offX + halfWidth + attackComponent.extraRange,
-                    y + offY + halfHeight * 0.5f
+                    x + offX - width * 1.25f,
+                    y + offY - height * 1.25f,
+                    x + offX + width * 1.25f,
+                    y + offY + height * 1.25f
                 )
             }
 
@@ -135,7 +134,6 @@ class AttackSystem(
                 if (!isAttackerPlayer && fixtureEntity !in playerComponents) {
                     return@query true
                 }
-
 
                 configureEntity(fixtureEntity) {
                     lifeComponents.getOrNull(it)?.let { lifeComponent ->

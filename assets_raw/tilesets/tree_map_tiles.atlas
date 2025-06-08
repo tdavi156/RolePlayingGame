@@ -1,0 +1,13 @@
+
+tree_map_tiles.png
+size: 2048, 2048
+format: RGBA8888
+filter: Nearest, Nearest
+repeat: none
+tree_ext
+  rotate: false
+  xy: 0, 420
+  size: 1148, 728
+  orig: 1148, 728
+  offset: 0, 0
+  index: -1

@@ -9,6 +9,8 @@ import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
 import com.github.jacks.roleplayinggame.components.ImageComponent
+import com.github.jacks.roleplayinggame.components.InventoryComponent
+import com.github.jacks.roleplayinggame.components.ItemComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.bodyFromImageAndConfiguration
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.physicsComponentFromShape2D
@@ -38,16 +40,15 @@ class PortalSystem(
     private val gameStage : Stage,
     private val portalComponents : ComponentMapper<PortalComponent>,
     private val physicsComponents : ComponentMapper<PhysicsComponent>,
-    private val imageComponents : ComponentMapper<ImageComponent>
+    private val imageComponents : ComponentMapper<ImageComponent>,
 ) : IteratingSystem(), EventListener {
 
     private var currentMap : TiledMap? = null
 
     fun setMap(mapName : String, targetPortalId : Int = -1) {
         currentMap?.disposeSafely()
-        world.family(noneOf = arrayOf(PlayerComponent::class)).forEach { world.remove(it) }
+        world.family(noneOf = arrayOf(PlayerComponent::class, ItemComponent::class)).forEach { world.remove(it) }
         val newMap = TmxMapLoader().load("maps/$mapName.tmx")
-        gameStage.fire(MapChangeEvent(newMap))
         currentMap = newMap
 
         if (targetPortalId != -1) {
@@ -67,6 +68,8 @@ class PortalSystem(
                 }
             }
         }
+
+        gameStage.fire(MapChangeEvent(newMap))
     }
 
     private fun targetPortalById(map : TiledMap, portalId : Int) : MapObject {

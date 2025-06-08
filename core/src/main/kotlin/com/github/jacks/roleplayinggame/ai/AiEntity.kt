@@ -171,7 +171,7 @@ data class AiEntity(
         val enemyPhysicsComponent = physicsComponents[enemy]
         val (sourceX, sourceY) = enemyPhysicsComponent.body.position
         val (offsetX, offsetY) = enemyPhysicsComponent.offset
-        return inRange(1.5f + attackComponent.extraRange, vec2(sourceX + offsetX, sourceY + offsetY))
+        return inRange(1.75f, vec2(sourceX + offsetX, sourceY + offsetY))
     }
 
     fun hasEnemyNearby() = getNearbyEnemies().isNotEmpty()
@@ -179,6 +179,6 @@ data class AiEntity(
     private fun getNearbyEnemies() : List<Entity>{
         val aiComponent = aiComponents[entity]
         return aiComponent.nearbyEntities
-            .filter { it in playerComponents && !lifeComponents[entity].isDead }
+            .filter { it in playerComponents && !lifeComponents[it].isDead }
     }
 }

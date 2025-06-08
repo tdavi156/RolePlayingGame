@@ -68,7 +68,7 @@ fun loadSkin() {
     }
 }
 
-private fun @SkinDsl Skin.loadFonts(skin: Skin) {
+private fun loadFonts(skin: Skin) {
     Fonts.entries.forEach { font ->
         skin[font.skinKey] = BitmapFont(Gdx.files.internal(font.fontPath), skin.getRegion(font.atlasRegionKey)).apply {
             data.setScale(font.scaling)

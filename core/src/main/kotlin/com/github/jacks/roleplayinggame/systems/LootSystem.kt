@@ -25,7 +25,7 @@ class LootSystem(
                 return
             }
 
-            stage.fire(EntityLootEvent(animationComponents[entity].model))
+            stage.fire(EntityLootEvent(interactingEntity!!, animationComponents[entity].model))
             configureEntity(entity) { lootComponents.remove(it) }
             animationComponents.getOrNull(entity)?.let { animationComponent ->
                 animationComponent.nextAnimation(AnimationType.OPEN)

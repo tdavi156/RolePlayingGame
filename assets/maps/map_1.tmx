@@ -3,17 +3,17 @@
  <properties>
   <property name="background_music" type="file" value="../audio/field_theme_1.wav"/>
  </properties>
- <tileset firstgid="1" source="outdoor_map_tiles.tsx"/>
- <tileset firstgid="5330" source="decorations_A_map_tiles.tsx"/>
+ <tileset firstgid="1" source="tiles/outdoor_map_tiles.tsx"/>
+ <tileset firstgid="5330" source="tiles/decorations_A_map_tiles.tsx"/>
  <tileset firstgid="10659" name="entities" tilewidth="48" tileheight="48" tilecount="3" columns="0">
   <grid orientation="orthogonal" width="1" height="1"/>
-  <tile id="2">
+  <tile id="0">
    <image source="../../assets_raw/packable/player/idleto_00.png" width="48" height="48"/>
   </tile>
-  <tile id="3">
+  <tile id="1">
    <image source="../../assets_raw/packable/slime/idleto_00.png" width="32" height="32"/>
   </tile>
-  <tile id="4">
+  <tile id="2">
    <image source="../../assets_raw/packable/chest/idleto_00.png" width="16" height="16"/>
   </tile>
  </tileset>
@@ -29,7 +29,7 @@
  </layer>
  <layer id="7" name="background_3" width="52" height="36">
   <data encoding="base64" compression="zlib">
-   eJzbyMXAsAmIfwPxTyD+RQZ7DRDDwCoyzaAWG8Z34WZgcAJiZ27S2V+R/POZizwzqMWG8e2A2AaIbclkwwAlZlCDje4eSsFSIeqZNQpGwSgYBcQCbOUrNdWPAtxgKIclrdw+WhfSF8jIMzDIytPeHlqm9R45BoZeOeqbS2vwRxJCo8fBVaBfriH5568kfd1FKaBXmgKBgS5DU0nwJz3dis+uP1jS02i5OwoGCgx0Hh4FgwuMpgf6gsEe3oPBfYPBDYMZoLcfBkt4DRZ3DFUA61sNl3BE71sNZzBY+hvU1EMuGKj0OxTyDQB9UXKG
+   eJzbyMXAsAmIfwPxTyD+RQZ7DRDDwCoyzaAWG8Z34WZgcAJiZ27S2V+R/POZizwzqMWG8e2A2AaIbclkwwAlZlCDje6eUTAKRsEoGIoAW/lKTfWjADcYymFJK7cvFaKueaMAP5CRZ2CQlae9PbRM6z1yDAy9ctQ3l9bgjySERo+Dq0C/XEPyz19J+rqLUkCvNAUCA12GppLgT3q6FZ9df7Ckp9FydxQMFBjoPDwKBhcYTQ/0BYM9vAeD+waDGwYzQG8/DJbwGizuGKoA1rcaLuGI3rcazmCw9DeoqYdcMFDpdyjkGwCKxnHP
   </data>
  </layer>
  <layer id="4" name="foreground_1" width="52" height="36">
@@ -38,40 +38,40 @@
   </data>
  </layer>
  <objectgroup id="5" name="entities">
-  <object id="1" name="player" gid="10661" x="400" y="544" width="48" height="48"/>
-  <object id="2" name="slime" gid="10662" x="64" y="256" width="32" height="32"/>
-  <object id="3" name="slime" gid="10662" x="96" y="224" width="32" height="32"/>
-  <object id="4" name="slime" gid="10662" x="112" y="272" width="32" height="32"/>
-  <object id="5" name="slime" gid="10662" x="720" y="432" width="32" height="32"/>
-  <object id="6" name="slime" gid="10662" x="688" y="480" width="32" height="32"/>
-  <object id="7" name="slime" gid="10662" x="736" y="496" width="32" height="32"/>
-  <object id="8" name="slime" gid="10662" x="256" y="464" width="32" height="32"/>
-  <object id="9" name="slime" gid="10662" x="512" y="368" width="32" height="32"/>
-  <object id="10" name="slime" gid="10662" x="128" y="496" width="32" height="32"/>
-  <object id="11" name="slime" gid="10662" x="176" y="464" width="32" height="32"/>
-  <object id="12" name="slime" gid="10662" x="576" y="224" width="32" height="32"/>
-  <object id="13" name="slime" gid="10662" x="608" y="304" width="32" height="32"/>
-  <object id="14" name="slime" gid="10662" x="640" y="352" width="32" height="32"/>
-  <object id="15" name="slime" gid="10662" x="720" y="288" width="32" height="32"/>
-  <object id="16" name="slime" gid="10662" x="288" y="112" width="32" height="32"/>
-  <object id="17" name="slime" gid="10662" x="352" y="112" width="32" height="32"/>
-  <object id="18" name="slime" gid="10662" x="320" y="144" width="32" height="32"/>
-  <object id="19" name="slime" gid="10662" x="240" y="112" width="32" height="32"/>
-  <object id="20" name="slime" gid="10662" x="256" y="160" width="32" height="32"/>
-  <object id="21" name="slime" gid="10662" x="400" y="96" width="32" height="32"/>
-  <object id="22" name="chest" gid="10663" x="176" y="496" width="16" height="16"/>
-  <object id="23" name="chest" gid="10663" x="640" y="224" width="16" height="16"/>
-  <object id="24" name="chest" gid="10663" x="608" y="480" width="16" height="16"/>
-  <object id="25" name="chest" gid="10663" x="160" y="288" width="16" height="16"/>
-  <object id="26" name="chest" gid="10663" x="256" y="80" width="16" height="16"/>
+  <object id="1" name="player" gid="10659" x="400" y="560" width="48" height="48"/>
+  <object id="2" name="slime" gid="10660" x="144" y="512" width="32" height="32"/>
+  <object id="3" name="slime" gid="10660" x="176" y="480" width="32" height="32"/>
+  <object id="4" name="slime" gid="10660" x="48" y="256" width="32" height="32"/>
+  <object id="5" name="slime" gid="10660" x="96" y="208" width="32" height="32"/>
+  <object id="6" name="slime" gid="10660" x="112" y="288" width="32" height="32"/>
+  <object id="7" name="slime" gid="10660" x="736" y="464" width="32" height="32"/>
+  <object id="8" name="slime" gid="10660" x="768" y="496" width="32" height="32"/>
+  <object id="9" name="slime" gid="10660" x="624" y="304" width="32" height="32"/>
+  <object id="10" name="slime" gid="10660" x="576" y="224" width="32" height="32"/>
+  <object id="11" name="slime" gid="10660" x="656" y="208" width="32" height="32"/>
+  <object id="12" name="slime" gid="10660" x="672" y="352" width="32" height="32"/>
+  <object id="13" name="slime" gid="10660" x="240" y="96" width="32" height="32"/>
+  <object id="14" name="slime" gid="10660" x="272" y="112" width="32" height="32"/>
+  <object id="15" name="slime" gid="10660" x="320" y="96" width="32" height="32"/>
+  <object id="16" name="slime" gid="10660" x="352" y="144" width="32" height="32"/>
+  <object id="17" name="slime" gid="10660" x="256" y="144" width="32" height="32"/>
+  <object id="18" name="slime" gid="10660" x="368" y="80" width="32" height="32"/>
+  <object id="19" name="chest" gid="10661" x="272" y="192" width="16" height="16"/>
+  <object id="20" name="chest" gid="10661" x="64" y="320" width="16" height="16"/>
+  <object id="21" name="chest" gid="10661" x="224" y="528" width="16" height="16"/>
+  <object id="22" name="chest" gid="10661" x="544" y="208" width="16" height="16"/>
+  <object id="23" name="chest" gid="10661" x="704" y="288" width="16" height="16"/>
+  <object id="24" name="chest" gid="10661" x="752" y="432" width="16" height="16"/>
+  <object id="27" name="sign_1" gid="4773" x="432" y="528" width="16" height="16"/>
+  <object id="28" name="sign_2" gid="4773" x="320" y="64" width="16" height="16"/>
  </objectgroup>
- <objectgroup color="#5c6cff" id="6" name="portals">
-  <object id="27" x="272" y="0.125" width="64" height="8.75">
+ <objectgroup color="#2411f9" id="6" name="portals">
+  <object id="25" name="toMap2" x="272.182" y="0.363636" width="63.6364" height="8.90909">
    <properties>
     <property name="toMap" value="map_2"/>
-    <property name="toPortal" type="int" value="1"/>
+    <property name="toPortal" type="int" value="2"/>
    </properties>
   </object>
-  <object id="28" x="295.375" y="25.625" width="17.5" height="17.25"/>
+  <object id="26" name="fromMap2" x="298.364" y="22" width="10.1818" height="9.81818"/>
  </objectgroup>
 </map>

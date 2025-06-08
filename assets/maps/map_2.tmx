@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="52" height="36" tilewidth="16" tileheight="16" infinite="0" nextlayerid="9" nextobjectid="8">
+ <tileset firstgid="1" source="tiles/outdoor_map_tiles.tsx"/>
+ <tileset firstgid="5330" source="tiles/decorations_A_map_tiles.tsx"/>
+ <tileset firstgid="10659" name="entities" tilewidth="32" tileheight="32" tilecount="2" columns="0">
+  <grid orientation="orthogonal" width="1" height="1"/>
+  <tile id="0">
+   <image source="../../assets_raw/packable/chest/idleto_00.png" width="16" height="16"/>
+  </tile>
+  <tile id="1">
+   <image source="../../assets_raw/packable/slime/idleto_00.png" width="32" height="32"/>
+  </tile>
+ </tileset>
+ <layer id="1" name="background_1" width="52" height="36">
+  <data encoding="base64" compression="zlib">
+   eJztwzENAAAMBKHbavb9zzUCCbuaqqqqqqqqqj0DHEke
+  </data>
+ </layer>
+ <layer id="3" name="background_2" width="52" height="36">
+  <data encoding="base64" compression="zlib">
+   eJzdWVtuwzAMy6d7jHzsLF1yui05XZscpjMaYQQnx7bsZo0FCFiBjdaDpuSu68ptcF03b351FQD/2SbI56uhfMbG8mmpP74364/fGslnBs75nO7gZ7Np680c8DNyUDR7pV7NJ+bgp/v1oYEeoTEHz56PtwE4d1Q+r9Qi1L2j7tAr765w7sgeoSbVzmki7Jx87kbeXDctYp29ZeKEDLFT80GeSr1zeyvn8lws5chkiMn/zcelnKs8E2vsy5ZdVfbB/vLMq6SuMgtzORKLzcK30dn5puGV4nBsOVg137w13zOTsdeo9dYYvjdNWwCrdN5KXKuCtedLhZoyb3nWWmrFmIit7eI8C0s4r+m+tj9o9dzD5BkQ+sx1LNUk1AF/B3n35zjw/NCZ2B/EjDnustZ9JaSt/J7mXPZ4aNUW5oolp719OFbDvXzkuxKLvpXslYiRcj7yM3SvSnRqcH85oZ0Tiy91nvNdH51+t0WvrTuYpkupcWJNYlqG/QnpcE59YjGtCj5yY1HwNX318cheyHGl6FSN3VbD1WaVlg/PBPm5N+y61n0nBZc5MQbwuQ799haRN4lFd2vstlqcfL9S47HOa8t7Idew9jm/L55j1vnzrtba/1IW4OkR38E9AO9jRLQ=
+  </data>
+ </layer>
+ <layer id="7" name="background_3" width="52" height="36">
+  <data encoding="base64" compression="zlib">
+   eJzbyMXAsAmIfwPxTyD+RQZ7DRDDwCoyzaAWG8Z34WZgcAJiZ27S2V+R/POZizwzqMWG8e2A2AaIbclkwwAlZlCDje4eSsFSIeqZNQpGwSgYBcQCbOUrNdWPAtxgKIclrdw+WhfSF8jIMzDIytPeHlqm9R45BoZeOeqbS2vwRxJCo8fBVaBfriH5568kfd1FKaBXmgKBgS5DU0nwJz3dis+uP1jS02i5OwoGCgx0Hh4FgwuMpgf6gsEe3oPBfYPBDYMZoLcfBkt4DRZ3DFUA61sNl3BE71sNZzBY+hvU1EMuGKj0OxTyDQB9UXKG
+  </data>
+ </layer>
+ <layer id="4" name="foreground_1" width="52" height="36">
+  <data encoding="base64" compression="zlib">
+   eJztlFEOgCAMQ/fN/U+h3k79lwMQg7KVTvuS/UFo2g4zIYQQbCzFbK2zlZjzaPaq66hzdup7et4Tdi/vaGmf6eUombVnIHPXW6gvHGTqVY9Wr14hfEHugPbtu2Ta4R7U1THUByzsfj/VF+G3p0cMfYjWwNIpLx0Mmc3UwZKnFyx5RoLM7M1byH8d8VbrTlQGs/r7h71h4wKXGGsO
+  </data>
+ </layer>
+ <objectgroup id="5" name="entities">
+  <object id="3" name="chest" gid="10659" x="368" y="480" width="16" height="16"/>
+  <object id="4" name="chest" gid="10659" x="464" y="464" width="16" height="16"/>
+  <object id="5" name="chest" gid="10659" x="320" y="560" width="16" height="16">
+   <properties>
+    <property name="background_music" type="file" value="../audio/field_theme_1.wav"/>
+   </properties>
+  </object>
+  <object id="6" name="chest" gid="10659" x="368" y="384" width="16" height="16"/>
+  <object id="7" name="slimeDialog" gid="10660" x="432" y="400" width="32" height="32">
+   <properties>
+    <property name="color" type="color" value="#ff9a9a9a"/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup color="#221aff" id="6" name="portals">
+  <object id="1" name="toMap_1" x="384.182" y="567.273" width="63.6364" height="8.36364">
+   <properties>
+    <property name="toMap" value="map_1"/>
+    <property name="toPortal" type="int" value="26"/>
+   </properties>
+  </object>
+  <object id="2" name="fromMap_1" x="409.455" y="540.909" width="12.7273" height="12.3636"/>
+ </objectgroup>
+</map>

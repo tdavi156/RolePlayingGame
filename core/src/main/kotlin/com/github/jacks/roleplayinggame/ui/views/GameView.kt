@@ -33,17 +33,19 @@ class GameView(
 ) : Table(skin), KTable {
 
     private val playerInfo : CharacterInfo
-    private val enemyInfo : CharacterInfo
+    //private val enemyInfo : CharacterInfo
     private val popupLabel : Label
 
     init {
         // UI elements
         setFillParent(true)
 
+        /*
         enemyInfo = characterInfo(Drawables.PLAYER) {
             this.alpha = 0f
             it.row()
         }
+         */
 
         table {
             background = skin[Drawables.FRAME_BGD]
@@ -54,7 +56,7 @@ class GameView(
             }
 
             this.alpha = 0f
-            it.expand().width(130f).height(90f).top().row()
+            it.expand().width(130f).height(40f).top().padTop(8f).row()
         }
 
         playerInfo = characterInfo(Drawables.PLAYER)
@@ -64,9 +66,11 @@ class GameView(
         model.onPropertyChange(GameViewModel::playerLife) { playerLife ->
             playerLife(playerLife)
         }
+        /*
         model.onPropertyChange(GameViewModel::enemyLife) { enemyLife ->
             enemyLife(enemyLife)
         }
+         */
         model.onPropertyChange(GameViewModel::lootText) { lootText ->
             popup(lootText)
         }
@@ -76,9 +80,11 @@ class GameView(
         playerInfo.life(percentage)
     }
 
+    /*
     fun enemyLife(percentage : Float) {
         enemyInfo.life(percentage)
     }
+     */
 
     private fun Actor.resetFadeOutDelay() {
         this.actions.filterIsInstance<SequenceAction>().lastOrNull()?.let { sequence ->
@@ -87,6 +93,7 @@ class GameView(
         }
     }
 
+    /*
     fun showEnemyInfo(charDrawable : Drawables, lifePercentage : Float) {
         enemyInfo.character(charDrawable)
         enemyInfo.life(lifePercentage, 0f)
@@ -98,13 +105,14 @@ class GameView(
             enemyInfo.resetFadeOutDelay()
         }
     }
+     */
 
     fun popup(infoText : String) {
         popupLabel.txt = infoText
 
         if (popupLabel.parent.alpha == 0f) {
             popupLabel.parent.clearActions()
-            popupLabel.parent += sequence(fadeIn(0.2f), delay(4f, fadeOut(0.75f)))
+            popupLabel.parent += sequence(fadeIn(0.2f), delay(1.5f, fadeOut(0.3f)))
         } else {
             popupLabel.parent.resetFadeOutDelay()
         }

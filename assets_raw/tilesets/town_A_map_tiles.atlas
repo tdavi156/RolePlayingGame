@@ -1,0 +1,13 @@
+
+town_A_map_tiles.png
+size: 2048, 2048
+format: RGBA8888
+filter: Nearest, Nearest
+repeat: none
+town_A_ext
+  rotate: false
+  xy: 0, 0
+  size: 1148, 1148
+  orig: 1148, 1148
+  offset: 0, 0
+  index: -1

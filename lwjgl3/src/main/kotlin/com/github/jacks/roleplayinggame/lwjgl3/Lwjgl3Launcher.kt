@@ -13,7 +13,7 @@ fun main() {
       return
     Lwjgl3Application(RolePlayingGame(), Lwjgl3ApplicationConfiguration().apply {
         setTitle("RolePlayingGame")
-        setWindowedMode(1280, 960)
+        setWindowedMode(1600, 900)
         setWindowIcon(*(arrayOf(128, 64, 32, 16).map { "libgdx$it.png" }.toTypedArray()))
     })
 }

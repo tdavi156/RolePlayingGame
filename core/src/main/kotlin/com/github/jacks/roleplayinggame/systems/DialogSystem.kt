@@ -49,24 +49,41 @@ class DialogSystem(
     }
 
     private fun getDialog(dialogId : DialogId) : Dialog {
+        val slimeDialog = dialog(dialogId.name) {
+            node(0, "Hello, I am a Slime. Welcome to the world of Slime Land") {
+                option("Continue") {
+                    action = { this@dialog.goToNode(1) }
+                }
+            }
+            node(1, "Can you help me defeat the other slimes?") {
+                option("Back") {
+                    action = { this@dialog.goToNode(0) }
+                }
+                option("Yes") {
+                    action = { this@dialog.endDialog() }
+                }
+            }
+        }
+        val sign1Dialog = dialog(dialogId.name) {
+            node(0, "Welcome to Slime World. \n Go forward for Map 2. \n Go to the left for Map 3. \n Go to the right for Map 4.") {
+                option("Okay") {
+                    action = { this@dialog.endDialog() }
+                }
+            }
+        }
+        val sign2Dialog = dialog(dialogId.name) {
+            node(0, "This way leads to Map 2") {
+                option("Okay") {
+                    action = { this@dialog.endDialog() }
+                }
+            }
+        }
+
         return dialogCache.getOrPut(dialogId) {
             when (dialogId) {
-                DialogId.SLIME -> dialog(dialogId.name) {
-                    node(0, "test for node 0") {
-                        option("test option 0 in node 0") {
-                            action = { this@dialog.goToNode(1) }
-                        }
-                    }
-                    node(1, "test for node 1") {
-                        option("test option 0 for node 1") {
-                            action = { this@dialog.goToNode(0) }
-                        }
-                        option("test option 1 for node 1") {
-                            action = { this@dialog.endDialog() }
-                        }
-                    }
-                }
-                // add new dialogs here
+                DialogId.SLIME -> slimeDialog
+                DialogId.SIGN_1 -> sign1Dialog
+                DialogId.SIGN_2 -> sign2Dialog
                 else -> gdxError("No dialog configured for $dialogId.")
             }
         }

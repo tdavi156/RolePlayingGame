@@ -35,7 +35,6 @@ import com.github.jacks.roleplayinggame.components.DEFAULT_SPEED
 import com.github.jacks.roleplayinggame.components.DialogComponent
 import com.github.jacks.roleplayinggame.components.DialogId
 import com.github.jacks.roleplayinggame.components.InventoryComponent
-import com.github.jacks.roleplayinggame.components.ItemType
 import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.LootComponent
 import com.github.jacks.roleplayinggame.components.MoveComponent
@@ -49,7 +48,7 @@ import kotlin.math.roundToInt
 class EntitySpawnSystem(
     private val physicsWorld : World,
     private val atlas : TextureAtlas,
-    private val spawnComponents : ComponentMapper<SpawnComponent>
+    private val spawnComponents : ComponentMapper<SpawnComponent>,
 ) : EventListener, IteratingSystem() {
 
     private val cachedConfigurations = mutableMapOf<String, SpawnConfiguration>()
@@ -61,7 +60,7 @@ class EntitySpawnSystem(
             val configuration = spawnConfiguration(name)
             val relativeSize = size(configuration.model)
 
-            world.entity {
+            val spawnedEntity = world.entity {
                 val imageComponent = add<ImageComponent> {
                     image = FlipImage().apply {
                         setPosition(location.x, location.y)
@@ -106,15 +105,10 @@ class EntitySpawnSystem(
                     }
                 }
 
-                if (name == AnimationModel.PLAYER.atlasKey) {
+                if (name == PLAYER_NAME) {
                     add<PlayerComponent>()
                     add<StateComponent>()
-                    add<InventoryComponent> {
-                        itemsToAdd += ItemType.SWORD
-                        itemsToAdd += ItemType.HELMET
-                        itemsToAdd += ItemType.BOOTS
-                        itemsToAdd += ItemType.ARMOR
-                    }
+                    add<InventoryComponent>()
                 }
 
                 if (configuration.bodyType != StaticBody) {
@@ -142,14 +136,7 @@ class EntitySpawnSystem(
     private fun spawnConfiguration(name : String) : SpawnConfiguration = cachedConfigurations.getOrPut(name) {
         when (name) {
             "player" -> PLAYER_CONFIGURATION
-            "slime" -> SpawnConfiguration(
-                AnimationModel.SLIME,
-                lifeScaling = 2f,
-                attackRange = 1f,
-                physicsScaling = vec2(0.3f, 0.3f),
-                physicsOffset = vec2(0f, -2f * UNIT_SCALE),
-                aiTreePath = "slimeBehavior.tree"
-            )
+            "slime" -> SLIME_CONFIGURATION
             "slimeDialog" -> SpawnConfiguration(
                 AnimationModel.SLIME,
                 lifeScaling = 0f,
@@ -165,6 +152,8 @@ class EntitySpawnSystem(
                 lifeScaling = 0f,
                 lootable = true
             )
+            "sign_1" -> SIGN_1_CONFIGURATION
+            "sign_2" -> SIGN_2_CONFIGURATION
             else -> gdxError("Type $name has no spawn configuration")
         }
     }
@@ -207,6 +196,8 @@ class EntitySpawnSystem(
     companion object {
         const val HIT_BOX_SENSOR = "hitbox"
         const val AI_SENSOR = "aiSensor"
+        const val PLAYER_NAME = "player"
+        const val CHEST_NAME = "chest"
         val PLAYER_CONFIGURATION = SpawnConfiguration(
             AnimationModel.PLAYER,
             speedScaling = 1.5f,
@@ -215,6 +206,32 @@ class EntitySpawnSystem(
             attackScaling = 5f,
             physicsScaling = vec2(0.3f, 0.3f,),
             physicsOffset = vec2(0f, -10f * UNIT_SCALE)
+        )
+        val SLIME_CONFIGURATION = SpawnConfiguration(
+            AnimationModel.SLIME,
+            speedScaling = 0.5f,
+            lifeScaling = 2f,
+            attackRange = 1f,
+            attackScaling = 2f,
+            physicsScaling = vec2(0.3f, 0.3f),
+            physicsOffset = vec2(0f, -2f * UNIT_SCALE),
+            aiTreePath = "slimeBehavior.tree"
+        )
+        val SIGN_1_CONFIGURATION = SpawnConfiguration(
+            AnimationModel.SIGN,
+            lifeScaling = 0f,
+            speedScaling = 0f,
+            bodyType = StaticBody,
+            canAttack = false,
+            dialogId = DialogId.SIGN_1
+        )
+        val SIGN_2_CONFIGURATION = SpawnConfiguration(
+            AnimationModel.SIGN,
+            lifeScaling = 0f,
+            speedScaling = 0f,
+            bodyType = StaticBody,
+            canAttack = false,
+            dialogId = DialogId.SIGN_2
         )
     }
 }

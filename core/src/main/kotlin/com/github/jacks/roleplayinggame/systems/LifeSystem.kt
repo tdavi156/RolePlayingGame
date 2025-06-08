@@ -14,8 +14,10 @@ import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.DeathComponent
 import com.github.jacks.roleplayinggame.components.FloatingTextComponent
+import com.github.jacks.roleplayinggame.components.MoveComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
-import com.github.jacks.roleplayinggame.events.EntityDamageEvent
+import com.github.jacks.roleplayinggame.events.EntityDeathEvent
+import com.github.jacks.roleplayinggame.events.EntityTakeDamageEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.quillraven.fleks.AllOf
 import com.github.quillraven.fleks.ComponentMapper
@@ -46,13 +48,14 @@ class LifeSystem(
         if (lifeComponent.takeDamage > 0f) {
             val physicsComponent = physicsComponents[entity]
             lifeComponent.health -= lifeComponent.takeDamage
-            gameStage.fire(EntityDamageEvent(entity))
+            gameStage.fire(EntityTakeDamageEvent(entity))
             damageText(lifeComponent.takeDamage.roundToInt().toString(), physicsComponent.body.position, physicsComponent.size)
             lifeComponent.takeDamage = 0f
         }
 
         if (lifeComponent.isDead) {
             animationComponents.getOrNull(entity)?.let { animationComponent ->
+                gameStage.fire(EntityDeathEvent(animationComponent.model))
                 animationComponent.nextAnimation(AnimationType.DEATH)
                 animationComponent.playMode = Animation.PlayMode.NORMAL
             }
@@ -71,7 +74,7 @@ class LifeSystem(
         world.entity {
             add<FloatingTextComponent> {
                 textStartLocation.set(position.x, position.y - size.y * 0.5f)
-                textDuration = 2f
+                textDuration = 1.5f
                 label = Label(text, floatingTextStyle)
                 label.setFontScale(0.75f)
             }

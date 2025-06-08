@@ -8,6 +8,7 @@ import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.utils.viewport.ExtendViewport
+import com.badlogic.gdx.utils.viewport.FitViewport
 import com.github.jacks.roleplayinggame.events.GamePauseEvent
 import com.github.jacks.roleplayinggame.events.GameResumeEvent
 import com.github.jacks.roleplayinggame.screens.GameScreen
@@ -23,8 +24,8 @@ import ktx.assets.disposeSafely
 class RolePlayingGame : KtxGame<KtxScreen>(), EventListener{
 
     private val batch : Batch by lazy { SpriteBatch() }
-    val gameStage : Stage by lazy { Stage(ExtendViewport(16f, 9f), batch) }
-    val uiStage : Stage by lazy { Stage(ExtendViewport(320f, 180f), batch) }
+    val gameStage : Stage by lazy { Stage(FitViewport(16f * CAMERA_ZOOM, 9f * CAMERA_ZOOM), batch) }
+    val uiStage : Stage by lazy { Stage(FitViewport(320f, 180f), batch) }
     private var paused = false
 
     override fun create() {
@@ -36,8 +37,6 @@ class RolePlayingGame : KtxGame<KtxScreen>(), EventListener{
         addScreen(UIScreen())
         addScreen(InventoryScreen())
         setScreen<GameScreen>()
-        //setScreen<UIScreen>()
-        //setScreen<InventoryScreen>()
     }
 
     override fun render() {
@@ -61,6 +60,7 @@ class RolePlayingGame : KtxGame<KtxScreen>(), EventListener{
 
     companion object {
         const val UNIT_SCALE = 1/16f
+        const val CAMERA_ZOOM = 1.5f
     }
 
     override fun handle(event: Event): Boolean {

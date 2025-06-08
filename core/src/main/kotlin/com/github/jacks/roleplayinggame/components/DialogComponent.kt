@@ -5,7 +5,9 @@ import com.github.quillraven.fleks.Entity
 
 enum class DialogId {
     NONE,
-    SLIME;
+    SLIME,
+    SIGN_1,
+    SIGN_2;
 }
 
 data class DialogComponent(

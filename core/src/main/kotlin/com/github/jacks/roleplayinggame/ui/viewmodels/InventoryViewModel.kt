@@ -5,8 +5,10 @@ import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.InventoryComponent
 import com.github.jacks.roleplayinggame.components.ItemComponent
+import com.github.jacks.roleplayinggame.components.ItemType
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.events.EntityAddItemEvent
+import com.github.jacks.roleplayinggame.events.EntityLootEvent
 import com.github.quillraven.fleks.World
 
 class InventoryViewModel(
@@ -41,6 +43,11 @@ class InventoryViewModel(
                             itemComponent.equipped
                         )
                     }
+                }
+            }
+            is EntityLootEvent -> {
+                if (event.entity in playerComponents) {
+                    inventoryComponents[event.entity].itemsToAdd += ItemType.entries.filterNot { it == ItemType.UNDEFINED }.random()
                 }
             }
             else -> return false

@@ -1,5 +1,7 @@
 package com.github.jacks.roleplayinggame.ui.views
 
+import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.Input.Keys
 import com.badlogic.gdx.scenes.scene2d.ui.Label
 import com.badlogic.gdx.scenes.scene2d.ui.Skin
 import com.badlogic.gdx.scenes.scene2d.ui.Table
@@ -11,6 +13,7 @@ import com.github.jacks.roleplayinggame.ui.Labels
 import com.github.jacks.roleplayinggame.ui.viewmodels.DialogViewModel
 import ktx.actors.alpha
 import ktx.actors.onClick
+import ktx.actors.onKeyDown
 import ktx.actors.txt
 import ktx.scene2d.*
 
@@ -38,11 +41,10 @@ class DialogView(
             this@DialogView.buttonArea = table { buttonAreaCell ->
                 this.defaults().expand()
                 textButton("", Buttons.TEXT_BUTTON.skinKey)
-                textButton("", Buttons.TEXT_BUTTON.skinKey)
                 buttonAreaCell.expandX().fillX().pad(0f, 8f, 8f, 8f)
             }
 
-            it.expand().width(200f).height(130f).center().row()
+            it.expand().width(200f).height(130f).padTop(8f).top().row()
         }
 
         model.onPropertyChange(DialogViewModel::text) {
@@ -57,9 +59,9 @@ class DialogView(
         }
         model.onPropertyChange(DialogViewModel::options) { dialogOptions ->
             buttonArea.clearChildren()
-            dialogOptions.forEach {
-                buttonArea.add(textButton(it.text, Buttons.TEXT_BUTTON.skinKey).apply {
-                    onClick { this@DialogView.model.triggerOption(it.index) }
+            dialogOptions.forEach { option ->
+                buttonArea.add(textButton(option.text, Buttons.TEXT_BUTTON.skinKey).apply {
+                    onClick { this@DialogView.model.triggerOption(option.index) }
                 })
             }
         }

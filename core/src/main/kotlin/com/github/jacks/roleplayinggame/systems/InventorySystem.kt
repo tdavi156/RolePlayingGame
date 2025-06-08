@@ -1,10 +1,13 @@
 package com.github.jacks.roleplayinggame.systems
 
+import com.badlogic.gdx.scenes.scene2d.Event
+import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.InventoryComponent
 import com.github.jacks.roleplayinggame.components.ItemComponent
 import com.github.jacks.roleplayinggame.components.ItemType
 import com.github.jacks.roleplayinggame.events.EntityAddItemEvent
+import com.github.jacks.roleplayinggame.events.MapChangeEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.quillraven.fleks.AllOf
 import com.github.quillraven.fleks.ComponentMapper
@@ -26,19 +29,19 @@ class InventorySystem(
         }
 
         inventory.itemsToAdd.forEach { itemType ->
-            val slotIndex : Int = emptySlotIndex(inventory)
+            val slotIndex : Int = getNextEmptySlotIndex(inventory)
             if (slotIndex == -1) {
                 return
             }
 
             val newItem = createItem(itemType, slotIndex)
             inventory.items += newItem
-            gameStage.fire(EntityAddItemEvent(entity, newItem))
+            gameStage.fire(EntityAddItemEvent(entity, itemType))
         }
         inventory.itemsToAdd.clear()
     }
 
-    private fun emptySlotIndex(inventory : InventoryComponent) : Int {
+    private fun getNextEmptySlotIndex(inventory : InventoryComponent) : Int {
         for(index in 0 until InventoryComponent.INVENTORY_CAPACITY) {
             if (inventory.items.none { itemComponents[it].slotIndex == index }) {
                 return index

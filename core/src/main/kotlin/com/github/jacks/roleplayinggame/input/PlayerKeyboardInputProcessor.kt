@@ -124,7 +124,7 @@ class PlayerKeyboardInputProcessor(
             }
             return true
         } else if (keycode == I) {
-            uiStage.actors.get(1).isVisible = !uiStage.actors.get(1).isVisible
+            uiStage.actors.get(2).isVisible = !uiStage.actors.get(2).isVisible
         } else if (keycode == P) {
             paused = !paused
             gameStage.fire(if (paused) GamePauseEvent() else GameResumeEvent())
