@@ -6,6 +6,7 @@ import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.InventoryComponent
 import com.github.jacks.roleplayinggame.components.ItemComponent
 import com.github.jacks.roleplayinggame.components.ItemType
+import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.events.EntityAddItemEvent
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
 import com.github.jacks.roleplayinggame.events.fire
@@ -20,7 +21,6 @@ class InventorySystem(
     private val itemComponents : ComponentMapper<ItemComponent>,
     private val gameStage : Stage
 ) : IteratingSystem() {
-
 
     override fun onTickEntity(entity: Entity) {
         val inventory = inventoryComponents[entity]

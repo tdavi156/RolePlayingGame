@@ -14,6 +14,7 @@ import com.github.jacks.roleplayinggame.components.LootComponent
 import com.github.jacks.roleplayinggame.components.MoveComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
+import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.events.EntityAttackEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.systems.EntitySpawnSystem.Companion.HIT_BOX_SENSOR
@@ -26,7 +27,7 @@ import ktx.box2d.query
 import ktx.math.component1
 import ktx.math.component2
 
-@AllOf([AttackComponent::class, PhysicsComponent::class, ImageComponent::class])
+@AllOf([AttackComponent::class, PhysicsComponent::class, ImageComponent::class, StatComponent::class])
 @NoneOf([DisarmComponent::class])
 class AttackSystem(
     private val attackComponents : ComponentMapper<AttackComponent>,
@@ -35,6 +36,7 @@ class AttackSystem(
     private val lifeComponents : ComponentMapper<LifeComponent>,
     private val lootComponents : ComponentMapper<LootComponent>,
     private val playerComponents : ComponentMapper<PlayerComponent>,
+    private val statComponents : ComponentMapper<StatComponent>,
     private val animationComponents : ComponentMapper<AnimationComponent>,
     private val moveComponents : ComponentMapper<MoveComponent>,
     private val dialogComponents : ComponentMapper<DialogComponent>,
@@ -44,6 +46,7 @@ class AttackSystem(
 
     override fun onTickEntity(entity: Entity) {
         val attackComponent = attackComponents[entity]
+        val statComponent = statComponents[entity]
 
         // entity is ready and does not want to attack -> do nothing
         if (attackComponent.isReady && !attackComponent.doAttack) {
@@ -137,7 +140,7 @@ class AttackSystem(
 
                 configureEntity(fixtureEntity) {
                     lifeComponents.getOrNull(it)?.let { lifeComponent ->
-                        lifeComponent.takeDamage += attackComponent.damage
+                        lifeComponent.takeDamage += statComponent.attackDamage
                     }
 
                     if (isAttackerPlayer) {

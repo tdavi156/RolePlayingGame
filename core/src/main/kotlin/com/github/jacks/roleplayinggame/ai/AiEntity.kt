@@ -14,6 +14,7 @@ import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.MoveComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
+import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.components.StateComponent
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.Entity
@@ -33,6 +34,7 @@ data class AiEntity(
     private val stateComponents : ComponentMapper<StateComponent> = world.mapper(),
     private val deathComponents : ComponentMapper<DeathComponent> = world.mapper(),
     private val lifeComponents : ComponentMapper<LifeComponent> = world.mapper(),
+    private val statComponents : ComponentMapper<StatComponent> = world.mapper(),
     private val physicsComponents : ComponentMapper<PhysicsComponent> = world.mapper(),
     private val aiComponents : ComponentMapper<AiComponent> = world.mapper(),
     private val playerComponents : ComponentMapper<PlayerComponent> = world.mapper()
@@ -53,11 +55,14 @@ data class AiEntity(
     val attackComponent : AttackComponent
         get() = attackComponents[entity]
 
+    val moveComponent : MoveComponent
+        get() = moveComponents[entity]
+
     val isAnimationDone : Boolean
         get() = animationComponents[entity].isAnimationDone
 
     val isDead : Boolean
-        get() = lifeComponents[entity].isDead
+        get() = statComponents[entity].isDead
 
     val directionChanged : Boolean
         get() = moveComponents[entity].directionChanged
@@ -179,6 +184,6 @@ data class AiEntity(
     private fun getNearbyEnemies() : List<Entity>{
         val aiComponent = aiComponents[entity]
         return aiComponent.nearbyEntities
-            .filter { it in playerComponents && !lifeComponents[it].isDead }
+            .filter { it in playerComponents && !statComponents[it].isDead }
     }
 }

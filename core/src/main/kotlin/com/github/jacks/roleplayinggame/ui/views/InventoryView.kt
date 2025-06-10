@@ -126,9 +126,9 @@ class InventoryView(
 
         val sourceItem = sourceSlot.itemModel
         if (sourceSlot.isGear) {
-            model.equip(itemModel, false)
+            model.unequip(itemModel)
             if (sourceItem != null) {
-                model.equip(sourceItem, true)
+                model.equip(sourceItem)
             }
         } else if (sourceItem != null) {
             model.inventoryItem(inventorySlots.indexOf(sourceSlot), sourceItem)
@@ -136,9 +136,9 @@ class InventoryView(
 
         if (targetSlot.isGear) {
             if (sourceItem != null) {
-                model.equip(sourceItem, false)
+                model.unequip(sourceItem)
             }
-            model.equip(itemModel, true)
+            model.equip(itemModel)
         } else {
             model.inventoryItem(inventorySlots.indexOf(targetSlot), itemModel)
         }

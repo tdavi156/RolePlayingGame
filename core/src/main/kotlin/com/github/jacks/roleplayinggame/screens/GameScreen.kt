@@ -1,20 +1,15 @@
 package com.github.jacks.roleplayinggame.screens
 
+import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.ai.GdxAI
 import com.badlogic.gdx.graphics.g2d.TextureAtlas
-import com.badlogic.gdx.maps.tiled.TiledMap
-import com.badlogic.gdx.maps.tiled.TmxMapLoader
 import com.badlogic.gdx.scenes.scene2d.EventListener
-import com.badlogic.gdx.scenes.scene2d.Stage
-import com.badlogic.gdx.utils.viewport.ExtendViewport
 import com.github.jacks.roleplayinggame.RolePlayingGame
 import com.github.jacks.roleplayinggame.components.AiComponent.Companion.AiComponentListener
 import com.github.jacks.roleplayinggame.components.FloatingTextComponent.Companion.FloatingTextComponentListener
 import com.github.jacks.roleplayinggame.components.ImageComponent.Companion.ImageComponentListener
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.PhysicsComponentListener
 import com.github.jacks.roleplayinggame.components.StateComponent.Companion.StateComponentListener
-import com.github.jacks.roleplayinggame.events.MapChangeEvent
-import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.input.PlayerKeyboardInputProcessor
 import com.github.jacks.roleplayinggame.input.gdxInputProcessor
 import com.github.jacks.roleplayinggame.systems.AiSystem
@@ -55,6 +50,7 @@ import ktx.math.vec2
 import ktx.scene2d.actors
 
 class GameScreen(game : RolePlayingGame) : KtxScreen {
+    private val preferences = game.preferences
     private val gameStage = game.gameStage
     private val uiStage = game.uiStage
     private val textureAtlas : TextureAtlas = TextureAtlas("assets/graphics/gameObjects.atlas")

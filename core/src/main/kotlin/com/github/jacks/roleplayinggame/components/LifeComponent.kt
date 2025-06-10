@@ -7,7 +7,4 @@ data class LifeComponent(
     var takeDamage : Float = 0f,
     var attack : Float = 0f,
     var defense : Float = 0f,
-) {
-    val isDead : Boolean
-        get() = health <= 0
-}
+)

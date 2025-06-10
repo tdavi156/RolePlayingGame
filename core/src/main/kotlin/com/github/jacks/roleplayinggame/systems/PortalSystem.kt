@@ -16,6 +16,7 @@ import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.bo
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.physicsComponentFromShape2D
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.PortalComponent
+import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.systems.EntitySpawnSystem.Companion.PLAYER_CONFIGURATION

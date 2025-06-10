@@ -1,5 +1,7 @@
 package com.github.jacks.roleplayinggame.systems
 
+import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.g2d.TextureAtlas
 import com.badlogic.gdx.math.Vector2
@@ -40,8 +42,10 @@ import com.github.jacks.roleplayinggame.components.LootComponent
 import com.github.jacks.roleplayinggame.components.MoveComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
+import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.components.StateComponent
 import ktx.box2d.circle
+import ktx.log.logger
 import kotlin.math.roundToInt
 
 @AllOf([SpawnComponent::class])
@@ -51,6 +55,7 @@ class EntitySpawnSystem(
     private val spawnComponents : ComponentMapper<SpawnComponent>,
 ) : EventListener, IteratingSystem() {
 
+    private val preferences : Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
     private val cachedConfigurations = mutableMapOf<String, SpawnConfiguration>()
     private val cachedSizes = mutableMapOf<AnimationModel, Vector2>()
     private val playerEntities = world.family(allOf = arrayOf(PlayerComponent::class))
@@ -59,6 +64,7 @@ class EntitySpawnSystem(
         with(spawnComponents[entity]) {
             val configuration = spawnConfiguration(name)
             val relativeSize = size(configuration.model)
+            val spawnPrefsName = spawnComponents[entity].prefsName
 
             val spawnedEntity = world.entity {
                 val imageComponent = add<ImageComponent> {
@@ -111,6 +117,22 @@ class EntitySpawnSystem(
                     add<InventoryComponent>()
                 }
 
+                if (configuration.stats != null) {
+                    add<StatComponent> {
+                        prefsName = spawnPrefsName
+                        currentHealth = configuration.stats.currentHealth
+                        maxHealth = configuration.stats.maxHealth
+                        currentMana = configuration.stats.currentMana
+                        maxMana = configuration.stats.maxMana
+                        attackDamage = configuration.stats.attackDamage
+                        attackPercent = configuration.stats.attackPercent
+                        attackSpeed = configuration.stats.attackSpeed
+                        defense = configuration.stats.defense
+                        defensePercent = configuration.stats.defensePercent
+                        moveSpeed = configuration.stats.moveSpeed
+                    }
+                }
+
                 if (configuration.bodyType != StaticBody) {
                     add<CollisionComponent>()
                 }
@@ -137,21 +159,8 @@ class EntitySpawnSystem(
         when (name) {
             "player" -> PLAYER_CONFIGURATION
             "slime" -> SLIME_CONFIGURATION
-            "slimeDialog" -> SpawnConfiguration(
-                AnimationModel.SLIME,
-                lifeScaling = 0f,
-                physicsScaling = vec2(0.3f, 0.3f),
-                physicsOffset = vec2(0f, -2f * UNIT_SCALE),
-                dialogId = DialogId.SLIME
-            )
-            "chest" -> SpawnConfiguration(
-                AnimationModel.CHEST,
-                speedScaling = 0f,
-                bodyType = StaticBody,
-                canAttack = false,
-                lifeScaling = 0f,
-                lootable = true
-            )
+            "slimeDialog" -> SLIME_DIALOG_CONFIGURATION
+            "chest" -> CHEST_CONFIGURATION
             "sign_1" -> SIGN_1_CONFIGURATION
             "sign_2" -> SIGN_2_CONFIGURATION
             else -> gdxError("Type $name has no spawn configuration")
@@ -170,17 +179,23 @@ class EntitySpawnSystem(
     override fun handle(event: Event): Boolean {
         when (event) {
             is MapChangeEvent -> {
+                log.debug { "MapChangeEvent" }
                 val entityLayer = event.map.layer("entities")
                 entityLayer.objects.forEach { mapObject ->
                     val name = mapObject.name ?: gdxError("Map Object $mapObject has no name")
-
+                    val prefsName = mapObject.properties.get("preferencesName")
                     if (name == "player" && playerEntities.isNotEmpty) {
+                        return@forEach
+                    }
+
+                    if (prefsName != null && !preferences.getBoolean("${prefsName}_shouldSpawn", true)) {
                         return@forEach
                     }
 
                     world.entity {
                         add<SpawnComponent> {
                             this.name = name
+                            this.prefsName = prefsName?.toString() ?: ""
                             this.location.set(mapObject.x * UNIT_SCALE, mapObject.y * UNIT_SCALE)
                             this.color = mapObject.property("color", Color.WHITE)
                         }
@@ -194,28 +209,57 @@ class EntitySpawnSystem(
     }
 
     companion object {
+        private val log = logger<EntitySpawnSystem>()
         const val HIT_BOX_SENSOR = "hitbox"
         const val AI_SENSOR = "aiSensor"
         const val PLAYER_NAME = "player"
-        const val CHEST_NAME = "chest"
         val PLAYER_CONFIGURATION = SpawnConfiguration(
             AnimationModel.PLAYER,
+            stats = StatComponent(
+                currentHealth = 30f,
+                maxHealth = 30f,
+                attackDamage = 5f,
+                defense = 1f,
+                moveSpeed = 1f
+            ),
             speedScaling = 1.5f,
             lifeScaling = 1f,
             attackRange = 0.75f,
-            attackScaling = 5f,
+            attackScaling = 1f,
             physicsScaling = vec2(0.3f, 0.3f,),
             physicsOffset = vec2(0f, -10f * UNIT_SCALE)
         )
         val SLIME_CONFIGURATION = SpawnConfiguration(
             AnimationModel.SLIME,
+            stats = StatComponent(
+                currentHealth = 10f,
+                maxHealth = 10f,
+                attackDamage = 3f,
+                defense = 0f,
+                moveSpeed = 1f
+            ),
             speedScaling = 0.5f,
-            lifeScaling = 2f,
+            lifeScaling = 1f,
             attackRange = 1f,
-            attackScaling = 2f,
+            attackScaling = 1f,
             physicsScaling = vec2(0.3f, 0.3f),
             physicsOffset = vec2(0f, -2f * UNIT_SCALE),
             aiTreePath = "slimeBehavior.tree"
+        )
+        val CHEST_CONFIGURATION = SpawnConfiguration(
+            AnimationModel.CHEST,
+            speedScaling = 0f,
+            bodyType = StaticBody,
+            canAttack = false,
+            lifeScaling = 0f,
+            lootable = true
+        )
+        val SLIME_DIALOG_CONFIGURATION = SpawnConfiguration(
+            AnimationModel.SLIME,
+            lifeScaling = 0f,
+            physicsScaling = vec2(0.3f, 0.3f),
+            physicsOffset = vec2(0f, -2f * UNIT_SCALE),
+            dialogId = DialogId.SLIME
         )
         val SIGN_1_CONFIGURATION = SpawnConfiguration(
             AnimationModel.SIGN,

@@ -7,6 +7,7 @@ import com.github.jacks.roleplayinggame.components.AnimationComponent
 import com.github.jacks.roleplayinggame.components.ItemComponent
 import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
+import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.events.EntityAddItemEvent
 import com.github.jacks.roleplayinggame.events.EntityTakeDamageEvent
 import com.github.quillraven.fleks.ComponentMapper
@@ -19,6 +20,7 @@ class GameViewModel(
 
     private val playerComponents : ComponentMapper<PlayerComponent> = world.mapper()
     private val lifeComponents : ComponentMapper<LifeComponent> = world.mapper()
+    private val statComponents : ComponentMapper<StatComponent> = world.mapper()
     private val itemComponents : ComponentMapper<ItemComponent> = world.mapper()
     private val animationComponents : ComponentMapper<AnimationComponent> = world.mapper()
 
@@ -34,11 +36,11 @@ class GameViewModel(
         when(event) {
             is EntityTakeDamageEvent -> {
                 val isPlayer = event.entity in playerComponents
-                val lifeComponent = lifeComponents[event.entity]
+                val statComponent = statComponents[event.entity]
                 if(isPlayer) {
-                    playerLife = lifeComponent.health / lifeComponent.maxHealth
+                    playerLife = statComponent.currentHealth / statComponent.maxHealth
                 } else {
-                    enemyLife = lifeComponent.health / lifeComponent.maxHealth
+                    enemyLife = statComponent.currentHealth / statComponent.maxHealth
                 }
             }
             is EntityAddItemEvent -> {

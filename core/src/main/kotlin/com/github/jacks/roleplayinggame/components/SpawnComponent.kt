@@ -11,6 +11,7 @@ const val DEFAULT_LIFE = 10
 
 data class SpawnConfiguration(
     val model : AnimationModel,
+    val stats : StatComponent? = null,
     val speedScaling : Float = 1f,
     val canAttack : Boolean = true,
     val attackScaling : Float = 1f,
@@ -27,6 +28,7 @@ data class SpawnConfiguration(
 
 data class SpawnComponent(
     var name : String = "",
+    var prefsName : String = "",
     var location : Vector2 = vec2(),
     var color : Color = Color.WHITE
 ) {

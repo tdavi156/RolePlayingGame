@@ -16,6 +16,7 @@ import com.github.jacks.roleplayinggame.components.DeathComponent
 import com.github.jacks.roleplayinggame.components.FloatingTextComponent
 import com.github.jacks.roleplayinggame.components.MoveComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
+import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.events.EntityDeathEvent
 import com.github.jacks.roleplayinggame.events.EntityTakeDamageEvent
 import com.github.jacks.roleplayinggame.events.fire
@@ -27,7 +28,7 @@ import com.github.quillraven.fleks.NoneOf
 import ktx.assets.disposeSafely
 import kotlin.math.roundToInt
 
-@AllOf([LifeComponent::class])
+@AllOf([LifeComponent::class, StatComponent::class])
 @NoneOf([DeathComponent::class])
 class LifeSystem(
     private val lifeComponents : ComponentMapper<LifeComponent>,
@@ -35,6 +36,7 @@ class LifeSystem(
     private val playerComponents : ComponentMapper<PlayerComponent>,
     private val physicsComponents : ComponentMapper<PhysicsComponent>,
     private val animationComponents : ComponentMapper<AnimationComponent>,
+    private val statComponents : ComponentMapper<StatComponent>,
     private val gameStage : Stage
 ) : IteratingSystem() {
 
@@ -43,17 +45,19 @@ class LifeSystem(
 
     override fun onTickEntity(entity: Entity) {
         val lifeComponent = lifeComponents[entity]
-        lifeComponent.health = (lifeComponent.health + lifeComponent.healthRegeneration * deltaTime).coerceAtMost(lifeComponent.maxHealth)
+        val statComponent = statComponents[entity]
+        statComponent.currentHealth = statComponent.currentHealth.coerceAtMost(statComponent.maxHealth)
 
         if (lifeComponent.takeDamage > 0f) {
             val physicsComponent = physicsComponents[entity]
-            lifeComponent.health -= lifeComponent.takeDamage
+            val damageDealt = (lifeComponent.takeDamage - statComponent.defense).coerceAtLeast(1f)
+            statComponent.currentHealth -= damageDealt
             gameStage.fire(EntityTakeDamageEvent(entity))
-            damageText(lifeComponent.takeDamage.roundToInt().toString(), physicsComponent.body.position, physicsComponent.size)
+            damageText(damageDealt.roundToInt().toString(), physicsComponent.body.position, physicsComponent.size)
             lifeComponent.takeDamage = 0f
         }
 
-        if (lifeComponent.isDead) {
+        if (statComponent.isDead) {
             animationComponents.getOrNull(entity)?.let { animationComponent ->
                 gameStage.fire(EntityDeathEvent(animationComponent.model))
                 animationComponent.nextAnimation(AnimationType.DEATH)

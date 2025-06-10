@@ -39,23 +39,91 @@
  </layer>
  <objectgroup id="5" name="entities">
   <object id="1" name="player" gid="10659" x="400" y="560" width="48" height="48"/>
-  <object id="2" name="slime" gid="10660" x="144" y="512" width="32" height="32"/>
-  <object id="3" name="slime" gid="10660" x="176" y="480" width="32" height="32"/>
-  <object id="4" name="slime" gid="10660" x="48" y="256" width="32" height="32"/>
-  <object id="5" name="slime" gid="10660" x="96" y="208" width="32" height="32"/>
-  <object id="6" name="slime" gid="10660" x="112" y="288" width="32" height="32"/>
-  <object id="7" name="slime" gid="10660" x="736" y="464" width="32" height="32"/>
-  <object id="8" name="slime" gid="10660" x="768" y="496" width="32" height="32"/>
-  <object id="9" name="slime" gid="10660" x="624" y="304" width="32" height="32"/>
-  <object id="10" name="slime" gid="10660" x="576" y="224" width="32" height="32"/>
-  <object id="11" name="slime" gid="10660" x="656" y="208" width="32" height="32"/>
-  <object id="12" name="slime" gid="10660" x="672" y="352" width="32" height="32"/>
-  <object id="13" name="slime" gid="10660" x="240" y="96" width="32" height="32"/>
-  <object id="14" name="slime" gid="10660" x="272" y="112" width="32" height="32"/>
-  <object id="15" name="slime" gid="10660" x="320" y="96" width="32" height="32"/>
-  <object id="16" name="slime" gid="10660" x="352" y="144" width="32" height="32"/>
-  <object id="17" name="slime" gid="10660" x="256" y="144" width="32" height="32"/>
-  <object id="18" name="slime" gid="10660" x="368" y="80" width="32" height="32"/>
+  <object id="2" name="slime" gid="10660" x="144" y="512" width="32" height="32">
+   <properties>
+    <property name="preferencesName" value="slime2"/>
+   </properties>
+  </object>
+  <object id="3" name="slime" gid="10660" x="176" y="480" width="32" height="32">
+   <properties>
+    <property name="preferencesName" value="slime3"/>
+   </properties>
+  </object>
+  <object id="4" name="slime" gid="10660" x="48" y="256" width="32" height="32">
+   <properties>
+    <property name="preferencesName" value="slime4"/>
+   </properties>
+  </object>
+  <object id="5" name="slime" gid="10660" x="96" y="208" width="32" height="32">
+   <properties>
+    <property name="preferencesName" value="slime5"/>
+   </properties>
+  </object>
+  <object id="6" name="slime" gid="10660" x="112" y="288" width="32" height="32">
+   <properties>
+    <property name="preferencesName" value="slime6"/>
+   </properties>
+  </object>
+  <object id="7" name="slime" gid="10660" x="736" y="464" width="32" height="32">
+   <properties>
+    <property name="preferencesName" value="slime7"/>
+   </properties>
+  </object>
+  <object id="8" name="slime" gid="10660" x="768" y="496" width="32" height="32">
+   <properties>
+    <property name="preferencesName" value="slime8"/>
+   </properties>
+  </object>
+  <object id="9" name="slime" gid="10660" x="624" y="304" width="32" height="32">
+   <properties>
+    <property name="preferencesName" value="slime9"/>
+   </properties>
+  </object>
+  <object id="10" name="slime" gid="10660" x="576" y="224" width="32" height="32">
+   <properties>
+    <property name="preferencesName" value="slime10"/>
+   </properties>
+  </object>
+  <object id="11" name="slime" gid="10660" x="656" y="208" width="32" height="32">
+   <properties>
+    <property name="preferencesName" value="slime11"/>
+   </properties>
+  </object>
+  <object id="12" name="slime" gid="10660" x="672" y="352" width="32" height="32">
+   <properties>
+    <property name="preferencesName" value="slime12"/>
+   </properties>
+  </object>
+  <object id="13" name="slime" gid="10660" x="240" y="96" width="32" height="32">
+   <properties>
+    <property name="preferencesName" value="slime13"/>
+   </properties>
+  </object>
+  <object id="14" name="slime" gid="10660" x="272" y="112" width="32" height="32">
+   <properties>
+    <property name="preferencesName" value="slime14"/>
+   </properties>
+  </object>
+  <object id="15" name="slime" gid="10660" x="320" y="96" width="32" height="32">
+   <properties>
+    <property name="preferencesName" value="slime15"/>
+   </properties>
+  </object>
+  <object id="16" name="slime" gid="10660" x="352" y="144" width="32" height="32">
+   <properties>
+    <property name="preferencesName" value="slime16"/>
+   </properties>
+  </object>
+  <object id="17" name="slime" gid="10660" x="256" y="144" width="32" height="32">
+   <properties>
+    <property name="preferencesName" value="slime17"/>
+   </properties>
+  </object>
+  <object id="18" name="slime" gid="10660" x="368" y="80" width="32" height="32">
+   <properties>
+    <property name="preferencesName" value="slime18"/>
+   </properties>
+  </object>
   <object id="19" name="chest" gid="10661" x="272" y="192" width="16" height="16"/>
   <object id="20" name="chest" gid="10661" x="64" y="320" width="16" height="16"/>
   <object id="21" name="chest" gid="10661" x="224" y="528" width="16" height="16"/>
