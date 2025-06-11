@@ -34,6 +34,7 @@ class AudioSystem : EventListener, IntervalSystem() {
 
     override fun handle(event: Event?): Boolean {
         when (event) {
+            /*
             is MapChangeEvent -> {
                 event.map.propertyOrNull<String>("background_music")?.let { path ->
                     log.debug { "Music changed to $path" }
@@ -50,6 +51,7 @@ class AudioSystem : EventListener, IntervalSystem() {
                 }
                 return true
             }
+             */
             is EntityAttackEvent -> queueSound("assets/audio/${event.model.atlasKey}_attack.wav")
             is EntityDeathEvent -> queueSound("assets/audio/${event.model.atlasKey}_death.wav")
             is EntityLootEvent -> queueSound("assets/audio/${event.model.atlasKey}_open.wav")

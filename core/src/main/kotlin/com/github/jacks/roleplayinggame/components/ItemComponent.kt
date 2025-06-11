@@ -20,7 +20,7 @@ enum class ItemType(
     SWORD(ItemCategory.WEAPON, "sword", "Sword", StatType.ATTACK_DAMAGE, 3f),
     BIG_SWORD(ItemCategory.WEAPON, "sword2", "Big Sword", StatType.ATTACK_DAMAGE, 5f),
     BOOTS(ItemCategory.BOOTS, "boots", "Boots", StatType.MOVE_SPEED, 1f),
-    ARMOR(ItemCategory.ARMOR, "armor", "Armor", StatType.UNDEFINED, 0f);
+    ARMOR(ItemCategory.ARMOR, "armor", "Armor", StatType.DEFENSE, 1f);
 }
 
 data class ItemComponent(
