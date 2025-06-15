@@ -65,8 +65,19 @@ class DialogSystem(
             }
         }
         val sign1Dialog = dialog(dialogId.name) {
-            node(0, "Welcome to Slime World. \n Go forward for Map 2. \n Go to the left for Map 3. \n Go to the right for Map 4.") {
+            node(0, "Welcome to Slime World. \n I have a quest for you!") {
                 option("Okay") {
+                    action = { this@dialog.goToNode(1) }
+                }
+            }
+            node(1, "Can you kill 10 slimes for me?") {
+                option("Accept") {
+                    action = {
+                        this@dialog.acceptQuest(0)
+                        this@dialog.endDialog()
+                    }
+                }
+                option("Decline") {
                     action = { this@dialog.endDialog() }
                 }
             }

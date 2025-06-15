@@ -46,7 +46,7 @@ class InventoryDragSource(
 class InventoryDragTarget(
     private val inventorySlot: InventorySlot,
     private val onDrop : (sourceSlot : InventorySlot, targetSlot : InventorySlot, itemModel : ItemModel) -> Unit,
-    private val supportedItemCategory : ItemCategory? = null
+    private val supportedItemCategory : ItemCategory? = null,
 ) : DragAndDrop.Target(inventorySlot) {
 
     private val isGear : Boolean

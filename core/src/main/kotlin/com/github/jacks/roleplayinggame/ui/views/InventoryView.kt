@@ -22,6 +22,7 @@ class InventoryView(
 
     private val inventorySlots = mutableListOf<InventorySlot>()
     private val gearSlots = mutableListOf<InventorySlot>()
+    lateinit var trashSlot : InventorySlot
 
     init {
         // UI Component
@@ -54,6 +55,24 @@ class InventoryView(
 
             inventoryTableCell.expand().width(150f).height(120f).left().center()
         }
+
+//        table { trashTableCell ->
+//            background = skin[Drawables.FRAME_BGD]
+//            label(text = "Trash", style = Labels.TITLE.skinKey, skin) {
+//                this.setAlignment(Align.center)
+//                it.expandX().fill()
+//                    .pad(8f, titlePadding, 0f, titlePadding)
+//                    .top()
+//                    .row()
+//            }
+//            table { trashSlotTableCell ->
+//                this@InventoryView.trashSlot = inventorySlot(skin = skin, isTrashSlot = true) { trashCell ->
+//                    trashCell.pad(2f)
+//                }
+//                trashSlotTableCell.expand().fill()
+//            }
+//            trashTableCell.expand().width(74f).height(70f).left().center()
+//        }
 
         table { gearTableCell ->
             background = skin[Drawables.FRAME_BGD]
@@ -114,6 +133,7 @@ class InventoryView(
             dnd.addSource(InventoryDragSource(slot))
             dnd.addTarget(InventoryDragTarget(slot, ::onItemDropped, slot.supportedItemCategory))
         }
+        //dnd.addTarget(InventoryDragTarget(trashSlot, ::onItemDropped))
     }
 
     private fun onItemDropped(
@@ -125,6 +145,7 @@ class InventoryView(
         targetSlot.item(itemModel)
 
         val sourceItem = sourceSlot.itemModel
+
         if (sourceSlot.isGear) {
             model.unequip(itemModel)
             if (sourceItem != null) {

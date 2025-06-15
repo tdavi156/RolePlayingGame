@@ -51,7 +51,7 @@ class LifeSystem(
         if (lifeComponent.takeDamage > 0f) {
             val physicsComponent = physicsComponents[entity]
             val damageDealt = (lifeComponent.takeDamage - statComponent.defense).coerceAtLeast(1f)
-            statComponent.currentHealth -= damageDealt
+            statComponent.currentHealth -= damageDealt.coerceAtLeast(0f)
             gameStage.fire(EntityTakeDamageEvent(entity))
             damageText(damageDealt.roundToInt().toString(), physicsComponent.body.position, physicsComponent.size)
             lifeComponent.takeDamage = 0f

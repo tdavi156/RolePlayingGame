@@ -40,6 +40,7 @@ class DialogView(
 
             this@DialogView.buttonArea = table { buttonAreaCell ->
                 this.defaults().expand()
+                //this.background = skin[Drawables.FRAME_BGD]
                 textButton("", Buttons.TEXT_BUTTON.skinKey)
                 buttonAreaCell.expandX().fillX().pad(0f, 8f, 8f, 8f)
             }
@@ -60,9 +61,16 @@ class DialogView(
         model.onPropertyChange(DialogViewModel::options) { dialogOptions ->
             buttonArea.clearChildren()
             dialogOptions.forEach { option ->
-                buttonArea.add(textButton(option.text, Buttons.TEXT_BUTTON.skinKey).apply {
-                    onClick { this@DialogView.model.triggerOption(option.index) }
+                buttonArea.add(table { buttonOption ->
+                    this.defaults().expandX()
+                    this.background = skin[Drawables.FRAME_BGD]
+                    textButton(option.text, Buttons.TEXT_BUTTON.skinKey).apply {
+                        onClick { this@DialogView.model.triggerOption(option.index) }
+                    }
                 })
+//                buttonArea.add(textButton(option.text, Buttons.TEXT_BUTTON.skinKey).apply {
+//                    onClick { this@DialogView.model.triggerOption(option.index) }
+//                })
             }
         }
     }

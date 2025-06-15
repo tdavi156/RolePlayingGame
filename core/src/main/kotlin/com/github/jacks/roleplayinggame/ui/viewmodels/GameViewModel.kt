@@ -9,6 +9,7 @@ import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.events.EntityAddItemEvent
+import com.github.jacks.roleplayinggame.events.EntityRespawnEvent
 import com.github.jacks.roleplayinggame.events.EntityTakeDamageEvent
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.World
@@ -42,6 +43,10 @@ class GameViewModel(
                 } else {
                     enemyLife = statComponent.currentHealth / statComponent.maxHealth
                 }
+            }
+            is EntityRespawnEvent -> {
+                val statComponent = statComponents[event.entity]
+                playerLife = statComponent.maxHealth
             }
             is EntityAddItemEvent -> {
                 lootText = "New Item found: [#4e557d]${event.itemType.itemName}[]"

@@ -45,6 +45,7 @@ class PlayerKeyboardInputProcessor(
     private var normalizedVector = vec2()
     private var playerDirection = TO
     private val playerEntities = world.family(allOf = arrayOf(PlayerComponent::class))
+    private var pausedInventory = false
     private var paused = false
 
     init {
@@ -124,10 +125,16 @@ class PlayerKeyboardInputProcessor(
             }
             return true
         } else if (keycode == I) {
-            uiStage.actors.get(2).isVisible = !uiStage.actors.get(2).isVisible
+            paused = false
+            pausedInventory = !pausedInventory
+            gameStage.fire(if (pausedInventory) GamePauseEvent() else GameResumeEvent())
+            // dont hardcode the actor position, when we change the order of UI actors, this will break
+            uiStage.actors.get(3).isVisible = !uiStage.actors.get(3).isVisible
         } else if (keycode == P) {
-            paused = !paused
-            gameStage.fire(if (paused) GamePauseEvent() else GameResumeEvent())
+            if (!pausedInventory) {
+                paused = !paused
+                gameStage.fire(if (paused) GamePauseEvent() else GameResumeEvent())
+            }
         }
         return false
     }

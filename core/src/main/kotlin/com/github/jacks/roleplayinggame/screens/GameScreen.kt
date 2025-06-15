@@ -93,7 +93,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
             add<CameraSystem>()
             add<FloatingTextSystem>()
             add<RenderSystem>()
-            add<AudioSystem>()
+            //add<AudioSystem>()
             add<DebugSystem>()
         }
     }
@@ -102,10 +102,11 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
         uiStage.actors {
             gameView(GameViewModel(entityWorld, gameStage))
             dialogView(DialogViewModel(gameStage))
-            inventoryView(InventoryViewModel(entityWorld, gameStage)) {
+            pauseView {
                 this.isVisible = false
             }
-            pauseView {
+            // update the actor.get() function call in keyboard input processor
+            inventoryView(InventoryViewModel(entityWorld, gameStage)) {
                 this.isVisible = false
             }
         }

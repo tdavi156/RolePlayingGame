@@ -38,6 +38,10 @@ data class Dialog(
         complete = true
     }
 
+    fun acceptQuest(questId : Int) {
+
+    }
+
     fun isComplete() : Boolean {
         return complete
     }

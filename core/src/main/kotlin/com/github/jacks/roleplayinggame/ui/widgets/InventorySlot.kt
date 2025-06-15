@@ -15,7 +15,7 @@ import ktx.scene2d.*
 
 class InventorySlot(
     private val slotItemBackground : Drawables?,
-    private val skin : Skin
+    private val skin : Skin,
 ) : WidgetGroup(), KGroup {
 
     private val background = Image(skin[Drawables.INVENTORY_SLOT])
@@ -75,7 +75,6 @@ class InventorySlot(
     override fun getPrefWidth(): Float = background.drawable.minWidth
     override fun getPrefHeight(): Float = background.drawable.minHeight
 }
-
 
 @Scene2dDsl
 fun <S> KWidget<S>.inventorySlot(
