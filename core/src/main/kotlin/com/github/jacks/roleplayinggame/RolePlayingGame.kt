@@ -10,6 +10,7 @@ import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.utils.viewport.ExtendViewport
 import com.badlogic.gdx.utils.viewport.FitViewport
+import com.badlogic.gdx.utils.viewport.ScreenViewport
 import com.github.jacks.roleplayinggame.events.GamePauseEvent
 import com.github.jacks.roleplayinggame.events.GameResumeEvent
 import com.github.jacks.roleplayinggame.screens.GameScreen
@@ -23,12 +24,13 @@ import ktx.app.clearScreen
 import ktx.assets.disposeSafely
 import ktx.preferences.flush
 import ktx.preferences.set
+import java.math.BigInteger
 
 class RolePlayingGame : KtxGame<KtxScreen>(), EventListener{
 
     private val batch : Batch by lazy { SpriteBatch() }
     val gameStage : Stage by lazy { Stage(FitViewport(16f * CAMERA_ZOOM, 9f * CAMERA_ZOOM), batch) }
-    val uiStage : Stage by lazy { Stage(FitViewport(320f, 180f), batch) }
+    val uiStage : Stage by lazy { Stage(ScreenViewport(), batch) }
     val preferences : Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
     private var paused = false
 

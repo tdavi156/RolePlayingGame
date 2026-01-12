@@ -9,7 +9,7 @@ import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.events.EntityTakeDamageEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.ui.views.gameView
-import com.github.jacks.roleplayinggame.ui.viewmodels.GameViewModel
+import com.github.jacks.roleplayinggame.ui.viewmodels.MainGameViewModel
 import com.github.jacks.roleplayinggame.ui.views.GameView
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.world
@@ -20,7 +20,7 @@ class UIScreen : KtxScreen {
     private val stage : Stage = Stage(ExtendViewport(320f, 180f))
     private val entityWorld = world {  }
     private val playerEntity : Entity
-    private val model = GameViewModel(entityWorld, stage)
+    private val model = MainGameViewModel(entityWorld, stage)
     private lateinit var gameView : GameView
 
     init {

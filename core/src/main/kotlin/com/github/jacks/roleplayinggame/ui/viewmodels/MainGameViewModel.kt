@@ -14,7 +14,7 @@ import com.github.jacks.roleplayinggame.events.EntityTakeDamageEvent
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.World
 
-class GameViewModel(
+class MainGameViewModel(
     world : World,
     stage : Stage
 ) : PropertyChangeSource(), EventListener {

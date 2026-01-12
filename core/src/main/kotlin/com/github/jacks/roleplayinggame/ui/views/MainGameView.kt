@@ -1,24 +1,27 @@
 package com.github.jacks.roleplayinggame.ui.views
 
-import com.badlogic.gdx.math.Interpolation
+import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.scenes.scene2d.Actor
-import com.badlogic.gdx.scenes.scene2d.actions.Actions
+import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions.*
 import com.badlogic.gdx.scenes.scene2d.actions.DelayAction
 import com.badlogic.gdx.scenes.scene2d.actions.SequenceAction
 import com.badlogic.gdx.scenes.scene2d.ui.Label
 import com.badlogic.gdx.scenes.scene2d.ui.Skin
 import com.badlogic.gdx.scenes.scene2d.ui.Table
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.badlogic.gdx.utils.Align
 import com.github.jacks.roleplayinggame.ui.Drawables
 import com.github.jacks.roleplayinggame.ui.Labels
 import com.github.jacks.roleplayinggame.ui.get
-import com.github.jacks.roleplayinggame.ui.viewmodels.GameViewModel
+import com.github.jacks.roleplayinggame.ui.viewmodels.MainGameViewModel
 import com.github.jacks.roleplayinggame.ui.widgets.CharacterInfo
 import com.github.jacks.roleplayinggame.ui.widgets.characterInfo
 import ktx.actors.alpha
 import ktx.actors.plusAssign
 import ktx.actors.txt
+import ktx.preferences.get
 import ktx.scene2d.KTable
 import ktx.scene2d.KWidget
 import ktx.scene2d.Scene2DSkin
@@ -27,11 +30,27 @@ import ktx.scene2d.actor
 import ktx.scene2d.label
 import ktx.scene2d.table
 
-class GameView(
-    model : GameViewModel,
+class MainGameView(
+    model : MainGameViewModel,
     skin : Skin
 ) : Table(skin), KTable {
 
+    private lateinit var stage : Stage
+    private val preferences : Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
+
+    // initial values from preferences
+    private var playerHealth = preferences["player_health", 1.0]
+    private var playerMana = preferences["player_mana", 1.0]
+    private var playerExperience = preferences["player_experience", 0]
+
+    // buttons
+    private var characterInfoButton : TextButton
+    private var settingsButton : TextButton
+    private var menuButton : TextButton
+
+
+
+    // old stuff
     private val playerInfo : CharacterInfo
     //private val enemyInfo : CharacterInfo
     private val popupLabel : Label
@@ -39,17 +58,9 @@ class GameView(
     init {
         // UI elements
         setFillParent(true)
-
-        /*
-        enemyInfo = characterInfo(Drawables.PLAYER) {
-            this.alpha = 0f
-            it.row()
-        }
-         */
-
         table {
             background = skin[Drawables.FRAME_BGD]
-            this@GameView.popupLabel = label(text = "", style = Labels.FRAME.skinKey) { labelCell ->
+            this@MainGameView.popupLabel = label(text = "", style = Labels.FRAME.skinKey) { labelCell ->
                 this.setAlignment(Align.topLeft)
                 this.wrap = true
                 labelCell.expand().fill().pad(14f)
@@ -61,17 +72,11 @@ class GameView(
 
         playerInfo = characterInfo(Drawables.PLAYER)
 
-
         // data binding
-        model.onPropertyChange(GameViewModel::playerLife) { playerLife ->
+        model.onPropertyChange(MainGameViewModel::playerLife) { playerLife ->
             playerLife(playerLife)
         }
-        /*
-        model.onPropertyChange(GameViewModel::enemyLife) { enemyLife ->
-            enemyLife(enemyLife)
-        }
-         */
-        model.onPropertyChange(GameViewModel::lootText) { lootText ->
+        model.onPropertyChange(MainGameViewModel::lootText) { lootText ->
             popup(lootText)
         }
     }
@@ -80,32 +85,12 @@ class GameView(
         playerInfo.life(percentage)
     }
 
-    /*
-    fun enemyLife(percentage : Float) {
-        enemyInfo.life(percentage)
-    }
-     */
-
     private fun Actor.resetFadeOutDelay() {
         this.actions.filterIsInstance<SequenceAction>().lastOrNull()?.let { sequence ->
             val delay = sequence.actions.last() as DelayAction
             delay.time = 0f
         }
     }
-
-    /*
-    fun showEnemyInfo(charDrawable : Drawables, lifePercentage : Float) {
-        enemyInfo.character(charDrawable)
-        enemyInfo.life(lifePercentage, 0f)
-
-        if (enemyInfo.alpha == 0f) {
-            enemyInfo.clearActions()
-            enemyInfo += sequence(fadeIn(0.5f), delay(5f, fadeOut(0.5f)))
-        } else {
-            enemyInfo.resetFadeOutDelay()
-        }
-    }
-     */
 
     fun popup(infoText : String) {
         popupLabel.txt = infoText
@@ -120,8 +105,8 @@ class GameView(
 }
 
 @Scene2dDsl
-fun <S> KWidget<S>.gameView(
-    model : GameViewModel,
+fun <S> KWidget<S>.mainGameView(
+    model : MainGameViewModel,
     skin : Skin = Scene2DSkin.defaultSkin,
-    init: GameView.(S) -> Unit = {}
-) : GameView = actor(GameView(model, skin), init)
+    init: MainGameView.(S) -> Unit = {}
+) : MainGameView = actor(MainGameView(model, skin), init)

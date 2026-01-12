@@ -1,6 +1,5 @@
 package com.github.jacks.roleplayinggame.screens
 
-import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.ai.GdxAI
 import com.badlogic.gdx.graphics.g2d.TextureAtlas
 import com.badlogic.gdx.scenes.scene2d.EventListener
@@ -15,7 +14,6 @@ import com.github.jacks.roleplayinggame.input.gdxInputProcessor
 import com.github.jacks.roleplayinggame.systems.AiSystem
 import com.github.jacks.roleplayinggame.systems.AnimationSystem
 import com.github.jacks.roleplayinggame.systems.AttackSystem
-import com.github.jacks.roleplayinggame.systems.AudioSystem
 import com.github.jacks.roleplayinggame.systems.CameraSystem
 import com.github.jacks.roleplayinggame.systems.CollisionDespawnSystem
 import com.github.jacks.roleplayinggame.systems.CollisionSpawnSystem
@@ -33,12 +31,12 @@ import com.github.jacks.roleplayinggame.systems.PortalSystem
 import com.github.jacks.roleplayinggame.systems.RenderSystem
 import com.github.jacks.roleplayinggame.systems.StateSystem
 import com.github.jacks.roleplayinggame.ui.viewmodels.DialogViewModel
-import com.github.jacks.roleplayinggame.ui.viewmodels.GameViewModel
+import com.github.jacks.roleplayinggame.ui.viewmodels.MainGameViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.InventoryViewModel
 import com.github.jacks.roleplayinggame.ui.views.PauseView
 import com.github.jacks.roleplayinggame.ui.views.dialogView
-import com.github.jacks.roleplayinggame.ui.views.gameView
 import com.github.jacks.roleplayinggame.ui.views.inventoryView
+import com.github.jacks.roleplayinggame.ui.views.mainGameView
 import com.github.jacks.roleplayinggame.ui.views.pauseView
 import com.github.quillraven.fleks.World
 import com.github.quillraven.fleks.world
@@ -100,15 +98,19 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
 
     init {
         uiStage.actors {
-            gameView(GameViewModel(entityWorld, gameStage))
+            log.debug { "Stage is initialized" }
+
+            // main UI, actor.get(0)
+            mainGameView(MainGameViewModel(entityWorld, gameStage))
+
+            // dialog UI, actor.get(1)
             dialogView(DialogViewModel(gameStage))
-            pauseView {
-                this.isVisible = false
-            }
-            // update the actor.get() function call in keyboard input processor
-            inventoryView(InventoryViewModel(entityWorld, gameStage)) {
-                this.isVisible = false
-            }
+
+            // pause UI, actor.get(2)
+            pauseView { this.isVisible = false }
+
+            // inventory UI, actor.get(3)
+            inventoryView(InventoryViewModel(entityWorld, gameStage)) { this.isVisible = false }
         }
     }
 

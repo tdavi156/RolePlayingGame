@@ -22,7 +22,7 @@ enum class Drawables(
     SLIME("slime"),
     LIFE_BAR("life_bar"),
     MANA_BAR("mana_bar"),
-    FRAME_BGD("frame_bgd"),
+    FRAME_BGD("brownbgd"),
     FRAME_FGD("frame_fgd"),
     INVENTORY_SLOT("inv_slot"),
     INVENTORY_SLOT_HELMET("inv_slot_helmet"),
@@ -61,7 +61,7 @@ operator fun Skin.get(drawable : Drawables) : Drawable = this.getDrawable(drawab
 operator fun Skin.get(font : Fonts) : BitmapFont = this.getFont(font.skinKey)
 
 fun loadSkin() {
-    Scene2DSkin.defaultSkin = skin(TextureAtlas("assets/ui/ui.atlas")) { skin ->
+    Scene2DSkin.defaultSkin = skin(TextureAtlas("assets/ui/ui_frames.atlas")) { skin ->
         loadFonts(skin)
         loadLabels(skin)
         loadButtons(skin)
