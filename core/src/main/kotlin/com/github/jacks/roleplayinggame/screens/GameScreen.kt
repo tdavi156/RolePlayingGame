@@ -45,6 +45,7 @@ import ktx.assets.disposeSafely
 import ktx.box2d.createWorld
 import ktx.log.logger
 import ktx.math.vec2
+import ktx.preferences.get
 import ktx.scene2d.actors
 
 class GameScreen(game : RolePlayingGame) : KtxScreen {
@@ -123,7 +124,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
             }
         }
 
-        entityWorld.system<PortalSystem>().setMap("map_1")
+        entityWorld.system<PortalSystem>().setMap(preferences["current_map", "map_1"])
         PlayerKeyboardInputProcessor(entityWorld, gameStage, uiStage)
         gdxInputProcessor(uiStage)
     }

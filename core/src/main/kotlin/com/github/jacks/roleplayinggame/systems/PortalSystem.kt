@@ -48,6 +48,10 @@ class PortalSystem(
 
     fun setMap(mapName : String, targetPortalId : Int = -1) {
         currentMap?.disposeSafely()
+        // save entitiy data such as player data, spawner data, item data, then clear all entities from the world
+        // loading the new map will restore the player data not counting location as that will be preset on the new map
+        // loading the new map will also restore all the item data
+        // spawner data saved from the previous map is saved so if that map is loaded again, the spawners know what was loaded and now
         world.family(noneOf = arrayOf(PlayerComponent::class, ItemComponent::class)).forEach { world.remove(it) }
         val newMap = TmxMapLoader().load("maps/$mapName.tmx")
         currentMap = newMap

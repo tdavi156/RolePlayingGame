@@ -42,6 +42,7 @@ import com.github.jacks.roleplayinggame.components.LootComponent
 import com.github.jacks.roleplayinggame.components.MoveComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
+import com.github.jacks.roleplayinggame.components.SpawnerComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.components.StateComponent
 import ktx.box2d.circle
@@ -181,6 +182,7 @@ class EntitySpawnSystem(
             is MapChangeEvent -> {
                 log.debug { "MapChangeEvent" }
                 val entityLayer = event.map.layer("entities")
+                val spawnerLayer = event.map.layer("spawners")
                 entityLayer.objects.forEach { mapObject ->
                     val name = mapObject.name ?: gdxError("Map Object $mapObject has no name")
                     val prefsName = mapObject.properties.get("preferencesName")
@@ -198,6 +200,18 @@ class EntitySpawnSystem(
                             this.prefsName = prefsName?.toString() ?: ""
                             this.location.set(mapObject.x * UNIT_SCALE, mapObject.y * UNIT_SCALE)
                             this.color = mapObject.property("color", Color.WHITE)
+                        }
+                    }
+                }
+                spawnerLayer.objects.forEach { spawner ->
+                    // store neccessary data for spawner
+                    // check if spawnerEntities is empty by checking any entities with a spawnerComponent
+                    // to make sure they were removed properly
+                    // if the checks are good then add entities
+                    world.entity {
+                        add<SpawnerComponent> {
+                            this.spawnerId
+                            // add data to the component
                         }
                     }
                 }
