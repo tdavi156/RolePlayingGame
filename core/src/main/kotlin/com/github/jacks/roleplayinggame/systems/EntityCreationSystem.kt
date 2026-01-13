@@ -43,6 +43,7 @@ import com.github.jacks.roleplayinggame.components.MoveComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.SpawnerComponent
+import com.github.jacks.roleplayinggame.components.SpawnerType
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.components.StateComponent
 import ktx.box2d.circle
@@ -50,7 +51,7 @@ import ktx.log.logger
 import kotlin.math.roundToInt
 
 @AllOf([SpawnComponent::class])
-class EntitySpawnSystem(
+class EntityCreationSystem(
     private val physicsWorld : World,
     private val atlas : TextureAtlas,
     private val spawnComponents : ComponentMapper<SpawnComponent>,
@@ -203,15 +204,20 @@ class EntitySpawnSystem(
                         }
                     }
                 }
+
                 spawnerLayer.objects.forEach { spawner ->
-                    // store neccessary data for spawner
                     // check if spawnerEntities is empty by checking any entities with a spawnerComponent
                     // to make sure they were removed properly
                     // if the checks are good then add entities
                     world.entity {
                         add<SpawnerComponent> {
-                            this.spawnerId
-                            // add data to the component
+                            this.spawnerId = spawner.id
+                            this.mapId = 1
+                            this.location.set(spawner.x, spawner.y)
+                            this.spawnerType = SpawnerType.SLIME_SPAWNER
+                            this.spawnTimer = 60f
+                            this.currentTime = 0f
+                            this.isSpawned = false
                         }
                     }
                 }
@@ -223,7 +229,7 @@ class EntitySpawnSystem(
     }
 
     companion object {
-        private val log = logger<EntitySpawnSystem>()
+        private val log = logger<EntityCreationSystem>()
         const val HIT_BOX_SENSOR = "hitbox"
         const val AI_SENSOR = "aiSensor"
         const val PLAYER_NAME = "player"

@@ -9,7 +9,7 @@ import com.badlogic.gdx.physics.box2d.World
 import com.badlogic.gdx.scenes.scene2d.ui.Image
 import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
 import com.github.jacks.roleplayinggame.systems.CollisionSpawnSystem.Companion.SPAWN_AREA_SIZE
-import com.github.jacks.roleplayinggame.systems.EntitySpawnSystem.Companion.HIT_BOX_SENSOR
+import com.github.jacks.roleplayinggame.systems.EntityCreationSystem.Companion.HIT_BOX_SENSOR
 import com.github.quillraven.fleks.ComponentListener
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.EntityCreateCfg

@@ -20,7 +20,7 @@ import com.github.jacks.roleplayinggame.systems.CollisionSpawnSystem
 import com.github.jacks.roleplayinggame.systems.DeathSystem
 import com.github.jacks.roleplayinggame.systems.DebugSystem
 import com.github.jacks.roleplayinggame.systems.DialogSystem
-import com.github.jacks.roleplayinggame.systems.EntitySpawnSystem
+import com.github.jacks.roleplayinggame.systems.EntityCreationSystem
 import com.github.jacks.roleplayinggame.systems.FloatingTextSystem
 import com.github.jacks.roleplayinggame.systems.InventorySystem
 import com.github.jacks.roleplayinggame.systems.LifeSystem
@@ -74,7 +74,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
         }
 
         systems {
-            add<EntitySpawnSystem>()
+            add<EntityCreationSystem>()
             add<CollisionSpawnSystem>()
             add<CollisionDespawnSystem>()
             add<InventorySystem>()

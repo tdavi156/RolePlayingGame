@@ -15,7 +15,7 @@ import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.PortalComponent
 import com.github.jacks.roleplayinggame.components.TiledComponent
-import com.github.jacks.roleplayinggame.systems.EntitySpawnSystem.Companion.AI_SENSOR
+import com.github.jacks.roleplayinggame.systems.EntityCreationSystem.Companion.AI_SENSOR
 import com.github.quillraven.fleks.AllOf
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.Entity

@@ -17,7 +17,7 @@ import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.events.EntityAttackEvent
 import com.github.jacks.roleplayinggame.events.fire
-import com.github.jacks.roleplayinggame.systems.EntitySpawnSystem.Companion.HIT_BOX_SENSOR
+import com.github.jacks.roleplayinggame.systems.EntityCreationSystem.Companion.HIT_BOX_SENSOR
 import com.github.quillraven.fleks.AllOf
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.Entity
