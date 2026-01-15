@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="52" height="36" tilewidth="16" tileheight="16" infinite="0" nextlayerid="10" nextobjectid="32">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="52" height="36" tilewidth="16" tileheight="16" infinite="0" nextlayerid="10" nextobjectid="34">
  <properties>
   <property name="background_music" type="file" value="../audio/field_theme_1.wav"/>
  </properties>
@@ -34,115 +34,35 @@
  </layer>
  <layer id="4" name="foreground_1" width="52" height="36">
   <data encoding="base64" compression="zlib">
-   eJztlFEOgCAMQ/fN/U+h3k79lwMQg7KVTvuS/UFo2g4zIYQQbCzFbK2zlZjzaPaq66hzdup7et4Tdi/vaGmf6eUombVnIHPXW6gvHGTqVY9Wr14hfEHugPbtu2Ta4R7U1THUByzsfj/VF+G3p0cMfYjWwNIpLx0Mmc3UwZKnFyx5RoLM7M1byH8d8VbrTlQGs/r7h71h4wKXGGsO
+   eJztlEtuwjAURT2OIoo9YTGUrqWfXfBrR3QT3UCBXVAoTNgFGyDJnBvFUlwrA6exnZfgI105zke+fu86jAUC98nzkLEXRa/a/E3eo8KUMzaHZnLMteDl8294XSvaaPOtFBV28L6HfuSY66Ds5wqviaJUm595ISrEgrEBdJFjrgdRPh/D66OiL/F3vtH6s45wD9pGZuvXfd81eW8yZT8JfKVQZuiv7vs2qarlCP16IpS3Jby8a/rg1d7brKUpv/B+hCYx6hwX1yfeDe9VDEWhFfbyCQlRiBrU/htN6Wpe+kaXcmXi1VaufNTF5xkI562/dOkMmxCy2oyQB79Qr3ddfy7qbbNGFPLg2gOVTNnyQaFnbfqg0k9bUOmnS3z27D9r+fyv+1ir6htXPWgrv/dwbqhxA6XEmiA=
   </data>
  </layer>
- <objectgroup id="5" name="entities">
-  <object id="1" name="player" gid="10659" x="400" y="560" width="48" height="48"/>
-  <object id="2" name="slime" gid="10660" x="144" y="512" width="32" height="32">
+ <objectgroup id="5" name="entities"/>
+ <objectgroup color="#00aa00" id="9" name="spawners">
+  <object id="29" name="slime_spawner_1" x="339" y="436.5" width="26" height="26">
    <properties>
-    <property name="preferencesName" value="slime2"/>
-   </properties>
-  </object>
-  <object id="3" name="slime" gid="10660" x="176" y="480" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="slime3"/>
-   </properties>
-  </object>
-  <object id="4" name="slime" gid="10660" x="48" y="256" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="slime4"/>
-   </properties>
-  </object>
-  <object id="5" name="slime" gid="10660" x="96" y="208" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="slime5"/>
-   </properties>
-  </object>
-  <object id="6" name="slime" gid="10660" x="112" y="288" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="slime6"/>
-   </properties>
-  </object>
-  <object id="7" name="slime" gid="10660" x="736" y="464" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="slime7"/>
-   </properties>
-  </object>
-  <object id="8" name="slime" gid="10660" x="768" y="496" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="slime8"/>
-   </properties>
-  </object>
-  <object id="9" name="slime" gid="10660" x="624" y="304" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="slime9"/>
-   </properties>
-  </object>
-  <object id="10" name="slime" gid="10660" x="576" y="224" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="slime10"/>
-   </properties>
-  </object>
-  <object id="11" name="slime" gid="10660" x="656" y="208" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="slime11"/>
-   </properties>
-  </object>
-  <object id="12" name="slime" gid="10660" x="672" y="352" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="slime12"/>
-   </properties>
-  </object>
-  <object id="13" name="slime" gid="10660" x="240" y="96" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="slime13"/>
-   </properties>
-  </object>
-  <object id="14" name="slime" gid="10660" x="272" y="112" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="slime14"/>
-   </properties>
-  </object>
-  <object id="15" name="slime" gid="10660" x="320" y="96" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="slime15"/>
-   </properties>
-  </object>
-  <object id="16" name="slime" gid="10660" x="352" y="144" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="slime16"/>
-   </properties>
-  </object>
-  <object id="17" name="slime" gid="10660" x="256" y="144" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="slime17"/>
-   </properties>
-  </object>
-  <object id="18" name="slime" gid="10660" x="368" y="80" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="slime18"/>
-   </properties>
-  </object>
-  <object id="19" name="chest" gid="10661" x="272" y="192" width="16" height="16"/>
-  <object id="20" name="chest" gid="10661" x="64" y="320" width="16" height="16"/>
-  <object id="21" name="chest" gid="10661" x="224" y="528" width="16" height="16"/>
-  <object id="22" name="chest" gid="10661" x="544" y="208" width="16" height="16"/>
-  <object id="23" name="chest" gid="10661" x="704" y="288" width="16" height="16"/>
-  <object id="24" name="chest" gid="10661" x="752" y="432" width="16" height="16"/>
-  <object id="27" name="sign_1" gid="4773" x="432" y="528" width="16" height="16"/>
-  <object id="28" name="sign_2" gid="4773" x="320" y="64" width="16" height="16"/>
- </objectgroup>
- <objectgroup id="9" name="spawners">
-  <object id="29" name="spawner1" x="339" y="436.5" width="26" height="26">
-   <properties>
-    <property name="id" type="int" value="1"/>
+    <property name="entityToSpawn" value="slime"/>
+    <property name="id" type="int" value="2"/>
+    <property name="mapId" type="int" value="1"/>
+    <property name="spawnTimer" type="float" value="60"/>
    </properties>
    <ellipse/>
   </object>
-  <object id="31" name="spawner2" x="402.5" y="340" width="26" height="26">
+  <object id="32" name="slime_spawner_2" x="403" y="339.5" width="26" height="26">
    <properties>
-    <property name="id" type="int" value="2"/>
+    <property name="entityToSpawn" value="slime"/>
+    <property name="id" type="int" value="3"/>
+    <property name="mapId" type="int" value="1"/>
+    <property name="spawnTimer" type="float" value="60"/>
+   </properties>
+   <ellipse/>
+  </object>
+  <object id="33" name="player_spawner_1" x="404" y="530.5" width="26" height="26">
+   <properties>
+    <property name="entityToSpawn" value="player"/>
+    <property name="id" type="int" value="1"/>
+    <property name="mapId" type="int" value="1"/>
+    <property name="spawnTimer" type="float" value="5"/>
    </properties>
    <ellipse/>
   </object>

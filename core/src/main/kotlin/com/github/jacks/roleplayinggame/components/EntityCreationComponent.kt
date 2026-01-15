@@ -1,27 +1,8 @@
 package com.github.jacks.roleplayinggame.components
 
-import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType
 import ktx.math.vec2
-
-enum class ConfigurationType {
-    UNDEFINED, PLAYER, NON_PLAYER
-}
-
-enum class PlayerEntity(
-    val configurationType : ConfigurationType = ConfigurationType.PLAYER,
-    val configurationName : String = "player",
-) {
-    PLAYER(ConfigurationType.PLAYER, "player")
-}
-
-enum class NonPlayerEntity(
-    val configurationType : ConfigurationType = ConfigurationType.NON_PLAYER,
-    val configurationName : String = "nonPlayer",
-) {
-    SLIME(ConfigurationType.NON_PLAYER, "slime")
-}
 
 const val DEFAULT_SPEED = 3f
 const val DEFAULT_ATTACK_DAMAGE = 1
@@ -45,19 +26,7 @@ data class SpawnConfiguration(
 )
 
 data class EntityCreationComponent(
+    var configuration : Any? = null,
     var entityName : String = "",
-    var configurationName : String = "",
-    var configurationType : ConfigurationType = ConfigurationType.UNDEFINED,
-    var prefsName : String = "",
-    var location : Vector2 = vec2(),
-    var color : Color = Color.WHITE
-) {
-
-    private fun getConfigurationTypeFromString(type : String) : ConfigurationType {
-        return when(type) {
-            "player" -> ConfigurationType.PLAYER
-            "non_player" -> ConfigurationType.NON_PLAYER
-            else -> ConfigurationType.UNDEFINED
-        }
-    }
-}
+    var location : Vector2 = vec2()
+)

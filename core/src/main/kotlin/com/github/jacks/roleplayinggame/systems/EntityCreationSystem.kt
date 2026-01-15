@@ -31,7 +31,6 @@ import com.github.jacks.roleplayinggame.components.AiComponent
 import com.github.jacks.roleplayinggame.components.AnimationDirection
 import com.github.jacks.roleplayinggame.components.AttackComponent
 import com.github.jacks.roleplayinggame.components.CollisionComponent
-import com.github.jacks.roleplayinggame.components.ConfigurationType.*
 import com.github.jacks.roleplayinggame.components.DEFAULT_ATTACK_DAMAGE
 import com.github.jacks.roleplayinggame.components.DEFAULT_LIFE
 import com.github.jacks.roleplayinggame.components.DEFAULT_SPEED
@@ -41,11 +40,9 @@ import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.MoveComponent
 import com.github.jacks.roleplayinggame.components.NonPlayerComponent
 import com.github.jacks.roleplayinggame.components.NonPlayerConfiguration
-import com.github.jacks.roleplayinggame.components.NonPlayerEntity
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.PlayerConfiguration
-import com.github.jacks.roleplayinggame.components.PlayerEntity
 import com.github.jacks.roleplayinggame.components.SpawnerComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.components.StateComponent
@@ -67,16 +64,16 @@ class EntityCreationSystem(
 
     override fun onTickEntity(entity: Entity) {
         with(entityCreationComponents[entity]) {
-            when(configurationType) {
-                PLAYER -> {
-                    val config = getPlayerConfiguration(configurationName)
+            when(configuration) {
+                PlayerConfiguration() -> {
+                    val config = configuration as PlayerConfiguration
                     world.entity {
                         val imageComponent = add<ImageComponent> {
                             image = FlipImage().apply {
                                 setPosition(location.x, location.y)
                                 setSize(size(config.model).x, size(config.model).y)
                                 setScaling(Scaling.fill)
-                                color = this@with.color
+                                color = config.color
                             }
                         }
                         val animationComponent = add<AnimationComponent> {
@@ -117,15 +114,15 @@ class EntityCreationSystem(
                         add<CollisionComponent>()
                     }
                 }
-                NON_PLAYER -> {
-                    val config = getNonPlayerConfiguration(configurationName)
+                NonPlayerConfiguration() -> {
+                    val config = configuration as NonPlayerConfiguration
                     world.entity {
                         val imageComponent = add<ImageComponent> {
                             image = FlipImage().apply {
                                 setPosition(location.x, location.y)
                                 setSize(size(config.model).x, size(config.model).y)
                                 setScaling(Scaling.fill)
-                                color = this@with.color
+                                color = config.color
                             }
                         }
                         add<AnimationComponent> {
@@ -169,7 +166,7 @@ class EntityCreationSystem(
                         }
                     }
                 }
-                UNDEFINED -> { gdxError("Entity has an UNDEFINED configuration.") }
+                else -> { gdxError("Entity has no configuration.") }
             }
         }
         world.remove(entity)
@@ -188,28 +185,7 @@ class EntityCreationSystem(
         when (event) {
             is MapChangeEvent -> {
                 log.debug { "MapChangeEvent" }
-                val entityLayer = event.map.layer("entities")
                 val spawnerLayer = event.map.layer("spawners")
-                entityLayer.objects.forEach { mapObject ->
-                    val name = mapObject.name ?: gdxError("Map Object $mapObject has no name")
-                    val prefsName = mapObject.properties.get("preferencesName")
-                    if (name == "player" && playerEntities.isNotEmpty) {
-                        return@forEach
-                    }
-
-                    if (prefsName != null && !preferences.getBoolean("${prefsName}_shouldSpawn", true)) {
-                        return@forEach
-                    }
-                    world.entity {
-                        add<EntityCreationComponent> {
-                            this.configurationName = mapObject.name ?: gdxError("Map Object $mapObject has no name")
-                            this.configurationType = mapObject.propertyOrNull<String>("background_music") ?: gdxError("Map Object $mapObject has no configuration")
-                            this.location.set(mapObject.x * UNIT_SCALE, mapObject.y * UNIT_SCALE)
-                            this.color = mapObject.property("color", Color.WHITE)
-                        }
-                    }
-                }
-
                 spawnerLayer.objects.forEach { spawner ->
                     // check if spawnerEntities is empty by checking any entities with a spawnerComponent
                     // to make sure they were removed properly
@@ -219,33 +195,19 @@ class EntityCreationSystem(
                             this.spawnerId = spawner.propertyOrNull<Int>("id") ?: gdxError("Map Object $spawner has no ID")
                             this.mapId = spawner.propertyOrNull<Int>("mapId") ?: gdxError("Map Object $spawner has no Map ID")
                             this.entityToSpawn = spawner.propertyOrNull<String>("entityToSpawn") ?: gdxError("Map Object $spawner has no Entity To Spawn")
+                            this.spawnTimer = spawner.propertyOrNull<Float>("spawnTimer") ?: gdxError("Map Object $spawner has no Spawn Timer")
                             this.location.set(spawner.x, spawner.y)
-                            this.spawnTimer = 60f
-                            this.currentTime = 0f
-                            this.isSpawned = false
+                            this.currentTime = 0f // get from prefs based on id?
+                            this.isSpawned = false // get from prefs based on id?
                         }
                     }
                 }
-
                 return true
             }
         }
         return false
     }
 
-    private fun getPlayerConfiguration(configName : String) : PlayerConfiguration {
-        return when (configName) {
-            PlayerEntity.PLAYER.configurationName -> PLAYER_CONFIGURATION
-            else -> PlayerConfiguration()
-        }
-    }
-
-    private fun getNonPlayerConfiguration(configName : String) : NonPlayerConfiguration {
-        return when (configName) {
-            NonPlayerEntity.SLIME.configurationName -> SLIME_CONFIGURATION
-            else -> NonPlayerConfiguration()
-        }
-    }
 
     companion object {
         private val log = logger<EntityCreationSystem>()
@@ -253,39 +215,6 @@ class EntityCreationSystem(
         const val AI_SENSOR = "aiSensor"
         const val PLAYER_NAME = "player"
 
-        val PLAYER_CONFIGURATION = PlayerConfiguration(
-            AnimationModel.PLAYER,
-            stats = StatComponent(
-                currentHealth = 30f,
-                maxHealth = 30f,
-                attackDamage = 5f,
-                defense = 1f,
-                moveSpeed = 1f
-            ),
-            speedScaling = 1.5f,
-            lifeScaling = 1f,
-            attackRange = 0.75f,
-            attackScaling = 1f,
-            physicsScaling = vec2(0.3f, 0.3f,),
-            physicsOffset = vec2(0f, -10f * UNIT_SCALE)
-        )
-        val SLIME_CONFIGURATION = NonPlayerConfiguration(
-            AnimationModel.SLIME,
-            stats = StatComponent(
-                currentHealth = 10f,
-                maxHealth = 10f,
-                attackDamage = 3f,
-                defense = 0f,
-                moveSpeed = 1f
-            ),
-            speedScaling = 0.5f,
-            lifeScaling = 1f,
-            attackRange = 1f,
-            attackScaling = 1f,
-            physicsScaling = vec2(0.3f, 0.3f),
-            physicsOffset = vec2(0f, -2f * UNIT_SCALE),
-            aiTreePath = "slimeBehavior.tree"
-        )
         val SLIME_DIALOG_CONFIGURATION = SpawnConfiguration(
             AnimationModel.SLIME,
             lifeScaling = 0f,
