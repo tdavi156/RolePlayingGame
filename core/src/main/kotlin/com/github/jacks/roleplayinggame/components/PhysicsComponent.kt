@@ -2,11 +2,13 @@ package com.github.jacks.roleplayinggame.components
 
 import com.badlogic.gdx.math.Rectangle
 import com.badlogic.gdx.math.Shape2D
+import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.physics.box2d.Body
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType.StaticBody
 import com.badlogic.gdx.physics.box2d.World
 import com.badlogic.gdx.scenes.scene2d.ui.Image
+import com.badlogic.gdx.utils.Scaling
 import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
 import com.github.jacks.roleplayinggame.systems.CollisionSpawnSystem.Companion.SPAWN_AREA_SIZE
 import com.github.jacks.roleplayinggame.systems.EntityCreationSystem.Companion.HIT_BOX_SENSOR
@@ -72,7 +74,9 @@ class PhysicsComponent {
         fun PhysicsComponent.bodyFromImageAndConfiguration(
             world : World,
             image : Image,
-            configuration: SpawnConfiguration
+            bodyType : BodyType,
+            physicsScaling : Vector2,
+            physicsOffset : Vector2,
         ) : Body {
             val x = image.x
             val y = image.y
@@ -80,24 +84,24 @@ class PhysicsComponent {
             val height = image.height
             val physicsComponent = this
 
-            return world.body(configuration.bodyType) {
+            return world.body(bodyType) {
                 position.set(x + width * 0.5f, y + height * 0.5f)
                 fixedRotation = true
                 allowSleep = false
 
-                val scaledWidth = width * configuration.physicsScaling.x
-                val scaledHeight = height * configuration.physicsScaling.y
-                physicsComponent.offset.set(configuration.physicsOffset)
+                val scaledWidth = width * physicsScaling.x
+                val scaledHeight = height * physicsScaling.y
+                physicsComponent.offset.set(physicsOffset)
                 physicsComponent.size.set(scaledWidth, scaledHeight)
 
-                box(scaledWidth, scaledHeight, configuration.physicsOffset) {
-                    isSensor = configuration.bodyType != StaticBody
+                box(scaledWidth, scaledHeight, physicsOffset) {
+                    isSensor = bodyType != StaticBody
                     userData = HIT_BOX_SENSOR
                 }
 
-                if (configuration.bodyType != StaticBody) {
+                if (bodyType != StaticBody) {
                     val collisionHeight = scaledHeight * 0.4f
-                    val collisionOffset = vec2().apply { set(configuration.physicsOffset) }
+                    val collisionOffset = vec2().apply { set(physicsOffset) }
                     collisionOffset.y -= scaledHeight * 0.5f - collisionHeight * 0.5f
                     box(scaledWidth, collisionHeight, collisionOffset)
                 }

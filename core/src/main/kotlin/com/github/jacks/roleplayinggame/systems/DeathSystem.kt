@@ -5,7 +5,6 @@ import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.AnimationComponent
 import com.github.jacks.roleplayinggame.components.DeathComponent
-import com.github.jacks.roleplayinggame.components.SpawnComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.events.EntityRespawnEvent
 import com.github.jacks.roleplayinggame.events.fire

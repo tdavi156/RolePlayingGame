@@ -9,8 +9,8 @@ enum class SpawnerType {
 data class SpawnerComponent(
     var spawnerId : Int,
     var mapId : Int,
+    var entityToSpawn : String,
     var location : Vector2,
-    var spawnerType : SpawnerType,
     var spawnTimer : Float,
     var currentTime : Float,
     var isSpawned : Boolean

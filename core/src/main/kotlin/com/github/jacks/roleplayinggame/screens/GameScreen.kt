@@ -29,6 +29,7 @@ import com.github.jacks.roleplayinggame.systems.MoveSystem
 import com.github.jacks.roleplayinggame.systems.PhysicsSystem
 import com.github.jacks.roleplayinggame.systems.PortalSystem
 import com.github.jacks.roleplayinggame.systems.RenderSystem
+import com.github.jacks.roleplayinggame.systems.SpawnerSystem
 import com.github.jacks.roleplayinggame.systems.StateSystem
 import com.github.jacks.roleplayinggame.ui.viewmodels.DialogViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.MainGameViewModel
@@ -75,6 +76,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
 
         systems {
             add<EntityCreationSystem>()
+            add<SpawnerSystem>()
             add<CollisionSpawnSystem>()
             add<CollisionDespawnSystem>()
             add<InventorySystem>()
