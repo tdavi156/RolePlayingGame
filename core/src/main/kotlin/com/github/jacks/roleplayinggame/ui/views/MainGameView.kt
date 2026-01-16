@@ -44,9 +44,9 @@ class MainGameView(
     private var playerExperience = preferences["player_experience", 0]
 
     // buttons
-    private var characterInfoButton : TextButton
-    private var settingsButton : TextButton
-    private var menuButton : TextButton
+    //private var characterInfoButton : TextButton
+    //private var settingsButton : TextButton
+    //private var menuButton : TextButton
 
 
 

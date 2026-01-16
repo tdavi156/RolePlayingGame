@@ -15,7 +15,6 @@ import com.github.jacks.roleplayinggame.events.GamePauseEvent
 import com.github.jacks.roleplayinggame.events.GameResumeEvent
 import com.github.jacks.roleplayinggame.screens.GameScreen
 import com.github.jacks.roleplayinggame.screens.InventoryScreen
-import com.github.jacks.roleplayinggame.screens.UIScreen
 import com.github.jacks.roleplayinggame.ui.disposeSkin
 import com.github.jacks.roleplayinggame.ui.loadSkin
 import ktx.app.KtxGame
@@ -41,8 +40,6 @@ class RolePlayingGame : KtxGame<KtxScreen>(), EventListener{
         loadSkin()
         gameStage.addListener(this)
         addScreen(GameScreen(this))
-        addScreen(UIScreen())
-        addScreen(InventoryScreen())
         setScreen<GameScreen>()
     }
 

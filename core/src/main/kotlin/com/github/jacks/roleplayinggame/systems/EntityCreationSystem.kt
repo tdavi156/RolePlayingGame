@@ -31,6 +31,7 @@ import com.github.jacks.roleplayinggame.components.AiComponent
 import com.github.jacks.roleplayinggame.components.AnimationDirection
 import com.github.jacks.roleplayinggame.components.AttackComponent
 import com.github.jacks.roleplayinggame.components.CollisionComponent
+import com.github.jacks.roleplayinggame.components.ConfigurationType
 import com.github.jacks.roleplayinggame.components.DEFAULT_ATTACK_DAMAGE
 import com.github.jacks.roleplayinggame.components.DEFAULT_LIFE
 import com.github.jacks.roleplayinggame.components.DEFAULT_SPEED
@@ -64,8 +65,8 @@ class EntityCreationSystem(
 
     override fun onTickEntity(entity: Entity) {
         with(entityCreationComponents[entity]) {
-            when(configuration) {
-                PlayerConfiguration() -> {
+            when(configurationType) {
+                ConfigurationType.PLAYER -> {
                     val config = configuration as PlayerConfiguration
                     world.entity {
                         val imageComponent = add<ImageComponent> {
@@ -114,7 +115,7 @@ class EntityCreationSystem(
                         add<CollisionComponent>()
                     }
                 }
-                NonPlayerConfiguration() -> {
+                ConfigurationType.NON_PLAYER -> {
                     val config = configuration as NonPlayerConfiguration
                     world.entity {
                         val imageComponent = add<ImageComponent> {

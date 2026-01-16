@@ -1,18 +1,14 @@
 package com.github.jacks.roleplayinggame.components
 
 import com.badlogic.gdx.math.Vector2
-
-enum class SpawnerType {
-    INVALID_SPAWNER, PLAYER_SPAWNER, SLIME_SPAWNER
-}
+import ktx.math.vec2
 
 data class SpawnerComponent(
-    var spawnerId : Int,
-    var mapId : Int,
-    var entityToSpawn : String,
-    var location : Vector2,
-    var spawnTimer : Float,
-    var currentTime : Float,
-    var isSpawned : Boolean
-) {
-}
+    var spawnerId : Int = -1,
+    var mapId : Int = -1,
+    var entityToSpawn : String = "",
+    var location : Vector2 = vec2(),
+    var spawnTimer : Float = 60f,
+    var currentTime : Float = 0f,
+    var isSpawned : Boolean = false,
+)

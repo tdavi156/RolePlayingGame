@@ -17,7 +17,7 @@ import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.PortalComponent
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
 import com.github.jacks.roleplayinggame.events.fire
-import com.github.jacks.roleplayinggame.systems.EntityCreationSystem.Companion.PLAYER_CONFIGURATION
+import com.github.jacks.roleplayinggame.systems.SpawnerSystem.Companion.PLAYER_CONFIGURATION
 import com.github.quillraven.fleks.AllOf
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.Entity
@@ -66,7 +66,12 @@ class PortalSystem(
                 configureEntity(playerEntity) {
                     physicsComponents.remove(it)
                     physicsComponents.add(it) {
-                        body = bodyFromImageAndConfiguration(physicsWorld, playerImage, PLAYER_CONFIGURATION)
+                        body = bodyFromImageAndConfiguration(
+                            physicsWorld,
+                            playerImage,
+                            PLAYER_CONFIGURATION.bodyType,
+                            PLAYER_CONFIGURATION.physicsScaling,
+                            PLAYER_CONFIGURATION.physicsOffset)
                     }
                 }
             }

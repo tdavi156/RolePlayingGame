@@ -4,6 +4,10 @@ import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType
 import ktx.math.vec2
 
+enum class ConfigurationType {
+    UNDEFINED, PLAYER, NON_PLAYER
+}
+
 const val DEFAULT_SPEED = 3f
 const val DEFAULT_ATTACK_DAMAGE = 1
 const val DEFAULT_LIFE = 10
@@ -26,6 +30,7 @@ data class SpawnConfiguration(
 )
 
 data class EntityCreationComponent(
+    var configurationType : ConfigurationType = ConfigurationType.UNDEFINED,
     var configuration : Any? = null,
     var entityName : String = "",
     var location : Vector2 = vec2()

@@ -3,6 +3,7 @@ package com.github.jacks.roleplayinggame.systems
 import com.badlogic.gdx.graphics.Color
 import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
 import com.github.jacks.roleplayinggame.components.AnimationModel
+import com.github.jacks.roleplayinggame.components.ConfigurationType
 import com.github.jacks.roleplayinggame.components.EntityCreationComponent
 import com.github.jacks.roleplayinggame.components.NonPlayerConfiguration
 import com.github.jacks.roleplayinggame.components.PlayerConfiguration
@@ -28,6 +29,7 @@ class SpawnerSystem(
             // the timer has completed and the entity should be spawned
             world.entity {
                 add<EntityCreationComponent> {
+                    this.configurationType = getConfigurationType(spawnerComp.entityToSpawn)
                     this.configuration = getConfiguration(spawnerComp.entityToSpawn)
                     this.entityName = spawnerComp.entityToSpawn
                     this.location.set(spawnerComp.location.x * UNIT_SCALE, spawnerComp.location.y * UNIT_SCALE)
@@ -35,6 +37,14 @@ class SpawnerSystem(
             }
             spawnerComp.currentTime = 0f
             spawnerComp.isSpawned = true
+        }
+    }
+
+    fun getConfigurationType(entityName : String) : ConfigurationType {
+        return when(entityName) {
+            "player" -> { ConfigurationType.PLAYER }
+            "slime" -> { ConfigurationType.NON_PLAYER }
+            else -> { return ConfigurationType.UNDEFINED }
         }
     }
 
@@ -84,6 +94,3 @@ class SpawnerSystem(
         )
     }
 }
-
-
-// add the configs here for different spawners, and send those in as config files to the entitycreation system
