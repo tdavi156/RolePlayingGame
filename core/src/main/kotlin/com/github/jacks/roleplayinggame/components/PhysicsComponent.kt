@@ -8,7 +8,6 @@ import com.badlogic.gdx.physics.box2d.BodyDef.BodyType
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType.StaticBody
 import com.badlogic.gdx.physics.box2d.World
 import com.badlogic.gdx.scenes.scene2d.ui.Image
-import com.badlogic.gdx.utils.Scaling
 import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
 import com.github.jacks.roleplayinggame.systems.CollisionSpawnSystem.Companion.SPAWN_AREA_SIZE
 import com.github.jacks.roleplayinggame.systems.EntityCreationSystem.Companion.HIT_BOX_SENSOR
@@ -45,7 +44,7 @@ class PhysicsComponent {
                     val bodyHeight = shape.height * UNIT_SCALE
 
                     return add {
-                        body = world.body(BodyType.StaticBody) {
+                        body = world.body(StaticBody) {
                             position.set(bodyX, bodyY)
                             fixedRotation = false
                             allowSleep = false

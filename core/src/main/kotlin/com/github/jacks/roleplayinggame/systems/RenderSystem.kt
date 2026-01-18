@@ -14,6 +14,7 @@ import com.github.jacks.roleplayinggame.events.MapChangeEvent
 import com.github.quillraven.fleks.AllOf
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.Entity
+import com.github.quillraven.fleks.Fixed
 import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.Qualifier
 import com.github.quillraven.fleks.collection.compareEntity
@@ -28,7 +29,7 @@ class RenderSystem(
     @Qualifier("uiStage") private val uiStage : Stage,
     private val imageComponents : ComponentMapper<ImageComponent>
 ) : EventListener, IteratingSystem(
-    comparator = compareEntity{ e1, e2 -> imageComponents[e1].compareTo(imageComponents[e2]) }
+    comparator = compareEntity { e1, e2 -> imageComponents[e1].compareTo(imageComponents[e2]) }
 ) {
 
     private val backgroundLayers = mutableListOf<TiledMapTileLayer>()
@@ -66,7 +67,6 @@ class RenderSystem(
             viewport.apply()
             act(deltaTime)
             draw()
-
         }
     }
 

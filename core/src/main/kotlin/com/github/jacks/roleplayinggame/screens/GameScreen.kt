@@ -9,11 +9,14 @@ import com.github.jacks.roleplayinggame.components.FloatingTextComponent.Compani
 import com.github.jacks.roleplayinggame.components.ImageComponent.Companion.ImageComponentListener
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.PhysicsComponentListener
 import com.github.jacks.roleplayinggame.components.StateComponent.Companion.StateComponentListener
+import com.github.jacks.roleplayinggame.events.InitializeGameEvent
+import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.input.PlayerKeyboardInputProcessor
 import com.github.jacks.roleplayinggame.input.gdxInputProcessor
 import com.github.jacks.roleplayinggame.systems.AiSystem
 import com.github.jacks.roleplayinggame.systems.AnimationSystem
 import com.github.jacks.roleplayinggame.systems.AttackSystem
+import com.github.jacks.roleplayinggame.systems.BattleSystem
 import com.github.jacks.roleplayinggame.systems.CameraSystem
 import com.github.jacks.roleplayinggame.systems.CollisionDespawnSystem
 import com.github.jacks.roleplayinggame.systems.CollisionSpawnSystem
@@ -22,9 +25,11 @@ import com.github.jacks.roleplayinggame.systems.DebugSystem
 import com.github.jacks.roleplayinggame.systems.DialogSystem
 import com.github.jacks.roleplayinggame.systems.EntityCreationSystem
 import com.github.jacks.roleplayinggame.systems.FloatingTextSystem
+import com.github.jacks.roleplayinggame.systems.InitializeGameSystem
 import com.github.jacks.roleplayinggame.systems.InventorySystem
 import com.github.jacks.roleplayinggame.systems.LifeSystem
 import com.github.jacks.roleplayinggame.systems.LootSystem
+import com.github.jacks.roleplayinggame.systems.MapSystem
 import com.github.jacks.roleplayinggame.systems.MoveSystem
 import com.github.jacks.roleplayinggame.systems.PhysicsSystem
 import com.github.jacks.roleplayinggame.systems.PortalSystem
@@ -35,6 +40,7 @@ import com.github.jacks.roleplayinggame.ui.viewmodels.DialogViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.MainGameViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.InventoryViewModel
 import com.github.jacks.roleplayinggame.ui.views.PauseView
+import com.github.jacks.roleplayinggame.ui.views.backgroundView
 import com.github.jacks.roleplayinggame.ui.views.dialogView
 import com.github.jacks.roleplayinggame.ui.views.inventoryView
 import com.github.jacks.roleplayinggame.ui.views.mainGameView
@@ -54,9 +60,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
     private val gameStage = game.gameStage
     private val uiStage = game.uiStage
     private val textureAtlas : TextureAtlas = TextureAtlas("assets/graphics/gameObjects.atlas")
-    private val physicsWorld = createWorld(gravity = vec2()).apply {
-        autoClearForces = false
-    }
+    private val physicsWorld = createWorld(gravity = vec2()).apply { autoClearForces = false }
 
     private val entityWorld : World = world {
         injectables {
@@ -75,6 +79,8 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
         }
 
         systems {
+            add<InitializeGameSystem>()
+            add<MapSystem>()
             add<EntityCreationSystem>()
             add<SpawnerSystem>()
             add<CollisionSpawnSystem>()
@@ -83,6 +89,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
             add<PortalSystem>()
             add<MoveSystem>()
             add<AttackSystem>()
+            add<BattleSystem>()
             add<LootSystem>()
             add<DialogSystem>()
             add<DeathSystem>()
@@ -106,13 +113,16 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
             // main UI, actor.get(0)
             mainGameView(MainGameViewModel(entityWorld, gameStage))
 
-            // dialog UI, actor.get(1)
-            dialogView(DialogViewModel(gameStage))
-
-            // pause UI, actor.get(2)
+            // pauseView, actor.get(1)
             pauseView { this.isVisible = false }
 
-            // inventory UI, actor.get(3)
+            // background, actor.get(2)
+            backgroundView() { isVisible = false }
+
+            // dialog UI, actor.get(3)
+            dialogView(DialogViewModel(gameStage))
+
+            // inventory UI, actor.get(4)
             inventoryView(InventoryViewModel(entityWorld, gameStage)) { this.isVisible = false }
         }
     }
@@ -126,7 +136,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
             }
         }
 
-        entityWorld.system<PortalSystem>().setMap(preferences["current_map", "map_1"])
+        gameStage.fire(InitializeGameEvent())
         PlayerKeyboardInputProcessor(entityWorld, gameStage, uiStage)
         gdxInputProcessor(uiStage)
     }
@@ -136,7 +146,9 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
             AnimationSystem::class,
             CameraSystem::class,
             RenderSystem::class,
-            DebugSystem::class
+            DebugSystem::class,
+            // audio system?
+            // inventory system?
         )
 
         entityWorld.systems

@@ -1,51 +1,38 @@
 package com.github.jacks.roleplayinggame.systems
 
-import com.badlogic.gdx.maps.MapObject
-import com.badlogic.gdx.maps.tiled.TiledMap
-import com.badlogic.gdx.maps.tiled.TmxMapLoader
 import com.badlogic.gdx.physics.box2d.World
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
-import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
-import com.github.jacks.roleplayinggame.components.ImageComponent
-import com.github.jacks.roleplayinggame.components.ItemComponent
-import com.github.jacks.roleplayinggame.components.PhysicsComponent
-import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.bodyFromImageAndConfiguration
+import com.github.jacks.roleplayinggame.components.BattleComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.physicsComponentFromShape2D
-import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.PortalComponent
+import com.github.jacks.roleplayinggame.events.BattleEvent
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
 import com.github.jacks.roleplayinggame.events.PortalEvent
 import com.github.jacks.roleplayinggame.events.fire
-import com.github.jacks.roleplayinggame.systems.SpawnerSystem.Companion.PLAYER_CONFIGURATION
 import com.github.quillraven.fleks.AllOf
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import ktx.app.gdxError
-import ktx.assets.disposeSafely
-import ktx.tiled.height
 import ktx.tiled.id
 import ktx.tiled.layer
 import ktx.tiled.property
 import ktx.tiled.shape
-import ktx.tiled.width
-import ktx.tiled.x
-import ktx.tiled.y
 
-@AllOf([PortalComponent::class])
-class PortalSystem(
+@AllOf([BattleComponent::class])
+class BattleSystem(
     private val physicsWorld : World,
     private val gameStage : Stage,
-    private val portalComponents : ComponentMapper<PortalComponent>,
+    private val battleComponents : ComponentMapper<BattleComponent>,
 ) : IteratingSystem(), EventListener {
 
     override fun onTickEntity(entity: Entity) {
-        val (id : Int, toMap : String, toPortal : Int, triggeringEntities : MutableSet<Entity>) = portalComponents[entity]
+        val (toMap : String, triggeringEntities : MutableSet<Entity>) = battleComponents[entity]
         if (triggeringEntities.isNotEmpty()) {
             triggeringEntities.clear()
-            gameStage.fire(PortalEvent(toMap, toPortal))
+            gameStage.fire(BattleEvent(toMap))
         }
     }
 

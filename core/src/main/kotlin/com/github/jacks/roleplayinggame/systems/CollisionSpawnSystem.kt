@@ -42,7 +42,7 @@ class CollisionSpawnSystem(
         startX : Int,
         startY : Int,
         size : Int,
-        action : (TiledMapTileLayer.Cell, Int, Int) -> Unit
+        action : (Cell, Int, Int) -> Unit
     ) {
         for (x in startX - size .. startX + size) {
             for (y in startY - size .. startY + size) {

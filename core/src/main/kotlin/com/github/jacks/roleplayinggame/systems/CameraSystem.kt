@@ -5,6 +5,7 @@ import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.ImageComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
+import com.github.jacks.roleplayinggame.events.BattleMapChangeEvent
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
 import com.github.quillraven.fleks.AllOf
 import com.github.quillraven.fleks.ComponentMapper
@@ -43,11 +44,19 @@ class CameraSystem (
     }
 
     override fun handle(event: Event): Boolean {
-        if (event is MapChangeEvent) {
-            maxMapWidth = event.map.width.toFloat()
-            maxMapHeight = event.map.height.toFloat()
-            return true
+        when(event) {
+            is MapChangeEvent -> {
+                maxMapWidth = event.map.width.toFloat()
+                maxMapHeight = event.map.height.toFloat()
+                return true
+            }
+            is BattleMapChangeEvent -> {
+                // set the camera to a fixed position on the map, and possibly zoom out as well
+                // or consider making the map smaller to fit everything on screen
+                // there will be quite a bit of UI for the battle map so there needs to be enough space for it
+                return true
+            }
+            else -> return false
         }
-        return false
     }
 }

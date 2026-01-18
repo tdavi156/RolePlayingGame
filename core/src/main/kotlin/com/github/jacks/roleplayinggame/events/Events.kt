@@ -13,24 +13,20 @@ fun Stage.fire(event : Event) {
     this.root.fire(event)
 }
 
-data class MapChangeEvent(val map : TiledMap) : Event()
-
-class CollisionDespawnEvent(val cell : Cell) : Event()
-
-class EntityAttackEvent(val model : AnimationModel) : Event()
-
-class EntityDeathEvent(val model : AnimationModel) : Event()
-
-class EntityRespawnEvent(val entity : Entity) : Event()
-
-class EntityLootEvent(val entity : Entity, val model : AnimationModel) : Event()
-
-class EntityTakeDamageEvent(val entity : Entity) : Event()
-
-class EntityAddItemEvent(val entity : Entity, val itemType : ItemType) : Event()
-
+class InitializeGameEvent : Event()
 class GamePauseEvent : Event()
-
 class GameResumeEvent : Event()
 
+data class MapChangeEvent(val map : TiledMap) : Event()
+data class BattleMapChangeEvent(val map : TiledMap) : Event()
+data class PortalEvent(val toMap : String, val toPortal : Int) : Event()
+data class BattleEvent(val toMap : String) : Event()
+
+class CollisionDespawnEvent(val cell : Cell) : Event()
+class EntityAttackEvent(val model : AnimationModel) : Event()
+class EntityDeathEvent(val model : AnimationModel) : Event()
+class EntityRespawnEvent(val entity : Entity) : Event()
+class EntityLootEvent(val entity : Entity, val model : AnimationModel) : Event()
+class EntityTakeDamageEvent(val entity : Entity) : Event()
+class EntityAddItemEvent(val entity : Entity, val itemType : ItemType) : Event()
 class EntityDialogEvent(val dialog : Dialog) : Event()

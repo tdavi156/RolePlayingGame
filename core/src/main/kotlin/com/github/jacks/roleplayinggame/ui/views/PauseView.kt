@@ -16,17 +16,17 @@ class PauseView(skin : Skin) : KTable, Table(skin) {
     init {
         setFillParent(true)
 
-        if (!skin.has(PIXMAP_KEY, TextureRegionDrawable::class.java)) {
-            skin.add(PIXMAP_KEY, TextureRegionDrawable(
+        if (!skin.has(PAUSE_PIXMAP_KEY, TextureRegionDrawable::class.java)) {
+            skin.add(PAUSE_PIXMAP_KEY, TextureRegionDrawable(
                 Texture(
                     Pixmap(1, 1, Pixmap.Format.RGBA8888).apply {
-                        this.drawPixel(0, 0, Color.rgba8888(0.1f, 0.1f, 0.1f, 0.7f))
+                        this.drawPixel(0, 0, Color.rgba8888(0.1f, 0.1f, 0.1f, 0.6f))
                     }
                 )
             ))
         }
 
-        background = skin.get(PIXMAP_KEY, TextureRegionDrawable::class.java)
+        background = skin.get(PAUSE_PIXMAP_KEY, TextureRegionDrawable::class.java)
 
         this += label("Paused", Labels.LARGE.skinKey) { labelCell ->
             labelCell.expand().fill()
@@ -35,7 +35,7 @@ class PauseView(skin : Skin) : KTable, Table(skin) {
     }
 
     companion object {
-        private const val PIXMAP_KEY = "pauseTexturePixmap"
+        private const val PAUSE_PIXMAP_KEY = "pauseTexturePixmap"
     }
 }
 

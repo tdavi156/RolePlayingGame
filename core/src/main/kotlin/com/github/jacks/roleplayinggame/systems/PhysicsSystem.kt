@@ -9,8 +9,10 @@ import com.badlogic.gdx.physics.box2d.Fixture
 import com.badlogic.gdx.physics.box2d.Manifold
 import com.badlogic.gdx.physics.box2d.World
 import com.github.jacks.roleplayinggame.components.AiComponent
+import com.github.jacks.roleplayinggame.components.BattleComponent
 import com.github.jacks.roleplayinggame.components.CollisionComponent
 import com.github.jacks.roleplayinggame.components.ImageComponent
+import com.github.jacks.roleplayinggame.components.NonPlayerComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.PortalComponent
@@ -37,7 +39,8 @@ class PhysicsSystem (
     private val collisionComponents : ComponentMapper<CollisionComponent>,
     private val aiComponents : ComponentMapper<AiComponent>,
     private val portalComponents : ComponentMapper<PortalComponent>,
-    private val playerComponents : ComponentMapper<PlayerComponent>
+    private val playerComponents : ComponentMapper<PlayerComponent>,
+    private val battleComponents : ComponentMapper<BattleComponent>,
 ) : ContactListener, IteratingSystem(interval = Fixed(1 / 60f)) {
 
     init {
@@ -112,6 +115,12 @@ class PhysicsSystem (
             }
             entityB in portalComponents && entityA in playerComponents && !contact.fixtureA.isSensor -> {
                 portalComponents[entityB].triggerEntities += entityA
+            }
+            entityA in battleComponents && entityB in playerComponents && !contact.fixtureB.isSensor -> {
+                battleComponents[entityA].triggerEntities += entityB
+            }
+            entityB in battleComponents && entityA in playerComponents && !contact.fixtureA.isSensor -> {
+                battleComponents[entityB].triggerEntities += entityA
             }
         }
     }

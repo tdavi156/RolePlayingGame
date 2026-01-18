@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="30" height="24" tilewidth="16" tileheight="16" infinite="0" nextlayerid="8" nextobjectid="3">
+ <properties>
+  <property name="background_music" type="file" value="../audio/field_theme_1.wav"/>
+  <property name="mapId" type="int" value="2"/>
+ </properties>
+ <tileset firstgid="1" source="tiles/outdoor_map_tiles.tsx"/>
+ <tileset firstgid="5330" source="tiles/decorations_A_map_tiles.tsx"/>
+ <layer id="1" name="background_1" width="30" height="24">
+  <data encoding="base64" compression="zlib">
+   eJzLZ2dgyB/Fo3gY4gcCtMX47O0WYmDooTLuFRq1d9TeUXuHs71XgGquEoFhZhKj9hoR9hKL23gYHNqBmBrlJLnl+EDXK6N4FMMwAEwSlhk=
+  </data>
+ </layer>
+ <layer id="2" name="background_2" width="30" height="24">
+  <data encoding="base64" compression="zlib">
+   eJxjYBgFo2AU0AIkSjMwJAFxsjRusbNyDAyr5RkYVsmj6j0lCaF3AtXtAuLN0gxUBWJA+74A8Wcg7gG6oVcOIi4sBaGZZBgYmGWoaycIxMtDsJ0CA8NVoJ3XoPbGSFFmriIwvBJkgeELxEqSFDuTJHtXAu1cRWd7qQGAYb4AGN8LgGltwUC7hV7gnzTDgq3SA+PfRzTIT6NgFIyCgQMAHqMblg==
+  </data>
+ </layer>
+ <layer id="3" name="background_3" width="30" height="24">
+  <data encoding="base64" compression="zlib">
+   eJxjYBgFo2AU0ApckBxoFwxdoChNmvoWYFi3UiG8s0i0l1rgkczA2EtLcF0KiIH+uiFFnv6vsgwM32Qh7J9A+hcQ/5alnvtwATs5BgZ7OQjbCUg7A7GLHO3tHQWjYBQMHQAA0pEOAA==
+  </data>
+ </layer>
+ <layer id="4" name="foreground_1" width="30" height="24">
+  <data encoding="base64" compression="zlib">
+   eJztwYEAAAAAw6D5U1/hAFUBAACvAQtAAAE=
+  </data>
+ </layer>
+ <objectgroup id="5" name="entities"/>
+ <objectgroup color="#2411f9" id="6" name="portals">
+  <object id="1" name="to_map_1" x="222.972" y="279.202" width="34" height="8.90909">
+   <properties>
+    <property name="toMap" value="map_1"/>
+    <property name="toPortal" type="int" value="36"/>
+   </properties>
+  </object>
+  <object id="2" name="from_map_1" x="230.515" y="251.348" width="19.0652" height="17.4783"/>
+ </objectgroup>
+ <objectgroup id="7" name="spawners"/>
+</map>

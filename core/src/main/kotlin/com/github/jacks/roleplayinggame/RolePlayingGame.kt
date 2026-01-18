@@ -8,13 +8,11 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
-import com.badlogic.gdx.utils.viewport.ExtendViewport
 import com.badlogic.gdx.utils.viewport.FitViewport
 import com.badlogic.gdx.utils.viewport.ScreenViewport
 import com.github.jacks.roleplayinggame.events.GamePauseEvent
 import com.github.jacks.roleplayinggame.events.GameResumeEvent
 import com.github.jacks.roleplayinggame.screens.GameScreen
-import com.github.jacks.roleplayinggame.screens.InventoryScreen
 import com.github.jacks.roleplayinggame.ui.disposeSkin
 import com.github.jacks.roleplayinggame.ui.loadSkin
 import ktx.app.KtxGame
@@ -22,8 +20,6 @@ import ktx.app.KtxScreen
 import ktx.app.clearScreen
 import ktx.assets.disposeSafely
 import ktx.preferences.flush
-import ktx.preferences.set
-import java.math.BigInteger
 
 class RolePlayingGame : KtxGame<KtxScreen>(), EventListener{
 
@@ -32,11 +28,15 @@ class RolePlayingGame : KtxGame<KtxScreen>(), EventListener{
     val uiStage : Stage by lazy { Stage(ScreenViewport(), batch) }
     val preferences : Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
     private var paused = false
+    private val resetOnStart : Boolean = true // used for testing
 
     override fun create() {
         Gdx.app.logLevel = Application.LOG_DEBUG
-        preferences.clear()
-
+        if (resetOnStart) {
+            preferences.flush {
+                this.clear()
+            }
+        }
         loadSkin()
         gameStage.addListener(this)
         addScreen(GameScreen(this))

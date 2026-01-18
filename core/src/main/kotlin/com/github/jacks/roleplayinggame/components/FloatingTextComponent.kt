@@ -24,7 +24,7 @@ class FloatingTextComponent {
         ) : ComponentListener<FloatingTextComponent> {
             override fun onComponentAdded(entity: Entity, component: FloatingTextComponent) {
                 uiStage.addActor(component.label)
-                component.label.setFontScale(0.2f)
+                component.label.setFontScale(1f)
                 component.label += fadeOut(component.textDuration, Interpolation.pow3OutInverse)
                 component.textTargetLocation.set(
                     component.textStartLocation.x + MathUtils.random(-0.2f, 0.2f),

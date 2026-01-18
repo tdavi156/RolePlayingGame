@@ -30,6 +30,7 @@ import com.github.jacks.roleplayinggame.actors.FlipImage
 import com.github.jacks.roleplayinggame.components.AiComponent
 import com.github.jacks.roleplayinggame.components.AnimationDirection
 import com.github.jacks.roleplayinggame.components.AttackComponent
+import com.github.jacks.roleplayinggame.components.BattleComponent
 import com.github.jacks.roleplayinggame.components.CollisionComponent
 import com.github.jacks.roleplayinggame.components.ConfigurationType
 import com.github.jacks.roleplayinggame.components.DEFAULT_ATTACK_DAMAGE
@@ -49,6 +50,7 @@ import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.components.StateComponent
 import ktx.box2d.circle
 import ktx.log.logger
+import ktx.preferences.get
 import kotlin.math.roundToInt
 
 @AllOf([EntityCreationComponent::class])
@@ -83,7 +85,7 @@ class EntityCreationSystem(
                         val physicsComponent = add<PhysicsComponent> {
                             body = bodyFromImageAndConfiguration(physicsWorld, imageComponent.image, config.bodyType, config.physicsScaling, config.physicsOffset)
                         }
-                        val moveComponent = add<MoveComponent>() {
+                        val moveComponent = add<MoveComponent> {
                             speed = DEFAULT_SPEED * config.speedScaling
                         }
                         // remove when the battle system is redone
@@ -165,6 +167,7 @@ class EntityCreationSystem(
                             isSensor = true
                             userData = AI_SENSOR
                         }
+                        if (config.canBattle) { add<BattleComponent>() }
                     }
                 }
                 else -> { gdxError("Entity has no configuration.") }
@@ -185,30 +188,12 @@ class EntityCreationSystem(
     override fun handle(event: Event): Boolean {
         when (event) {
             is MapChangeEvent -> {
-                log.debug { "MapChangeEvent" }
-                val spawnerLayer = event.map.layer("spawners")
-                spawnerLayer.objects.forEach { spawner ->
-                    // check if spawnerEntities is empty by checking any entities with a spawnerComponent
-                    // to make sure they were removed properly
-                    // if the checks are good then add entities
-                    world.entity {
-                        add<SpawnerComponent> {
-                            this.spawnerId = spawner.propertyOrNull<Int>("id") ?: gdxError("Map Object $spawner has no ID")
-                            this.mapId = spawner.propertyOrNull<Int>("mapId") ?: gdxError("Map Object $spawner has no Map ID")
-                            this.entityToSpawn = spawner.propertyOrNull<String>("entityToSpawn") ?: gdxError("Map Object $spawner has no Entity To Spawn")
-                            this.spawnTimer = spawner.propertyOrNull<Float>("spawnTimer") ?: gdxError("Map Object $spawner has no Spawn Timer")
-                            this.location.set(spawner.x, spawner.y)
-                            this.currentTime = 0f // get from prefs based on id?
-                            this.isSpawned = false // get from prefs based on id?
-                        }
-                    }
-                }
+                // spawn entities
                 return true
             }
         }
         return false
     }
-
 
     companion object {
         private val log = logger<EntityCreationSystem>()

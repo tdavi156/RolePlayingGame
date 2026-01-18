@@ -10,6 +10,7 @@ data class NonPlayerConfiguration(
     val stats : StatComponent = StatComponent(),
     val speedScaling : Float = 1f,
     val canAttack : Boolean = true,
+    val canBattle : Boolean = true,
     val attackScaling : Float = 1f,
     val attackDelay : Float = 0.2f,
     val attackRange : Float = 0f,

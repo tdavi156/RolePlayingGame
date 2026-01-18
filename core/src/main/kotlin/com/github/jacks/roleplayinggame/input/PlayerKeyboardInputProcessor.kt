@@ -11,6 +11,9 @@ import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.events.GamePauseEvent
 import com.github.jacks.roleplayinggame.events.GameResumeEvent
 import com.github.jacks.roleplayinggame.events.fire
+import com.github.jacks.roleplayinggame.ui.views.BackgroundView
+import com.github.jacks.roleplayinggame.ui.views.InventoryView
+import com.github.jacks.roleplayinggame.ui.views.PauseView
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.World
 import ktx.app.KtxInputAdapter
@@ -77,6 +80,10 @@ class PlayerKeyboardInputProcessor(
         return this == UP || this == DOWN || this == LEFT || this == RIGHT || this == W || this == A || this == S || this == D
     }
 
+//    private fun Int.isMenuKey() : Boolean {
+//        return this == UP || this == DOWN || this == LEFT || this == RIGHT || this == W || this == A || this == S || this == D
+//    }
+
     override fun keyDown(keycode: Int): Boolean {
         if (keycode.isMovementKey()) {
             when (keycode) {
@@ -117,26 +124,62 @@ class PlayerKeyboardInputProcessor(
             updatePlayerDirection()
             log.debug { "key pressed: $keycode, cos: $playerCos, sin: $playerSin, direction: $playerDirection" }
             return true
-        } else if (keycode == SPACE) {
-            playerEntities.forEach {
-                with(attackComponents[it]) {
-                    doAttack = true
+        } else if (!keycode.isMovementKey()) {
+            when (keycode) {
+                ESCAPE -> {
+                    // if the game is in a normal state, not paused and no windows open, then ESC should open the main menu and pause the game
+                    // if the game is already paused, unpause
+                    // if the game has a window open (inventory, menu, character etc.) then close that window and go back to the normal state
+                    // track some "currentState" and basically cancel it with this button
+                }
+                SPACE -> {
+                    playerEntities.forEach {
+                        with(attackComponents[it]) {
+                            doAttack = true
+                        }
+                    }
+                }
+                E -> {
+                    // interact with other entities
+                    // initiate dialog with a sign or another entity
+                    // open a chest on the ground or pick something up from the ground (for quests later)
+                    // use an item on the overworld, like opening a locked door with a key
+                }
+                C -> {
+                    // open character page, the active gear will be on the right same as when inventory is opened
+                    // on the left will have stats and other information about the character
+                }
+                Q -> {
+                    // quests? or J for quests?
+                }
+                L -> {
+                    // skill tree and other advancements
+                }
+                M -> {
+                    // map
+                }
+                I -> {
+                    // include the character page section of active gear, but also the inventory on the left
+                    // add functionality for shift+click or ctrl+click to automatically equip or unequip items
+                    val backgroundView = uiStage.actors.filterIsInstance<BackgroundView>().first()
+                    val inventoryView = uiStage.actors.filterIsInstance<InventoryView>().first()
+                    paused = false
+                    pausedInventory = !pausedInventory
+                    gameStage.fire(if (pausedInventory) GamePauseEvent() else GameResumeEvent())
+                    backgroundView.isVisible = !backgroundView.isVisible
+                    inventoryView.isVisible = !inventoryView.isVisible
+                }
+                P -> {
+                    if (!pausedInventory) {
+                        paused = !paused
+                        gameStage.fire(if (paused) GamePauseEvent() else GameResumeEvent())
+                    }
                 }
             }
             return true
-        } else if (keycode == I) {
-            paused = false
-            pausedInventory = !pausedInventory
-            gameStage.fire(if (pausedInventory) GamePauseEvent() else GameResumeEvent())
-            // dont hardcode the actor position, when we change the order of UI actors, this will break
-            uiStage.actors.get(3).isVisible = !uiStage.actors.get(3).isVisible
-        } else if (keycode == P) {
-            if (!pausedInventory) {
-                paused = !paused
-                gameStage.fire(if (paused) GamePauseEvent() else GameResumeEvent())
-            }
+        } else {
+            return false
         }
-        return false
     }
 
     override fun keyUp(keycode: Int): Boolean {
