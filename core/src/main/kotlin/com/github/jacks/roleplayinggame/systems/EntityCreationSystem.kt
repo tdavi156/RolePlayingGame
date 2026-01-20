@@ -2,7 +2,6 @@ package com.github.jacks.roleplayinggame.systems
 
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Preferences
-import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.g2d.TextureAtlas
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.physics.box2d.World
@@ -17,6 +16,8 @@ import com.github.jacks.roleplayinggame.components.ImageComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.bodyFromImageAndConfiguration
 import com.github.jacks.roleplayinggame.components.EntityCreationComponent
 import com.github.jacks.roleplayinggame.components.SpawnConfiguration
+import com.github.jacks.roleplayinggame.configurations.Configurations.Companion.getConfiguration
+import com.github.jacks.roleplayinggame.configurations.Configurations.Companion.getConfigurationType
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
 import com.github.quillraven.fleks.AllOf
 import com.github.quillraven.fleks.ComponentMapper
@@ -32,7 +33,6 @@ import com.github.jacks.roleplayinggame.components.AnimationDirection
 import com.github.jacks.roleplayinggame.components.AttackComponent
 import com.github.jacks.roleplayinggame.components.BattleComponent
 import com.github.jacks.roleplayinggame.components.CollisionComponent
-import com.github.jacks.roleplayinggame.components.ConfigurationType
 import com.github.jacks.roleplayinggame.components.DEFAULT_ATTACK_DAMAGE
 import com.github.jacks.roleplayinggame.components.DEFAULT_LIFE
 import com.github.jacks.roleplayinggame.components.DEFAULT_SPEED
@@ -45,12 +45,11 @@ import com.github.jacks.roleplayinggame.components.NonPlayerConfiguration
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.PlayerConfiguration
-import com.github.jacks.roleplayinggame.components.SpawnerComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.components.StateComponent
+import com.github.jacks.roleplayinggame.configurations.ConfigurationType
 import ktx.box2d.circle
 import ktx.log.logger
-import ktx.preferences.get
 import kotlin.math.roundToInt
 
 @AllOf([EntityCreationComponent::class])
@@ -134,34 +133,44 @@ class EntityCreationSystem(
                         val physicsComponent = add<PhysicsComponent> {
                             body = bodyFromImageAndConfiguration(physicsWorld, imageComponent.image, config.bodyType, config.physicsScaling, config.physicsOffset)
                         }
-                        add<MoveComponent>() {
-                            speed = DEFAULT_SPEED * config.speedScaling
+                        if (config.speedScaling > 0f) {
+                            add<MoveComponent>() {
+                                speed = DEFAULT_SPEED * config.speedScaling
+                            }
                         }
-                        add<AttackComponent> {
-                            maxDelay = config.attackDelay
-                            damage = (DEFAULT_ATTACK_DAMAGE * config.attackScaling).roundToInt()
-                            extraRange = config.attackRange
+                        if (config.canAttack) {
+                            add<AttackComponent> {
+                                maxDelay = config.attackDelay
+                                damage = (DEFAULT_ATTACK_DAMAGE * config.attackScaling).roundToInt()
+                                extraRange = config.attackRange
+                            }
                         }
-                        add<LifeComponent> {
-                            maxHealth = DEFAULT_LIFE * config.lifeScaling
-                            health = maxHealth
+                        if (config.lifeScaling > 0f) {
+                            add<LifeComponent> {
+                                maxHealth = DEFAULT_LIFE * config.lifeScaling
+                                health = maxHealth
+                            }
                         }
-                        add<StatComponent> {
-                            currentHealth = config.stats.currentHealth
-                            maxHealth = config.stats.maxHealth
-                            currentMana = config.stats.currentMana
-                            maxMana = config.stats.maxMana
-                            attackDamage = config.stats.attackDamage
-                            attackPercent = config.stats.attackPercent
-                            attackSpeed = config.stats.attackSpeed
-                            defense = config.stats.defense
-                            defensePercent = config.stats.defensePercent
-                            moveSpeed = config.stats.moveSpeed
+                        if (config.hasStats) {
+                            add<StatComponent> {
+                                currentHealth = config.stats.currentHealth
+                                maxHealth = config.stats.maxHealth
+                                currentMana = config.stats.currentMana
+                                maxMana = config.stats.maxMana
+                                attackDamage = config.stats.attackDamage
+                                attackPercent = config.stats.attackPercent
+                                attackSpeed = config.stats.attackSpeed
+                                defense = config.stats.defense
+                                defensePercent = config.stats.defensePercent
+                                moveSpeed = config.stats.moveSpeed
+                            }
                         }
                         add<CollisionComponent>()
                         add<NonPlayerComponent>()
-                        add<AiComponent>() {
-                            treePath = config.aiTreePath
+                        if (config.hasAiBehavior) {
+                            add<AiComponent>() {
+                                treePath = config.aiTreePath
+                            }
                         }
                         physicsComponent.body.circle(4f) {
                             isSensor = true
@@ -178,9 +187,7 @@ class EntityCreationSystem(
 
     private fun size(model : AnimationModel) = cachedSizes.getOrPut(model) {
         val regions = atlas.findRegions("${model.atlasKey}/${AnimationType.IDLE.atlasKey}${AnimationDirection.TO.atlasKey}")
-        if (regions.isEmpty) {
-            gdxError("There are no regions for the idle animation for the $model model")
-        }
+        if (regions.isEmpty) { gdxError("There are no regions for the idle animation for the $model model") }
         val firstFrame = regions.first()
         vec2(firstFrame.originalWidth * UNIT_SCALE, firstFrame.originalHeight * UNIT_SCALE)
     }
@@ -188,7 +195,17 @@ class EntityCreationSystem(
     override fun handle(event: Event): Boolean {
         when (event) {
             is MapChangeEvent -> {
-                // spawn entities
+                val entityLayer = event.map.layer("entities")
+                entityLayer.objects.forEach { entity ->
+                    world.entity {
+                        add<EntityCreationComponent> {
+                            this.configurationType = getConfigurationType(entity.name)
+                            this.configuration = getConfiguration(entity.name)
+                            this.entityName = entity.name
+                            this.location.set(entity.x * UNIT_SCALE, entity.y * UNIT_SCALE)
+                        }
+                    }
+                }
                 return true
             }
         }

@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="30" height="24" tilewidth="16" tileheight="16" infinite="0" nextlayerid="8" nextobjectid="3">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="30" height="24" tilewidth="16" tileheight="16" infinite="0" nextlayerid="8" nextobjectid="4">
  <properties>
   <property name="background_music" type="file" value="../audio/field_theme_1.wav"/>
   <property name="mapId" type="int" value="2"/>
  </properties>
  <tileset firstgid="1" source="tiles/outdoor_map_tiles.tsx"/>
  <tileset firstgid="5330" source="tiles/decorations_A_map_tiles.tsx"/>
+ <tileset firstgid="10659" source="tiles/entities.tsx"/>
  <layer id="1" name="background_1" width="30" height="24">
   <data encoding="base64" compression="zlib">
    eJzLZ2dgyB/Fo3gY4gcCtMX47O0WYmDooTLuFRq1d9TeUXuHs71XgGquEoFhZhKj9hoR9hKL23gYHNqBmBrlJLnl+EDXK6N4FMMwAEwSlhk=
@@ -26,7 +27,9 @@
    eJztwYEAAAAAw6D5U1/hAFUBAACvAQtAAAE=
   </data>
  </layer>
- <objectgroup id="5" name="entities"/>
+ <objectgroup color="#ff0000" id="5" name="entities">
+  <object id="3" name="oldman" gid="10664" x="160" y="160" width="48" height="48"/>
+ </objectgroup>
  <objectgroup color="#2411f9" id="6" name="portals">
   <object id="1" name="to_map_1" x="222.972" y="279.202" width="34" height="8.90909">
    <properties>

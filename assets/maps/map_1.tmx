@@ -1,23 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="52" height="36" tilewidth="16" tileheight="16" infinite="0" nextlayerid="10" nextobjectid="38">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="52" height="36" tilewidth="16" tileheight="16" infinite="0" nextlayerid="10" nextobjectid="41">
  <properties>
   <property name="background_music" type="file" value="../audio/field_theme_1.wav"/>
   <property name="mapId" type="int" value="1"/>
  </properties>
  <tileset firstgid="1" source="tiles/outdoor_map_tiles.tsx"/>
  <tileset firstgid="5330" source="tiles/decorations_A_map_tiles.tsx"/>
- <tileset firstgid="10659" name="entities" tilewidth="48" tileheight="48" tilecount="3" columns="0">
-  <grid orientation="orthogonal" width="1" height="1"/>
-  <tile id="0">
-   <image source="../../assets_raw/packable/player/idleto_00.png" width="48" height="48"/>
-  </tile>
-  <tile id="1">
-   <image source="../../assets_raw/packable/slime/idleto_00.png" width="32" height="32"/>
-  </tile>
-  <tile id="2">
-   <image source="../../assets_raw/packable/chest/idleto_00.png" width="16" height="16"/>
-  </tile>
- </tileset>
+ <tileset firstgid="10659" source="tiles/entities.tsx"/>
  <layer id="1" name="background_1" width="52" height="36">
   <data encoding="base64" compression="zlib">
    eJztwzENAAAMBKHbavb9zzUCCbuaqqqqqqqqqj0DHEke
@@ -38,7 +27,7 @@
    eJztlckNwjAURH1GERBfKIalFpYu2E/QBA2wdMF+oQsaYLkzUSxhLCM5EDs/4JGegrPg8f/jhDEvr/9Us8xYS6KtjDviHBV1Q8b6oCeOEYPweX0OrwuJpTJeCahoDe9bsBHHiJ20ngu8XiVuyvgUxlBRwBkrgrM4RpT483oVXmsSM/46Xir9WRRwDqwKZvMnvd+2ot7cpfVc4esG7ob+dPcP8Z8jhbGFDOhqWUG/GoTy9q4WOu9Ja5+F9vB+APUAdQ7i38cwH951KvOYCdYyBZzHUBO198a3ymtefk15ypWJ17Ry5aIun3jVfU9MvrF+v/2u8rSHTeSz+p18HtyKer2T+rNR7zRrRCEPtj1QyVRaPij0LEsfVPqZlqj006Zc9uyTuVy+113MpXvGVg+yyu8/7BtqegDcVqIA
   </data>
  </layer>
- <objectgroup id="5" name="entities"/>
+ <objectgroup color="#ff0000" id="5" name="entities"/>
  <objectgroup color="#2411f9" id="6" name="portals">
   <object id="25" name="toMap2" x="272.182" y="0.363636" width="63.6364" height="8.90909">
    <properties>

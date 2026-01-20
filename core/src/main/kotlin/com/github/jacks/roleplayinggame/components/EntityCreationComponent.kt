@@ -2,11 +2,8 @@ package com.github.jacks.roleplayinggame.components
 
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType
+import com.github.jacks.roleplayinggame.configurations.ConfigurationType
 import ktx.math.vec2
-
-enum class ConfigurationType {
-    UNDEFINED, PLAYER, NON_PLAYER
-}
 
 const val DEFAULT_SPEED = 3f
 const val DEFAULT_ATTACK_DAMAGE = 1

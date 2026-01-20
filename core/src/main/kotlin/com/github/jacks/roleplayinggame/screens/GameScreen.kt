@@ -42,6 +42,7 @@ import com.github.jacks.roleplayinggame.ui.viewmodels.InventoryViewModel
 import com.github.jacks.roleplayinggame.ui.views.PauseView
 import com.github.jacks.roleplayinggame.ui.views.backgroundView
 import com.github.jacks.roleplayinggame.ui.views.dialogView
+import com.github.jacks.roleplayinggame.ui.views.fadeInOutView
 import com.github.jacks.roleplayinggame.ui.views.inventoryView
 import com.github.jacks.roleplayinggame.ui.views.mainGameView
 import com.github.jacks.roleplayinggame.ui.views.pauseView
@@ -107,8 +108,15 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
     }
 
     init {
+        gameStage.actors {
+            log.debug { "Game Stage is initialized" }
+
+            // overlay
+            fadeInOutView() { isVisible = true }
+        }
+
         uiStage.actors {
-            log.debug { "Stage is initialized" }
+            log.debug { "UI Stage is initialized" }
 
             // main UI, actor.get(0)
             mainGameView(MainGameViewModel(entityWorld, gameStage))

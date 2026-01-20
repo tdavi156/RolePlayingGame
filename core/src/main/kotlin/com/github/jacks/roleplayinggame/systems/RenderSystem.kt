@@ -8,6 +8,7 @@ import com.badlogic.gdx.maps.tiled.tiles.AnimatedTiledMapTile
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
+import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
 import com.github.jacks.roleplayinggame.components.ImageComponent
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
@@ -79,7 +80,6 @@ class RenderSystem(
             is MapChangeEvent -> {
                 backgroundLayers.clear()
                 foregroundLayers.clear()
-
                 event.map.forEachLayer<TiledMapTileLayer> { layer ->
                     if (layer.name.startsWith("foreground_")) {
                         foregroundLayers.add(layer)
@@ -89,12 +89,10 @@ class RenderSystem(
                         log.debug { "${layer.name} is not a foreground or background" }
                     }
                 }
-
                 return true
             }
+            else -> { return false }
         }
-
-        return false
     }
 
     companion object {
