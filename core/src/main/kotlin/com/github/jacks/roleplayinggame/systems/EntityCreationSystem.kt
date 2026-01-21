@@ -219,7 +219,7 @@ class EntityCreationSystem(
         const val PLAYER_NAME = "player"
 
         val SLIME_DIALOG_CONFIGURATION = SpawnConfiguration(
-            AnimationModel.SLIME,
+            AnimationModel.SLIME_BLUE,
             lifeScaling = 0f,
             physicsScaling = vec2(0.3f, 0.3f),
             physicsOffset = vec2(0f, -2f * UNIT_SCALE),

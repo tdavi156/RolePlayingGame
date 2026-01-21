@@ -19,7 +19,9 @@ class Configurations {
             return when(entityName) {
                 "player" -> { ConfigurationType.PLAYER }
                 "oldman" -> { ConfigurationType.NON_PLAYER }
-                "slime" -> { ConfigurationType.NON_PLAYER }
+                "blueSlime" -> { ConfigurationType.NON_PLAYER }
+                "greenSlime" -> { ConfigurationType.NON_PLAYER }
+                "redSlime" -> { ConfigurationType.NON_PLAYER }
                 else -> { return ConfigurationType.UNDEFINED }
             }
         }
@@ -28,7 +30,7 @@ class Configurations {
             return when(entityName) {
                 "player" -> { PLAYER_CONFIGURATION }
                 "oldman" -> { NPC_CONFIGURATION }
-                "slime" -> { SLIME_CONFIGURATION }
+                "blueSlime" -> { ConfigurationType.NON_PLAYER }
                 else -> { return null }
             }
         }
@@ -54,7 +56,7 @@ class Configurations {
 
         // non-player configurations
         val NPC_CONFIGURATION = NonPlayerConfiguration(
-            AnimationModel.OLDMAN,
+            AnimationModel.OLD_MAN,
             hasStats = false,
             speedScaling = 0f,
             canAttack = false,
@@ -69,8 +71,44 @@ class Configurations {
         )
 
         // enemy configurations
-        val SLIME_CONFIGURATION = NonPlayerConfiguration(
-            AnimationModel.SLIME,
+        val SLIME_GREEN_CONFIGURATION = NonPlayerConfiguration(
+            AnimationModel.SLIME_BLUE,
+            stats = StatComponent(
+                currentHealth = 10f,
+                maxHealth = 10f,
+                attackDamage = 3f,
+                defense = 0f,
+                moveSpeed = 1f
+            ),
+            speedScaling = 0.5f,
+            lifeScaling = 1f,
+            attackRange = 1f,
+            attackScaling = 1f,
+            physicsScaling = vec2(0.3f, 0.3f),
+            physicsOffset = vec2(0f, -2f * UNIT_SCALE),
+            aiTreePath = "slimeBehavior.tree",
+            color = Color.WHITE,
+        )
+        val SLIME_BLUE_CONFIGURATION = NonPlayerConfiguration(
+            AnimationModel.SLIME_BLUE,
+            stats = StatComponent(
+                currentHealth = 10f,
+                maxHealth = 10f,
+                attackDamage = 3f,
+                defense = 0f,
+                moveSpeed = 1f
+            ),
+            speedScaling = 0.5f,
+            lifeScaling = 1f,
+            attackRange = 1f,
+            attackScaling = 1f,
+            physicsScaling = vec2(0.3f, 0.3f),
+            physicsOffset = vec2(0f, -2f * UNIT_SCALE),
+            aiTreePath = "slimeBehavior.tree",
+            color = Color.WHITE,
+        )
+        val SLIME_RED_CONFIGURATION = NonPlayerConfiguration(
+            AnimationModel.SLIME_BLUE,
             stats = StatComponent(
                 currentHealth = 10f,
                 maxHealth = 10f,

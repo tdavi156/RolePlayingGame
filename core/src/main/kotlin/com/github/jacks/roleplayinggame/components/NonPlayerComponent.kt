@@ -6,7 +6,7 @@ import com.badlogic.gdx.physics.box2d.BodyDef.BodyType
 import ktx.math.vec2
 
 data class NonPlayerConfiguration(
-    val model : AnimationModel = AnimationModel.SLIME,
+    val model : AnimationModel = AnimationModel.SLIME_BLUE,
     val hasStats : Boolean = true,
     val stats : StatComponent = StatComponent(),
     val speedScaling : Float = 1f,
