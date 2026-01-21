@@ -53,19 +53,20 @@ class MapSystem(
     private val preferences : Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
     private var currentMap : TiledMap? = null
     private val sequence = SequenceAction()
-    val fadeInOutView = gameStage.actors.filterIsInstance<FadeInOutView>().first()
+    //val fadeInOutView = gameStage.actors.filterIsInstance<FadeInOutView>().first()
 
     override fun onTick() = Unit
 
     override fun handle(event: Event): Boolean {
         when(event) {
             is PortalEvent -> {
-                sequence.addAction(Actions.fadeIn(1f))
-                sequence.addAction(Actions.run {
-                    setMap(event.toMap, event.toPortal)
-                })
-                sequence.addAction(Actions.fadeOut(1f))
-                fadeInOutView.addAction(sequence)
+//                sequence.addAction(Actions.fadeIn(1f))
+//                sequence.addAction(Actions.run {
+//                    setMap(event.toMap, event.toPortal)
+//                })
+//                sequence.addAction(Actions.fadeOut(1f))
+//                fadeInOutView.addAction(sequence)
+                setMap(event.toMap, event.toPortal)
                 return true
             }
             is BattleEvent -> {

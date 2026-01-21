@@ -27,6 +27,7 @@ import ktx.app.gdxError
 import ktx.math.vec2
 import ktx.tiled.*
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType.StaticBody
+import com.badlogic.gdx.utils.Array
 import com.github.jacks.roleplayinggame.actors.FlipImage
 import com.github.jacks.roleplayinggame.components.AiComponent
 import com.github.jacks.roleplayinggame.components.AnimationDirection
@@ -186,8 +187,12 @@ class EntityCreationSystem(
     }
 
     private fun size(model : AnimationModel) = cachedSizes.getOrPut(model) {
-        val regions = atlas.findRegions("${model.atlasKey}/${AnimationType.IDLE.atlasKey}${AnimationDirection.TO.atlasKey}")
-        if (regions.isEmpty) { gdxError("There are no regions for the idle animation for the $model model") }
+        val regions: Array<TextureAtlas.AtlasRegion> = if (model.hasDirection) {
+            atlas.findRegions("${model.atlasKey}/${AnimationType.IDLE.atlasKey}${AnimationDirection.TO.atlasKey}")
+        } else {
+            atlas.findRegions("${model.atlasKey}/${AnimationType.IDLE.atlasKey}")
+        }
+        if (regions.isEmpty) { gdxError("There are no regions for the idle animation for the ${model.atlasKey} model") }
         val firstFrame = regions.first()
         vec2(firstFrame.originalWidth * UNIT_SCALE, firstFrame.originalHeight * UNIT_SCALE)
     }

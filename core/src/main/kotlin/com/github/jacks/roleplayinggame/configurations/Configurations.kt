@@ -19,9 +19,9 @@ class Configurations {
             return when(entityName) {
                 "player" -> { ConfigurationType.PLAYER }
                 "oldman" -> { ConfigurationType.NON_PLAYER }
-                "blueSlime" -> { ConfigurationType.NON_PLAYER }
-                "greenSlime" -> { ConfigurationType.NON_PLAYER }
-                "redSlime" -> { ConfigurationType.NON_PLAYER }
+                "slimeGreen" -> { ConfigurationType.NON_PLAYER }
+                "slimeBlue" -> { ConfigurationType.NON_PLAYER }
+                "slimeRed" -> { ConfigurationType.NON_PLAYER }
                 else -> { return ConfigurationType.UNDEFINED }
             }
         }
@@ -30,7 +30,9 @@ class Configurations {
             return when(entityName) {
                 "player" -> { PLAYER_CONFIGURATION }
                 "oldman" -> { NPC_CONFIGURATION }
-                "blueSlime" -> { ConfigurationType.NON_PLAYER }
+                "slimeGreen" -> { SLIME_GREEN_CONFIGURATION }
+                "slimeBlue" -> { SLIME_BLUE_CONFIGURATION }
+                "slimeRed" -> { SLIME_RED_CONFIGURATION }
                 else -> { return null }
             }
         }
@@ -72,7 +74,7 @@ class Configurations {
 
         // enemy configurations
         val SLIME_GREEN_CONFIGURATION = NonPlayerConfiguration(
-            AnimationModel.SLIME_BLUE,
+            AnimationModel.SLIME_GREEN,
             stats = StatComponent(
                 currentHealth = 10f,
                 maxHealth = 10f,
@@ -108,7 +110,7 @@ class Configurations {
             color = Color.WHITE,
         )
         val SLIME_RED_CONFIGURATION = NonPlayerConfiguration(
-            AnimationModel.SLIME_BLUE,
+            AnimationModel.SLIME_RED,
             stats = StatComponent(
                 currentHealth = 10f,
                 maxHealth = 10f,

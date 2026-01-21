@@ -3,8 +3,17 @@ package com.github.jacks.roleplayinggame.components
 import com.badlogic.gdx.graphics.g2d.Animation
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 
-enum class AnimationModel {
-    PLAYER, OLD_MAN, SLIME_GREEN, SLIME_BLUE, SLIME_RED, CHEST, SIGN, UNDEFINED;
+enum class AnimationModel(
+    var hasDirection : Boolean = true
+) {
+    PLAYER,
+    OLD_MAN,
+    SLIME_GREEN(hasDirection = false),
+    SLIME_BLUE(hasDirection = false),
+    SLIME_RED(hasDirection = false),
+    CHEST,
+    SIGN,
+    UNDEFINED;
 
     val atlasKey : String = this.toString().replace("_", "").lowercase()
 }
@@ -37,7 +46,7 @@ data class AnimationComponent(
     }
 
     fun nextAnimation(type : AnimationType, direction : AnimationDirection) {
-        nextAnimation = if (needsDirection(type)) {
+        nextAnimation = if (model.hasDirection && needsDirection(type)) {
             "${model.atlasKey}/${type.atlasKey}${direction.atlasKey}"
         } else {
             "${model.atlasKey}/${type.atlasKey}"
@@ -46,7 +55,7 @@ data class AnimationComponent(
 
     fun nextAnimation(model : AnimationModel, type : AnimationType) {
         this.model = model
-        nextAnimation = if (needsDirection(type)) {
+        nextAnimation = if (model.hasDirection && needsDirection(type)) {
             "${model.atlasKey}/${type.atlasKey}to"
         } else {
             "${model.atlasKey}/${type.atlasKey}"
