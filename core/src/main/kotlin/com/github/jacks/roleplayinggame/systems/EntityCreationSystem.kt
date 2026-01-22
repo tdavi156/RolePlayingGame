@@ -27,6 +27,8 @@ import ktx.app.gdxError
 import ktx.math.vec2
 import ktx.tiled.*
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType.StaticBody
+import com.badlogic.gdx.scenes.scene2d.Action
+import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.utils.Array
 import com.github.jacks.roleplayinggame.actors.FlipImage
 import com.github.jacks.roleplayinggame.components.AiComponent
@@ -49,6 +51,7 @@ import com.github.jacks.roleplayinggame.components.PlayerConfiguration
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.components.StateComponent
 import com.github.jacks.roleplayinggame.configurations.ConfigurationType
+import ktx.actors.alpha
 import ktx.box2d.circle
 import ktx.log.logger
 import kotlin.math.roundToInt
@@ -77,6 +80,8 @@ class EntityCreationSystem(
                                 setSize(size(config.model).x, size(config.model).y)
                                 setScaling(Scaling.fill)
                                 color = config.color
+                                alpha = 0f
+                                addAction(Actions.fadeIn(0.5f))
                             }
                         }
                         val animationComponent = add<AnimationComponent> {
@@ -126,6 +131,8 @@ class EntityCreationSystem(
                                 setSize(size(config.model).x, size(config.model).y)
                                 setScaling(Scaling.fill)
                                 color = config.color
+                                alpha = 0f
+                                addAction(Actions.fadeIn(0.5f))
                             }
                         }
                         add<AnimationComponent> {
@@ -213,8 +220,8 @@ class EntityCreationSystem(
                 }
                 return true
             }
+            else -> return false
         }
-        return false
     }
 
     companion object {

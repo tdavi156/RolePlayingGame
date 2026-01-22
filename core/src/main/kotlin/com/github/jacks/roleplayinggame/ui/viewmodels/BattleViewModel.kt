@@ -8,13 +8,11 @@ import com.github.jacks.roleplayinggame.components.ItemComponent
 import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
-import com.github.jacks.roleplayinggame.events.EntityAddItemEvent
-import com.github.jacks.roleplayinggame.events.EntityRespawnEvent
-import com.github.jacks.roleplayinggame.events.EntityTakeDamageEvent
+import com.github.jacks.roleplayinggame.events.BattleEvent
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.World
 
-class MainGameViewModel(
+class BattleViewModel(
     world : World,
     stage : Stage
 ) : PropertyChangeSource(), EventListener {
@@ -35,21 +33,8 @@ class MainGameViewModel(
 
     override fun handle(event: Event): Boolean {
         when(event) {
-            is EntityTakeDamageEvent -> {
-                val isPlayer = event.entity in playerComponents
-                val statComponent = statComponents[event.entity]
-                if(isPlayer) {
-                    playerLife = statComponent.currentHealth / statComponent.maxHealth
-                } else {
-                    enemyLife = statComponent.currentHealth / statComponent.maxHealth
-                }
-            }
-            is EntityRespawnEvent -> {
-                val statComponent = statComponents[event.entity]
-                playerLife = statComponent.maxHealth
-            }
-            is EntityAddItemEvent -> {
-                lootText = "New Item found: [#4e557d]${event.itemType.itemName}[]"
+            is BattleEvent -> {
+
             }
             else -> return false
         }

@@ -53,20 +53,16 @@ class MapSystem(
     private val preferences : Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
     private var currentMap : TiledMap? = null
     private val sequence = SequenceAction()
-    //val fadeInOutView = gameStage.actors.filterIsInstance<FadeInOutView>().first()
 
     override fun onTick() = Unit
 
     override fun handle(event: Event): Boolean {
         when(event) {
             is PortalEvent -> {
-//                sequence.addAction(Actions.fadeIn(1f))
-//                sequence.addAction(Actions.run {
-//                    setMap(event.toMap, event.toPortal)
-//                })
-//                sequence.addAction(Actions.fadeOut(1f))
-//                fadeInOutView.addAction(sequence)
-                setMap(event.toMap, event.toPortal)
+                sequence.addAction(Actions.fadeIn(1f))
+                sequence.addAction(Actions.run { setMap(event.toMap, event.toPortal) })
+                sequence.addAction(Actions.fadeOut(1f))
+                gameStage.actors.filterIsInstance<FadeInOutView>().first().addAction(sequence)
                 return true
             }
             is BattleEvent -> {
@@ -77,20 +73,25 @@ class MapSystem(
         }
     }
 
-    fun setMap(mapName : String) {
+    fun setMap(mapName : String, targetPortalId : Int = -1) {
         if (currentMap != null) { saveCurrentMapData() }
-        currentMap?.disposeSafely()
-        world.family(noneOf = arrayOf(PlayerComponent::class, ItemComponent::class)).forEach { world.remove(it) }
         val newMap = TmxMapLoader().load("maps/$mapName.tmx")
+        currentMap?.disposeSafely()
         currentMap = newMap
+        world.family(noneOf = arrayOf(PlayerComponent::class, ItemComponent::class)).forEach { world.remove(it) }
         preferences.flush { this["current_map"] = mapName }
 
+        val mapObject = if (targetPortalId != -1) {
+            targetPortalById(newMap, targetPortalId)
+        } else {
+            newMap.layer("spawners").objects.get("player_spawner")
+        }
+
         world.family(allOf = arrayOf(PlayerComponent::class)).forEach { playerEntity ->
-            val playerSpawner = newMap.layer("spawners").objects.get("player_spawner")
             val playerImage = imageComponents[playerEntity].image
             playerImage.setPosition(
-                playerSpawner.x * UNIT_SCALE - playerImage.width * 0.5f + playerSpawner.width * 0.5f * UNIT_SCALE,
-                playerSpawner.y * UNIT_SCALE - playerSpawner.height * 0.5f * UNIT_SCALE
+                mapObject.x * UNIT_SCALE - playerImage.width * 0.5f + mapObject.width * 0.5f * UNIT_SCALE,
+                mapObject.y * UNIT_SCALE - mapObject.height * 0.5f * UNIT_SCALE
             )
             configureEntity(playerEntity) {
                 physicsComponents.remove(it)
@@ -101,38 +102,6 @@ class MapSystem(
                         PLAYER_CONFIGURATION.bodyType,
                         PLAYER_CONFIGURATION.physicsScaling,
                         PLAYER_CONFIGURATION.physicsOffset)
-                }
-            }
-        }
-        gameStage.fire(MapChangeEvent(newMap))
-    }
-
-    fun setMap(mapName : String, targetPortalId : Int = -1) {
-        if (currentMap != null) { saveCurrentMapData() }
-        currentMap?.disposeSafely()
-        world.family(noneOf = arrayOf(PlayerComponent::class, ItemComponent::class)).forEach { world.remove(it) }
-        val newMap = TmxMapLoader().load("maps/$mapName.tmx")
-        currentMap = newMap
-        preferences.flush { this["current_map"] = mapName }
-
-        if (targetPortalId != -1) {
-            world.family(allOf = arrayOf(PlayerComponent::class)).forEach { playerEntity ->
-                val targetPortal = targetPortalById(newMap, targetPortalId)
-                val playerImage = imageComponents[playerEntity].image
-                playerImage.setPosition(
-                    targetPortal.x * UNIT_SCALE - playerImage.width * 0.5f + targetPortal.width * 0.5f * UNIT_SCALE,
-                    targetPortal.y * UNIT_SCALE - targetPortal.height * 0.5f * UNIT_SCALE
-                )
-                configureEntity(playerEntity) {
-                    physicsComponents.remove(it)
-                    physicsComponents.add(it) {
-                        body = bodyFromImageAndConfiguration(
-                            physicsWorld,
-                            playerImage,
-                            PLAYER_CONFIGURATION.bodyType,
-                            PLAYER_CONFIGURATION.physicsScaling,
-                            PLAYER_CONFIGURATION.physicsOffset)
-                    }
                 }
             }
         }

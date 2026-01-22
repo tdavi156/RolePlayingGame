@@ -94,10 +94,10 @@ class Configurations {
         val SLIME_BLUE_CONFIGURATION = NonPlayerConfiguration(
             AnimationModel.SLIME_BLUE,
             stats = StatComponent(
-                currentHealth = 10f,
-                maxHealth = 10f,
-                attackDamage = 3f,
-                defense = 0f,
+                currentHealth = 20f,
+                maxHealth = 20f,
+                attackDamage = 5f,
+                defense = 1f,
                 moveSpeed = 1f
             ),
             speedScaling = 0.5f,
@@ -112,10 +112,10 @@ class Configurations {
         val SLIME_RED_CONFIGURATION = NonPlayerConfiguration(
             AnimationModel.SLIME_RED,
             stats = StatComponent(
-                currentHealth = 10f,
-                maxHealth = 10f,
-                attackDamage = 3f,
-                defense = 0f,
+                currentHealth = 30f,
+                maxHealth = 30f,
+                attackDamage = 10f,
+                defense = 3f,
                 moveSpeed = 1f
             ),
             speedScaling = 0.5f,

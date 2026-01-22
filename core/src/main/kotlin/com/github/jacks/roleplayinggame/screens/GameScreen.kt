@@ -36,11 +36,13 @@ import com.github.jacks.roleplayinggame.systems.PortalSystem
 import com.github.jacks.roleplayinggame.systems.RenderSystem
 import com.github.jacks.roleplayinggame.systems.SpawnerSystem
 import com.github.jacks.roleplayinggame.systems.StateSystem
+import com.github.jacks.roleplayinggame.ui.viewmodels.BattleViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.DialogViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.MainGameViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.InventoryViewModel
 import com.github.jacks.roleplayinggame.ui.views.PauseView
 import com.github.jacks.roleplayinggame.ui.views.backgroundView
+import com.github.jacks.roleplayinggame.ui.views.battleView
 import com.github.jacks.roleplayinggame.ui.views.dialogView
 import com.github.jacks.roleplayinggame.ui.views.fadeInOutView
 import com.github.jacks.roleplayinggame.ui.views.inventoryView
@@ -118,20 +120,26 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
         uiStage.actors {
             log.debug { "UI Stage is initialized" }
 
+            // menuView
+            // main menu options, always present, also accessible with hotkeys
+
             // main UI, actor.get(0)
             mainGameView(MainGameViewModel(entityWorld, gameStage))
 
-            // pauseView, actor.get(1)
-            pauseView { this.isVisible = false }
+            // battle UI, actor.get(1)
+            battleView(BattleViewModel(entityWorld, gameStage)) { isVisible = false }
 
-            // background, actor.get(2)
+            // pauseView, actor.get(2)
+            pauseView { isVisible = false }
+
+            // background, actor.get(3)
             backgroundView() { isVisible = false }
 
-            // dialog UI, actor.get(3)
+            // dialog UI, actor.get(4)
             dialogView(DialogViewModel(gameStage))
 
-            // inventory UI, actor.get(4)
-            inventoryView(InventoryViewModel(entityWorld, gameStage)) { this.isVisible = false }
+            // inventory UI, actor.get(5)
+            inventoryView(InventoryViewModel(entityWorld, gameStage)) { isVisible = false }
         }
     }
 

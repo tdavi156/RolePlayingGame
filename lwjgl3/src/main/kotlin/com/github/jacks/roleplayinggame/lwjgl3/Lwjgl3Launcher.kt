@@ -17,3 +17,11 @@ fun main() {
         setWindowIcon(*(arrayOf(128, 64, 32, 16).map { "libgdx$it.png" }.toTypedArray()))
     })
 }
+
+//Monitor primary = Lwjgl3ApplicationConfiguration.getPrimaryMonitor()
+//DisplayMode desktopMode = Lwjgl3ApplicationConfiguration.getDisplayMode(monitor)
+//DisplayMode primaryDesktopMode = Lwjgl3ApplicationConfiguration.getDisplayMode()
+//Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration()
+//config.setFullscreenMode(primaryMode)
+//codeconfig.setResizable(false)
+//config.setDecorated(false)
