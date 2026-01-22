@@ -40,6 +40,8 @@ import com.github.jacks.roleplayinggame.ui.viewmodels.BattleViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.DialogViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.MainGameViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.InventoryViewModel
+import com.github.jacks.roleplayinggame.ui.viewmodels.MenuViewModel
+import com.github.jacks.roleplayinggame.ui.views.FadeInOutView
 import com.github.jacks.roleplayinggame.ui.views.PauseView
 import com.github.jacks.roleplayinggame.ui.views.backgroundView
 import com.github.jacks.roleplayinggame.ui.views.battleView
@@ -47,6 +49,7 @@ import com.github.jacks.roleplayinggame.ui.views.dialogView
 import com.github.jacks.roleplayinggame.ui.views.fadeInOutView
 import com.github.jacks.roleplayinggame.ui.views.inventoryView
 import com.github.jacks.roleplayinggame.ui.views.mainGameView
+import com.github.jacks.roleplayinggame.ui.views.menuView
 import com.github.jacks.roleplayinggame.ui.views.pauseView
 import com.github.quillraven.fleks.World
 import com.github.quillraven.fleks.world
@@ -110,18 +113,11 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
     }
 
     init {
-        gameStage.actors {
-            log.debug { "Game Stage is initialized" }
-
-            // overlay
-            fadeInOutView() { isVisible = true }
-        }
-
         uiStage.actors {
             log.debug { "UI Stage is initialized" }
 
-            // menuView
-            // main menu options, always present, also accessible with hotkeys
+            // overlay to fade in and out on screen transition
+            // fade in out
 
             // main UI, actor.get(0)
             mainGameView(MainGameViewModel(entityWorld, gameStage))
@@ -140,6 +136,9 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
 
             // inventory UI, actor.get(5)
             inventoryView(InventoryViewModel(entityWorld, gameStage)) { isVisible = false }
+
+            // menu UI
+            menuView(MenuViewModel(stage)) { isVisible = true }
         }
     }
 

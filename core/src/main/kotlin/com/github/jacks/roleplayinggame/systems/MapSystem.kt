@@ -10,6 +10,7 @@ import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
+import com.badlogic.gdx.scenes.scene2d.actions.Actions.*
 import com.badlogic.gdx.scenes.scene2d.actions.SequenceAction
 import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
 import com.github.jacks.roleplayinggame.components.ImageComponent
@@ -25,10 +26,10 @@ import com.github.jacks.roleplayinggame.events.BattleMapChangeEvent
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
 import com.github.jacks.roleplayinggame.events.PortalEvent
 import com.github.jacks.roleplayinggame.events.fire
-import com.github.jacks.roleplayinggame.ui.views.BackgroundView
 import com.github.jacks.roleplayinggame.ui.views.FadeInOutView
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.IntervalSystem
+import com.github.quillraven.fleks.Qualifier
 import ktx.app.gdxError
 import ktx.assets.disposeSafely
 import ktx.preferences.flush
@@ -52,17 +53,13 @@ class MapSystem(
 
     private val preferences : Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
     private var currentMap : TiledMap? = null
-    private val sequence = SequenceAction()
 
     override fun onTick() = Unit
 
     override fun handle(event: Event): Boolean {
         when(event) {
             is PortalEvent -> {
-                sequence.addAction(Actions.fadeIn(1f))
-                sequence.addAction(Actions.run { setMap(event.toMap, event.toPortal) })
-                sequence.addAction(Actions.fadeOut(1f))
-                gameStage.actors.filterIsInstance<FadeInOutView>().first().addAction(sequence)
+                setMap(event.toMap, event.toPortal)
                 return true
             }
             is BattleEvent -> {

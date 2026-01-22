@@ -12,6 +12,7 @@ import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
 import com.github.jacks.roleplayinggame.components.ImageComponent
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
+import com.github.jacks.roleplayinggame.ui.views.FadeInOutView
 import com.github.quillraven.fleks.AllOf
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.Entity
@@ -96,7 +97,7 @@ class RenderSystem(
     }
 
     companion object {
-        private val log = logger<AnimationSystem>()
+        private val log = logger<RenderSystem>()
     }
 
     override fun onDispose() {

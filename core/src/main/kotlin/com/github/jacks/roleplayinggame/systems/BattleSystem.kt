@@ -32,7 +32,7 @@ class BattleSystem(
         val (toMap : String, triggeringEntities : MutableSet<Entity>) = battleComponents[entity]
         if (triggeringEntities.isNotEmpty()) {
             triggeringEntities.clear()
-            gameStage.fire(BattleEvent(toMap))
+            //gameStage.fire(BattleEvent(toMap))
         }
     }
 

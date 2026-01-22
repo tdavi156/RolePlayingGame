@@ -1,6 +1,6 @@
-name=ui_frames
-filename=
-output=sprites
+name=ui_objects
+filename=ui_objects.atlas
+output=../assets/ui
 
 alias=true
 alphaThreshold=0
@@ -11,8 +11,8 @@ fast=false
 filterMag=Nearest
 filterMin=Nearest
 ignoreBlankImages=true
-maxHeight=2048
-maxWidth=2048
+maxHeight=4096
+maxWidth=8192
 minHeight=16
 minWidth=16
 paddingX=0
@@ -34,7 +34,7 @@ prettyPrint=false
 legacyOutput=false
 
 scaleFactors=[{suffix:"",factor:1,resampling:bicubic}]
-inputFiles=[{path:unpacked,type:Input,dirFilePrefix:null,recursive:false,flattenPaths:false}]
+inputFiles=[{path:unpacked,type:Input,dirFilePrefix:null,recursive:false,flattenPaths:false},{path:fonts,type:Input,dirFilePrefix:null,recursive:false,flattenPaths:false},{path:ui,type:Input,dirFilePrefix:null,recursive:false,flattenPaths:false}]
 keepInputFileExtensions=false
 
 
