@@ -29,6 +29,8 @@ class MainGameViewModel(
     var enemyLife by propertyNotify(1f)
     var lootText by propertyNotify("")
 
+    var expAmount by propertyNotify(1)
+
     init {
         stage.addListener(this)
     }

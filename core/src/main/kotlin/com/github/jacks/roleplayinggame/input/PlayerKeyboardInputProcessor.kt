@@ -149,9 +149,6 @@ class PlayerKeyboardInputProcessor(
                     // open character page, the active gear will be on the right same as when inventory is opened
                     // on the left will have stats and other information about the character
                 }
-                Q -> {
-                    // quests? or J for quests?
-                }
                 L -> {
                     // skill tree and other advancements
                 }
@@ -168,6 +165,13 @@ class PlayerKeyboardInputProcessor(
                     gameStage.fire(if (pausedInventory) GamePauseEvent() else GameResumeEvent())
                     backgroundView.isVisible = !backgroundView.isVisible
                     inventoryView.isVisible = !inventoryView.isVisible
+                }
+                Q -> {
+                    // quests? or J for quests?
+                }
+                X -> {
+                    // toggle the character selection, and set the context to this view
+                    // arrow keys and WASD now select which character to set, enter to set
                 }
                 P -> {
                     if (!pausedInventory) {
