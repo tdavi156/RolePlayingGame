@@ -135,7 +135,9 @@ enum class Labels {
     SMALL_GREY_BGD,
 
     ACH_COMPLETED_BGD,
-    SOIL_TOOLTIP_BGD;
+    SOIL_TOOLTIP_BGD,
+
+    TEST_LABEL;
 
     val skinKey = this.name.lowercase()
 }
@@ -144,8 +146,8 @@ enum class Fonts(
     val atlasRegionKey : String,
     val scaling : Float
 ) {
-    DEFAULT("fnt_white", 0.25f),
-    BIG("fnt_white", 0.5f),
+    DEFAULT("fnt_white", 1f),
+    BIG("fnt_white", 1f),
 
     TINY("regular_12pt", 1f),
     SMALL("regular_16pt", 1f),
@@ -305,7 +307,7 @@ private fun @SkinDsl Skin.loadLabels(skin : Skin) {
         fontColor = Colors.PINK.color
     }
     label(Labels.BROWN.skinKey) {
-        font = skin[Fonts.DEFAULT]
+        font = skin[Fonts.XX_LARGE]
         fontColor = Colors.BROWN.color
     }
     label(Labels.WHITE.skinKey) {
@@ -313,7 +315,7 @@ private fun @SkinDsl Skin.loadLabels(skin : Skin) {
         fontColor = Colors.WHITE.color
     }
     label(Labels.BLACK.skinKey) {
-        font = skin[Fonts.DEFAULT]
+        font = skin[Fonts.XX_LARGE]
         fontColor = Colors.BLACK.color
     }
 
@@ -372,6 +374,13 @@ private fun @SkinDsl Skin.loadLabels(skin : Skin) {
         font = skin[Fonts.SMALL_BUTTON]
         fontColor = Color.WHITE
         background = skin.get(Drawables.BUTTON_GREY_UP)
+    }
+
+    // test label
+    label(Labels.TEST_LABEL.skinKey) {
+        font = skin[Fonts.XX_LARGE]
+        fontColor = Color.BLACK
+        background = skin.get(Drawables.BUTTON_BROWN_UP)
     }
 
     // misc labels

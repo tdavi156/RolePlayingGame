@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input.Keys.*
 import com.badlogic.gdx.InputMultiplexer
 import com.badlogic.gdx.InputProcessor
+import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.AttackComponent
 import com.github.jacks.roleplayinggame.components.MoveComponent
@@ -12,13 +13,29 @@ import com.github.jacks.roleplayinggame.events.GamePauseEvent
 import com.github.jacks.roleplayinggame.events.GameResumeEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.ui.views.BackgroundView
+import com.github.jacks.roleplayinggame.ui.views.CharacterInfoView
 import com.github.jacks.roleplayinggame.ui.views.InventoryView
+import com.github.jacks.roleplayinggame.ui.views.MapView
+import com.github.jacks.roleplayinggame.ui.views.MenuView
 import com.github.jacks.roleplayinggame.ui.views.PauseView
+import com.github.jacks.roleplayinggame.ui.views.QuestView
+import com.github.jacks.roleplayinggame.ui.views.SkillView
+import com.github.jacks.roleplayinggame.ui.views.characterInfoView
+import com.github.jacks.roleplayinggame.ui.views.inventoryView
+import com.github.jacks.roleplayinggame.ui.views.mapView
+import com.github.jacks.roleplayinggame.ui.views.menuView
+import com.github.jacks.roleplayinggame.ui.views.questView
+import com.github.jacks.roleplayinggame.ui.views.skillView
+import com.github.jacks.roleplayinggame.input.ViewType.*
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.World
 import ktx.app.KtxInputAdapter
 import ktx.log.logger
 import ktx.math.vec2
+
+enum class ViewType {
+    NO_VIEW, CHARACTER, INVENTORY, SKILL, QUEST, MAP, MAIN_MENU
+}
 
 fun gdxInputProcessor(processor : InputProcessor) {
     val currentProcessor = Gdx.input.inputProcessor
@@ -125,12 +142,22 @@ class PlayerKeyboardInputProcessor(
             log.debug { "key pressed: $keycode, cos: $playerCos, sin: $playerSin, direction: $playerDirection" }
             return true
         } else if (!keycode.isMovementKey()) {
+            val backgroundView = uiStage.actors.filterIsInstance<BackgroundView>().first()
             when (keycode) {
                 ESCAPE -> {
-                    // if the game is in a normal state, not paused and no windows open, then ESC should open the main menu and pause the game
-                    // if the game is already paused, unpause
-                    // if the game has a window open (inventory, menu, character etc.) then close that window and go back to the normal state
-                    // track some "currentState" and basically cancel it with this button
+                    val menuView = uiStage.actors.filterIsInstance<MenuView>().first()
+                    if (getActiveView() == NO_VIEW) {
+                        gameStage.fire(GamePauseEvent())
+                        backgroundView.isVisible = true
+                        menuView.isVisible = true
+                    } else if (getActiveView() == MAIN_MENU) {
+                        backgroundView.isVisible = false
+                        menuView.isVisible = false
+                        gameStage.fire(GameResumeEvent())
+                    } else {
+                        clearActiveView()
+                        gameStage.fire(GameResumeEvent())
+                    }
                 }
                 SPACE -> {
                     playerEntities.forEach {
@@ -146,28 +173,84 @@ class PlayerKeyboardInputProcessor(
                     // use an item on the overworld, like opening a locked door with a key
                 }
                 C -> {
-                    // open character page, the active gear will be on the right same as when inventory is opened
-                    // on the left will have stats and other information about the character
+                    val characterInfoView = uiStage.actors.filterIsInstance<CharacterInfoView>().first()
+                    if (getActiveView() == NO_VIEW) {
+                        gameStage.fire(GamePauseEvent())
+                        backgroundView.isVisible = true
+                        characterInfoView.isVisible = true
+                    } else if (getActiveView() == CHARACTER) {
+                        backgroundView.isVisible = false
+                        characterInfoView.isVisible = false
+                        gameStage.fire(GameResumeEvent())
+                    } else {
+                        clearActiveView()
+                        backgroundView.isVisible = true
+                        characterInfoView.isVisible = true
+                    }
                 }
                 L -> {
-                    // skill tree and other advancements
+                    val skillView = uiStage.actors.filterIsInstance<SkillView>().first()
+                    if (getActiveView() == NO_VIEW) {
+                        gameStage.fire(GamePauseEvent())
+                        backgroundView.isVisible = true
+                        skillView.isVisible = true
+                    } else if (getActiveView() == SKILL) {
+                        backgroundView.isVisible = false
+                        skillView.isVisible = false
+                        gameStage.fire(GameResumeEvent())
+                    } else {
+                        clearActiveView()
+                        backgroundView.isVisible = true
+                        skillView.isVisible = true
+                    }
                 }
                 M -> {
-                    // map
+                    val mapView = uiStage.actors.filterIsInstance<MapView>().first()
+                    if (getActiveView() == NO_VIEW) {
+                        gameStage.fire(GamePauseEvent())
+                        backgroundView.isVisible = true
+                        mapView.isVisible = true
+                    } else if (getActiveView() == MAP) {
+                        backgroundView.isVisible = false
+                        mapView.isVisible = false
+                        gameStage.fire(GameResumeEvent())
+                    } else {
+                        clearActiveView()
+                        backgroundView.isVisible = true
+                        mapView.isVisible = true
+                    }
                 }
                 I -> {
-                    // include the character page section of active gear, but also the inventory on the left
-                    // add functionality for shift+click or ctrl+click to automatically equip or unequip items
-                    val backgroundView = uiStage.actors.filterIsInstance<BackgroundView>().first()
                     val inventoryView = uiStage.actors.filterIsInstance<InventoryView>().first()
-                    paused = false
-                    pausedInventory = !pausedInventory
-                    gameStage.fire(if (pausedInventory) GamePauseEvent() else GameResumeEvent())
-                    backgroundView.isVisible = !backgroundView.isVisible
-                    inventoryView.isVisible = !inventoryView.isVisible
+                    if (getActiveView() == NO_VIEW) {
+                        gameStage.fire(GamePauseEvent())
+                        backgroundView.isVisible = true
+                        inventoryView.isVisible = true
+                    } else if (getActiveView() == INVENTORY) {
+                        backgroundView.isVisible = false
+                        inventoryView.isVisible = false
+                        gameStage.fire(GameResumeEvent())
+                    } else {
+                        clearActiveView()
+                        backgroundView.isVisible = true
+                        inventoryView.isVisible = true
+                    }
                 }
                 Q -> {
-                    // quests? or J for quests?
+                    val questView = uiStage.actors.filterIsInstance<QuestView>().first()
+                    if (getActiveView() == NO_VIEW) {
+                        gameStage.fire(GamePauseEvent())
+                        backgroundView.isVisible = true
+                        questView.isVisible = true
+                    } else if (getActiveView() == QUEST) {
+                        backgroundView.isVisible = false
+                        questView.isVisible = false
+                        gameStage.fire(GameResumeEvent())
+                    } else {
+                        clearActiveView()
+                        backgroundView.isVisible = true
+                        questView.isVisible = true
+                    }
                 }
                 X -> {
                     // toggle the character selection, and set the context to this view
@@ -244,6 +327,33 @@ class PlayerKeyboardInputProcessor(
             return true
         }
         return false
+    }
+
+    private fun getActiveView() : ViewType {
+        val characterInfoView = uiStage.actors.filterIsInstance<CharacterInfoView>().first()
+        val inventoryView = uiStage.actors.filterIsInstance<InventoryView>().first()
+        val skillView = uiStage.actors.filterIsInstance<SkillView>().first()
+        val questView = uiStage.actors.filterIsInstance<QuestView>().first()
+        val mapView = uiStage.actors.filterIsInstance<MapView>().first()
+        val menuView = uiStage.actors.filterIsInstance<MenuView>().first()
+
+        if (characterInfoView.isVisible) { return CHARACTER }
+        if (inventoryView.isVisible) { return INVENTORY }
+        if (skillView.isVisible) { return SKILL }
+        if (questView.isVisible) { return QUEST }
+        if (mapView.isVisible) { return MAP }
+        if (menuView.isVisible) { return MAIN_MENU }
+        return NO_VIEW
+    }
+
+    private fun clearActiveView() {
+        uiStage.actors.filterIsInstance<BackgroundView>().first().isVisible = false
+        uiStage.actors.filterIsInstance<CharacterInfoView>().first().isVisible = false
+        uiStage.actors.filterIsInstance<InventoryView>().first().isVisible = false
+        uiStage.actors.filterIsInstance<SkillView>().first().isVisible = false
+        uiStage.actors.filterIsInstance<QuestView>().first().isVisible = false
+        uiStage.actors.filterIsInstance<MapView>().first().isVisible = false
+        uiStage.actors.filterIsInstance<MenuView>().first().isVisible = false
     }
 
     companion object {

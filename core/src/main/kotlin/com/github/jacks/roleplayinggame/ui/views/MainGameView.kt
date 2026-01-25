@@ -9,24 +9,19 @@ import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions.*
 import com.badlogic.gdx.scenes.scene2d.actions.DelayAction
 import com.badlogic.gdx.scenes.scene2d.actions.SequenceAction
+import com.badlogic.gdx.scenes.scene2d.ui.Button
 import com.badlogic.gdx.scenes.scene2d.ui.Image
 import com.badlogic.gdx.scenes.scene2d.ui.Label
 import com.badlogic.gdx.scenes.scene2d.ui.Skin
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
-import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener.ChangeEvent
 import com.badlogic.gdx.utils.Align
 import com.github.jacks.roleplayinggame.ui.Buttons
 import com.github.jacks.roleplayinggame.ui.Drawables
 import com.github.jacks.roleplayinggame.ui.Labels
 import com.github.jacks.roleplayinggame.ui.get
 import com.github.jacks.roleplayinggame.ui.viewmodels.MainGameViewModel
-import com.github.jacks.roleplayinggame.ui.views.MenuView
-import com.github.jacks.roleplayinggame.ui.widgets.CharacterInfo
-import com.github.jacks.roleplayinggame.ui.widgets.characterInfo
-import ktx.actors.alpha
-import ktx.actors.plusAssign
 import ktx.actors.txt
 import ktx.preferences.get
 import ktx.scene2d.KTable
@@ -47,7 +42,6 @@ class MainGameView(
     skin : Skin
 ) : Table(skin), KTable {
 
-    private lateinit var stage : Stage
     private val preferences : Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
 
     // initial values from preferences
@@ -56,18 +50,19 @@ class MainGameView(
     private var playerExperience = preferences["player_experience", 0]
 
     // buttons
-    private var characterInfoButton : TextButton
+    private lateinit var characterInfoButton : TextButton
     private var inventoryButton : TextButton
-    private var skillsButton : TextButton
-    private var questsButton : TextButton
+    private var skillButton : TextButton
+    private var questButton : TextButton
     private var mapButton : TextButton
+    private var menuButton : TextButton
 
     // labels
-    private lateinit var characterInfoToolTipLabel : Label
-    private lateinit var inventoryToolTipLabel : Label
-    private lateinit var skillsToolTipLabel : Label
-    private lateinit var questsToolTipLabel : Label
-    private lateinit var mapToolTipLabel : Label
+//    private lateinit var characterInfoToolTipLabel : Label
+//    private lateinit var inventoryToolTipLabel : Label
+//    private lateinit var skillToolTipLabel : Label
+//    private lateinit var questToolTipLabel : Label
+//    private lateinit var mapToolTipLabel : Label
 
     // images
     private var experienceBar : Image
@@ -76,41 +71,183 @@ class MainGameView(
     init {
         // UI elements
         setFillParent(true)
+        stage = getStage()
         table { tableCell ->
+            table { emptyTableCell ->
+                emptyTableCell.expand().fill().colspan(3)
+            }
+            row()
+//            stack { stackCell ->
+//                this@MainGameView.characterInfoToolTipLabel = label("Character", Labels.TEST_LABEL.skinKey) { cell ->
+//                    cell.setSize(120f, 25f)
+//                    //cell.width(120f).height(25f).pad(0f, 5f, 0f, 0f)
+//                    this.setAlignment(Align.center)
+//                    this.isVisible = false
+//                }
+//                this@MainGameView.inventoryToolTipLabel = label("Inventory", Labels.TEST_LABEL.skinKey) { cell ->
+//                    cell.setSize(120f, 25f)
+//                    //cell.width(120f).height(25f).pad(0f, 5f, 0f, 0f)
+//                    this.setAlignment(Align.center)
+//                    this.isVisible = false
+//                }
+//                this@MainGameView.skillToolTipLabel = label("Skills", Labels.TEST_LABEL.skinKey) { cell ->
+//                    cell.setSize(120f, 25f)
+//                    //cell.width(120f).height(25f).pad(0f, 5f, 0f, 0f)
+//                    this.setAlignment(Align.center)
+//                    this.isVisible = false
+//                }
+//                this@MainGameView.questToolTipLabel = label("Quest Log", Labels.TEST_LABEL.skinKey) { cell ->
+//                    cell.setSize(120f, 25f)
+//                    //cell.width(120f).height(25f).pad(0f, 5f, 0f, 0f)
+//                    this.setAlignment(Align.center)
+//                    this.isVisible = false
+//                }
+//                this@MainGameView.mapToolTipLabel = label("Map", Labels.TEST_LABEL.skinKey) { cell ->
+//                    cell.setSize(240f, 25f)
+//                    //cell.width(120f).height(25f).pad(0f, 5f, 0f, 0f)
+//                    this.setAlignment(Align.center)
+//                    this.isVisible = false
+//                }
+//                stackCell.expand().fill().bottom().left().width(250f).height(40f)
+//            }
+//            row()
 
-            this@MainGameView.characterInfoButton = textButton("C", Buttons.BROWN_BUTTON_MEDIUM.skinKey) { cell ->
-                cell.expand().top().left().width(40f).height(40f).pad(3f,5f,3f,0f)
-                this.addListener(object : ChangeListener() {
-                    override fun changed(event: ChangeEvent, actor: Actor) {
-                        // set the active view, similar to the menu buttons
-                        // change the active view to be accurate according to the order of the gameScreen.init
-                        this@MainGameView.changeActiveView(3)
-                    }
-                })
-                this.addListener(object : InputListener() {
-                    override fun enter(event: InputEvent, x: Float, y: Float, pointer: Int, fromActor: Actor?) {
-                        this@MainGameView.characterInfoToolTipLabel.isVisible = isOver
-                        this@MainGameView.characterInfoToolTipLabel.setPosition(Gdx.input.x.toFloat(), Gdx.input.y.toFloat())
-                        super.enter(event, x, y, pointer, fromActor)
-                    }
-                    override fun exit(event: InputEvent, x: Float, y: Float, pointer: Int, toActor: Actor?) {
-                        this@MainGameView.characterInfoToolTipLabel.isVisible = isOver
-                        super.exit(event, x, y, pointer, toActor)
-                    }
-                })
+            table { playerInfoTableCell ->
+                playerInfoTableCell.expandX().pad(4f)
             }
 
-            table { progressBarTable ->
+            table { progressBarTableCell ->
                 stack { stackCell ->
                     image(skin[Drawables.BAR_GREY_THICK])
                     this@MainGameView.experienceBar = image(skin[Drawables.BAR_GREEN_THICK]) { cell ->
-                        scaleX = 0f
+                        scaleX = 0.5f
                     }
-                    stackCell.center().width(600f).height(30f)
+                    stackCell.center().width(520f).height(25f)
                 }
-                progressBarTable.expandX().top().height(40f).padTop(15f)
+                progressBarTableCell.expandX().height(30f).pad(4f)
             }
-            tableCell.expand().fill().pad(5f, 0f, 5f, 0f)
+
+            table { buttonsTableCell ->
+                this@MainGameView.characterInfoButton = textButton("Character (C)", Buttons.BROWN_BUTTON_MEDIUM.skinKey) { cell ->
+                    cell.expandX().width(150f).height(30f).pad(0f,5f,2f,2f)
+                    this.addListener(object : ChangeListener() {
+                        override fun changed(event: ChangeEvent, actor: Actor) {
+                            // pause while any view is active
+                            this@MainGameView.changeActiveView(5)
+                        }
+                    })
+//                this.addListener(object : InputListener() {
+//                    override fun enter(event: InputEvent, x: Float, y: Float, pointer: Int, fromActor: Actor?) {
+//                        this@MainGameView.characterInfoToolTipLabel.isVisible = isOver
+//                        this@MainGameView.characterInfoToolTipLabel.setPosition(
+//                            this@MainGameView.getTooltipLocation(this@MainGameView.characterInfoButton, "x"),
+//                            this@MainGameView.getTooltipLocation(this@MainGameView.characterInfoButton, "y")
+//                        )
+//                        super.enter(event, x, y, pointer, fromActor)
+//                    }
+//                    override fun exit(event: InputEvent, x: Float, y: Float, pointer: Int, toActor: Actor?) {
+//                        this@MainGameView.characterInfoToolTipLabel.isVisible = isOver
+//                        super.exit(event, x, y, pointer, toActor)
+//                    }
+//                })
+                }
+                this@MainGameView.inventoryButton = textButton("Inventory (I)", Buttons.BROWN_BUTTON_MEDIUM.skinKey) { cell ->
+                    cell.expandX().width(130f).height(30f).pad(0f,2f,2f,2f)
+                    this.addListener(object : ChangeListener() {
+                        override fun changed(event: ChangeEvent, actor: Actor) {
+                            // set the active view, similar to the menu buttons
+                            // change the active view to be accurate according to the order of the gameScreen.init
+                            this@MainGameView.changeActiveView(6)
+                        }
+                    })
+//                this.addListener(object : InputListener() {
+//                    override fun enter(event: InputEvent, x: Float, y: Float, pointer: Int, fromActor: Actor?) {
+//                        this@MainGameView.inventoryToolTipLabel.isVisible = isOver
+//                        this@MainGameView.inventoryToolTipLabel.setPosition(Gdx.input.x.toFloat(), Gdx.input.y.toFloat())
+//                        super.enter(event, x, y, pointer, fromActor)
+//                    }
+//                    override fun exit(event: InputEvent, x: Float, y: Float, pointer: Int, toActor: Actor?) {
+//                        this@MainGameView.inventoryToolTipLabel.isVisible = isOver
+//                        super.exit(event, x, y, pointer, toActor)
+//                    }
+//                })
+                }
+                this@MainGameView.skillButton = textButton("Skills (L)", Buttons.BROWN_BUTTON_MEDIUM.skinKey) { cell ->
+                    cell.expandX().width(100f).height(30f).pad(0f,2f,2f,2f)
+                    this.addListener(object : ChangeListener() {
+                        override fun changed(event: ChangeEvent, actor: Actor) {
+                            // set the active view, similar to the menu buttons
+                            // change the active view to be accurate according to the order of the gameScreen.init
+                            this@MainGameView.changeActiveView(7)
+                        }
+                    })
+//                this.addListener(object : InputListener() {
+//                    override fun enter(event: InputEvent, x: Float, y: Float, pointer: Int, fromActor: Actor?) {
+//                        this@MainGameView.skillToolTipLabel.isVisible = isOver
+//                        this@MainGameView.skillToolTipLabel.setPosition(Gdx.input.x.toFloat(), Gdx.input.y.toFloat())
+//                        super.enter(event, x, y, pointer, fromActor)
+//                    }
+//                    override fun exit(event: InputEvent, x: Float, y: Float, pointer: Int, toActor: Actor?) {
+//                        this@MainGameView.skillToolTipLabel.isVisible = isOver
+//                        super.exit(event, x, y, pointer, toActor)
+//                    }
+//                })
+                }
+                this@MainGameView.questButton = textButton("Quests (J)", Buttons.BROWN_BUTTON_MEDIUM.skinKey) { cell ->
+                    cell.expandX().width(115f).height(30f).pad(0f,2f,2f,2f)
+                    this.addListener(object : ChangeListener() {
+                        override fun changed(event: ChangeEvent, actor: Actor) {
+                            // set the active view, similar to the menu buttons
+                            // change the active view to be accurate according to the order of the gameScreen.init
+                            this@MainGameView.changeActiveView(8)
+                        }
+                    })
+//                this.addListener(object : InputListener() {
+//                    override fun enter(event: InputEvent, x: Float, y: Float, pointer: Int, fromActor: Actor?) {
+//                        this@MainGameView.questToolTipLabel.isVisible = isOver
+//                        this@MainGameView.questToolTipLabel.setPosition(Gdx.input.x.toFloat(), Gdx.input.y.toFloat())
+//                        super.enter(event, x, y, pointer, fromActor)
+//                    }
+//                    override fun exit(event: InputEvent, x: Float, y: Float, pointer: Int, toActor: Actor?) {
+//                        this@MainGameView.questToolTipLabel.isVisible = isOver
+//                        super.exit(event, x, y, pointer, toActor)
+//                    }
+//                })
+                }
+                this@MainGameView.mapButton = textButton("Map (M)", Buttons.BROWN_BUTTON_MEDIUM.skinKey) { cell ->
+                    cell.expandX().width(90f).height(30f).pad(0f,2f,2f,2f)
+                    this.addListener(object : ChangeListener() {
+                        override fun changed(event: ChangeEvent, actor: Actor) {
+                            // set the active view, similar to the menu buttons
+                            // change the active view to be accurate according to the order of the gameScreen.init
+                            this@MainGameView.changeActiveView(9)
+                        }
+                    })
+//                this.addListener(object : InputListener() {
+//                    override fun enter(event: InputEvent, x: Float, y: Float, pointer: Int, fromActor: Actor?) {
+//                        this@MainGameView.mapToolTipLabel.isVisible = isOver
+//                        this@MainGameView.mapToolTipLabel.setPosition(Gdx.input.x.toFloat(), Gdx.input.y.toFloat())
+//                        super.enter(event, x, y, pointer, fromActor)
+//                    }
+//                    override fun exit(event: InputEvent, x: Float, y: Float, pointer: Int, toActor: Actor?) {
+//                        this@MainGameView.mapToolTipLabel.isVisible = isOver
+//                        super.exit(event, x, y, pointer, toActor)
+//                    }
+//                })
+                }
+                this@MainGameView.menuButton = textButton("-", Buttons.BROWN_BUTTON_MEDIUM.skinKey) { cell ->
+                    cell.expandX().width(30f).height(30f).pad(0f,2f,2f,5f)
+                    this.addListener(object : ChangeListener() {
+                        override fun changed(event: ChangeEvent, actor: Actor) {
+                            // set the active view, similar to the menu buttons
+                            // change the active view to be accurate according to the order of the gameScreen.init
+                            this@MainGameView.changeActiveView(10)
+                        }
+                    })
+                }
+                buttonsTableCell.expandX().height(35f).pad(4f)
+            }
+            tableCell.expand().fill()
         }
 
         // data binding
@@ -120,7 +257,7 @@ class MainGameView(
         model.onPropertyChange(MainGameViewModel::lootText) { lootText ->
             //popup(lootText)
         }
-        model.onPropertyChange(MainGameViewModel::expAmount) { amount -> expAmountChanged(amount) }
+        model.onPropertyChange(MainGameViewModel::expAmount) { expAmount -> expAmountChanged(expAmount) }
     }
 
 //    fun playerLife(percentage : Float) {
@@ -135,29 +272,25 @@ class MainGameView(
     }
 
     private fun changeActiveView(actorId : Int) {
-        stage.actors.get(1).isVisible = actorId == 1
-        stage.actors.get(2).isVisible = actorId == 2
-        stage.actors.get(3).isVisible = actorId == 3
+        stage.actors.get(5).isVisible = (actorId == 5 && !stage.actors.get(5).isVisible)
+        stage.actors.get(6).isVisible = (actorId == 6 && !stage.actors.get(6).isVisible)
+        stage.actors.get(7).isVisible = (actorId == 7 && !stage.actors.get(7).isVisible)
+        stage.actors.get(8).isVisible = (actorId == 8 && !stage.actors.get(8).isVisible)
+        stage.actors.get(9).isVisible = (actorId == 9 && !stage.actors.get(9).isVisible)
+        stage.actors.get(10).isVisible = (actorId == 10 && !stage.actors.get(10).isVisible)
     }
 
-    private fun expAmountChanged(rate : Int) {
-        productionRate = rate
-        productionRateLabel.txt = "You are producing ${formatNumberWithLetter(rate)} food per second."
-        val prodMan = BigDecimalMath.mantissa(productionRate)
-        val prodExp = BigDecimalMath.exponent(productionRate).toBigDecimal()
-        val expPercent = prodExp.divide(PLANETARY_EXPONENT, 6, RoundingMode.UP)
-        val manPercent = expPercent * prodMan.divide(BigDecimal(10))
-        var prodPercent = 0f
-
-        if (expPercent != null && expPercent < BigDecimal(1 / 308)) {
-            prodPercent = manPercent.toFloat()
+    private fun getTooltipLocation(button : Button, coordinateDirection : String) : Float {
+        return when(coordinateDirection) {
+            "x" -> { (button.x + button.width + 10f) }
+            "y" -> { (button.y + button.height + 10f) }
+            else -> button.x
         }
+    }
 
-        if (productionRate > ONE && expPercent != null) {
-            prodPercent = (expPercent + manPercent).toFloat()
-        }
-        productionRateProgressLabel.txt = "${"%.2f".format(prodPercent.coerceAtMost(1f) * 100f)} %"
-        colonizationProgress.scaleX = prodPercent
+    private fun expAmountChanged(expAmount : Int) {
+        // calculate the exp amount, or perhaps recieve it as a percentage
+        experienceBar.scaleX = 0.5f
     }
 
 //    fun popup(infoText : String) {

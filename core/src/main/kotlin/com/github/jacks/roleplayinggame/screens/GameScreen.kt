@@ -3,6 +3,7 @@ package com.github.jacks.roleplayinggame.screens
 import com.badlogic.gdx.ai.GdxAI
 import com.badlogic.gdx.graphics.g2d.TextureAtlas
 import com.badlogic.gdx.scenes.scene2d.EventListener
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.github.jacks.roleplayinggame.RolePlayingGame
 import com.github.jacks.roleplayinggame.components.AiComponent.Companion.AiComponentListener
 import com.github.jacks.roleplayinggame.components.FloatingTextComponent.Companion.FloatingTextComponentListener
@@ -37,20 +38,28 @@ import com.github.jacks.roleplayinggame.systems.RenderSystem
 import com.github.jacks.roleplayinggame.systems.SpawnerSystem
 import com.github.jacks.roleplayinggame.systems.StateSystem
 import com.github.jacks.roleplayinggame.ui.viewmodels.BattleViewModel
+import com.github.jacks.roleplayinggame.ui.viewmodels.CharacterInfoViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.DialogViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.MainGameViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.InventoryViewModel
+import com.github.jacks.roleplayinggame.ui.viewmodels.MapViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.MenuViewModel
+import com.github.jacks.roleplayinggame.ui.viewmodels.QuestViewModel
+import com.github.jacks.roleplayinggame.ui.viewmodels.SkillViewModel
 import com.github.jacks.roleplayinggame.ui.views.FadeInOutView
 import com.github.jacks.roleplayinggame.ui.views.PauseView
 import com.github.jacks.roleplayinggame.ui.views.backgroundView
 import com.github.jacks.roleplayinggame.ui.views.battleView
+import com.github.jacks.roleplayinggame.ui.views.characterInfoView
 import com.github.jacks.roleplayinggame.ui.views.dialogView
 import com.github.jacks.roleplayinggame.ui.views.fadeInOutView
 import com.github.jacks.roleplayinggame.ui.views.inventoryView
 import com.github.jacks.roleplayinggame.ui.views.mainGameView
+import com.github.jacks.roleplayinggame.ui.views.mapView
 import com.github.jacks.roleplayinggame.ui.views.menuView
 import com.github.jacks.roleplayinggame.ui.views.pauseView
+import com.github.jacks.roleplayinggame.ui.views.questView
+import com.github.jacks.roleplayinggame.ui.views.skillView
 import com.github.quillraven.fleks.World
 import com.github.quillraven.fleks.world
 import ktx.app.KtxScreen
@@ -120,7 +129,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
             // fade in out
 
             // main UI, actor.get(0)
-            mainGameView(MainGameViewModel(entityWorld, gameStage))
+            mainGameView(MainGameViewModel(entityWorld, gameStage)) { isVisible = true }
 
             // battle UI, actor.get(1)
             battleView(BattleViewModel(entityWorld, gameStage)) { isVisible = false }
@@ -128,17 +137,29 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
             // pauseView, actor.get(2)
             pauseView { isVisible = false }
 
-            // background, actor.get(3)
-            backgroundView() { isVisible = false }
-
-            // dialog UI, actor.get(4)
+            // dialog UI, actor.get(3)
             dialogView(DialogViewModel(gameStage))
 
-            // inventory UI, actor.get(5)
+            // background, actor.get(4)
+            backgroundView() { isVisible = false }
+
+            // characterInfo UI, actor.get(5)
+            characterInfoView(CharacterInfoViewModel(entityWorld, gameStage)) { isVisible = false }
+
+            // inventory UI, actor.get(6)
             inventoryView(InventoryViewModel(entityWorld, gameStage)) { isVisible = false }
 
-            // menu UI
-            menuView(MenuViewModel(stage)) { isVisible = true }
+            // skills UI, actor.get(7)
+            skillView(SkillViewModel(entityWorld, gameStage)) { isVisible = false }
+
+            // quests UI, actor.get(8)
+            questView(QuestViewModel(entityWorld, gameStage)) { isVisible = false }
+
+            // map UI, actor.get(9)
+            mapView(MapViewModel(entityWorld, gameStage)) { isVisible = false }
+
+            // menu UI, actor.get(10)
+            menuView(MenuViewModel(stage)) { isVisible = false }
         }
     }
 
