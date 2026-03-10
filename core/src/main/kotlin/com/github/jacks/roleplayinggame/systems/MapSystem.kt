@@ -13,6 +13,7 @@ import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.actions.Actions.*
 import com.badlogic.gdx.scenes.scene2d.actions.SequenceAction
 import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
+import com.github.jacks.roleplayinggame.components.BattleComponent
 import com.github.jacks.roleplayinggame.components.ImageComponent
 import com.github.jacks.roleplayinggame.components.ItemComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
@@ -49,6 +50,7 @@ class MapSystem(
     private val physicsComponents : ComponentMapper<PhysicsComponent>,
     private val imageComponents : ComponentMapper<ImageComponent>,
     private val spawnerComponents : ComponentMapper<SpawnerComponent>,
+    private val battleComponents : ComponentMapper<BattleComponent>,
 ) : IntervalSystem(), EventListener {
 
     private val preferences : Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
@@ -63,7 +65,7 @@ class MapSystem(
                 return true
             }
             is BattleEvent -> {
-                setBattleMap(event.toMap)
+                setBattleMap(battleComponents[event.enemy].toMap)
                 return true
             }
             else -> return false
