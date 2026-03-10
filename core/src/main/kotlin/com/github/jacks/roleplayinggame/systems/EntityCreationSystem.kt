@@ -184,7 +184,7 @@ class EntityCreationSystem(
                             isSensor = true
                             userData = AI_SENSOR
                         }
-                        if (config.canBattle) { add<BattleComponent>() }
+                        if (config.canBattle) { add<BattleComponent> { toMap = config.battleMap } }
                     }
                 }
                 else -> { gdxError("Entity has no configuration.") }
