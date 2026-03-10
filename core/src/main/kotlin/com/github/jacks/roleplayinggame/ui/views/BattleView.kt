@@ -71,7 +71,7 @@ class BattleView(
 
         playerInfo = characterInfo(Drawables.PLAYER)
 
-        // Action menu — shown only during PLAYER_TURN
+        // Action menu ï¿½ shown only during PLAYER_TURN
         actionMenu = table {
             defaults().pad(6f).minWidth(90f)
             textButton("Attack", Buttons.GREEN_BUTTON_MEDIUM.skinKey) {
@@ -98,6 +98,9 @@ class BattleView(
         }
         model.onPropertyChange(BattleViewModel::lootText) { lootText ->
             popup(lootText)
+        }
+        model.onPropertyChange(BattleViewModel::battleLog) { log ->
+            if (log.isNotBlank()) popup(log)
         }
         model.onPropertyChange(BattleViewModel::battlePhase) { phase ->
             actionMenu.isVisible = (phase == BattlePhase.PLAYER_TURN)

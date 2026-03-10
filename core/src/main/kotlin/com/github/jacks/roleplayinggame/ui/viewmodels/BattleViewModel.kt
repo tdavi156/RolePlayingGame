@@ -14,6 +14,7 @@ import com.github.jacks.roleplayinggame.events.BattleActionSelectedEvent
 import com.github.jacks.roleplayinggame.events.BattleEndEvent
 import com.github.jacks.roleplayinggame.events.BattleEvent
 import com.github.jacks.roleplayinggame.events.BattleHealthUpdateEvent
+import com.github.jacks.roleplayinggame.events.BattleLogEvent
 import com.github.jacks.roleplayinggame.events.BattlePhaseChangedEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.quillraven.fleks.ComponentMapper
@@ -36,6 +37,7 @@ class BattleViewModel(
     var enemyLife   by propertyNotify(1f)
     var lootText    by propertyNotify("")
     var battlePhase by propertyNotify(BattlePhase.PLAYER_TURN)
+    var battleLog   by propertyNotify("")
 
     var currentEnemy: Entity? = null
         private set
@@ -63,6 +65,9 @@ class BattleViewModel(
             is BattleHealthUpdateEvent -> {
                 playerLife = event.playerHealthPct
                 enemyLife  = event.enemyHealthPct
+            }
+            is BattleLogEvent -> {
+                battleLog = event.message
             }
             is BattleEndEvent -> {
                 currentEnemy = null
