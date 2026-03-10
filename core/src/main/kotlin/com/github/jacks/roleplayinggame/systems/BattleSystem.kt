@@ -29,10 +29,11 @@ class BattleSystem(
 ) : IteratingSystem(), EventListener {
 
     override fun onTickEntity(entity: Entity) {
-        val (toMap : String, triggeringEntities : MutableSet<Entity>) = battleComponents[entity]
-        if (triggeringEntities.isNotEmpty()) {
-            triggeringEntities.clear()
-            //gameStage.fire(BattleEvent(toMap))
+        val battleComponent = battleComponents[entity]
+        if (battleComponent.triggerEntities.isNotEmpty() && !battleComponent.battleInProgress) {
+            battleComponent.battleInProgress = true
+            battleComponent.triggerEntities.clear()
+            gameStage.fire(BattleEvent(enemy = entity))
         }
     }
 

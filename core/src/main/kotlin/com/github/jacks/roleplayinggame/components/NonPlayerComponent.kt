@@ -12,6 +12,7 @@ data class NonPlayerConfiguration(
     val speedScaling : Float = 1f,
     val canAttack : Boolean = true,
     val canBattle : Boolean = true,
+    val battleMap : String = "",
     val attackScaling : Float = 1f,
     val attackDelay : Float = 0.2f,
     val attackRange : Float = 0f,

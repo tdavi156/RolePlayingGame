@@ -146,6 +146,12 @@ class PhysicsSystem (
             isEntityBAiSensor && !contact.fixtureA.isSensor -> {
                 aiComponents[entityB].nearbyEntities -= entityA
             }
+            entityA in battleComponents && entityB in playerComponents && !contact.fixtureB.isSensor -> {
+                battleComponents[entityA].triggerEntities -= entityB
+            }
+            entityB in battleComponents && entityA in playerComponents && !contact.fixtureA.isSensor -> {
+                battleComponents[entityB].triggerEntities -= entityA
+            }
 
         }
     }

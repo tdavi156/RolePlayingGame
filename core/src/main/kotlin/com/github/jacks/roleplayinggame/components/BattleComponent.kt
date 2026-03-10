@@ -4,5 +4,6 @@ import com.github.quillraven.fleks.Entity
 
 data class BattleComponent(
     var toMap : String = "",
-    var triggerEntities : MutableSet<Entity> = mutableSetOf()
+    var triggerEntities : MutableSet<Entity> = mutableSetOf(),
+    var battleInProgress : Boolean = false
 )
