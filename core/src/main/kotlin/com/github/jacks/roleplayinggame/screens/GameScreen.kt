@@ -2,7 +2,9 @@ package com.github.jacks.roleplayinggame.screens
 
 import com.badlogic.gdx.ai.GdxAI
 import com.badlogic.gdx.graphics.g2d.TextureAtlas
+import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
+import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.github.jacks.roleplayinggame.RolePlayingGame
 import com.github.jacks.roleplayinggame.components.AiComponent.Companion.AiComponentListener
@@ -10,6 +12,8 @@ import com.github.jacks.roleplayinggame.components.FloatingTextComponent.Compani
 import com.github.jacks.roleplayinggame.components.ImageComponent.Companion.ImageComponentListener
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.PhysicsComponentListener
 import com.github.jacks.roleplayinggame.components.StateComponent.Companion.StateComponentListener
+import com.github.jacks.roleplayinggame.events.BattleEndEvent
+import com.github.jacks.roleplayinggame.events.BattleEvent
 import com.github.jacks.roleplayinggame.events.InitializeGameEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.input.PlayerKeyboardInputProcessor
@@ -38,6 +42,9 @@ import com.github.jacks.roleplayinggame.systems.RenderSystem
 import com.github.jacks.roleplayinggame.systems.SpawnerSystem
 import com.github.jacks.roleplayinggame.systems.StateSystem
 import com.github.jacks.roleplayinggame.ui.viewmodels.BattleViewModel
+import com.github.jacks.roleplayinggame.ui.views.BattleView
+import com.github.jacks.roleplayinggame.ui.views.FadeInOutView
+import com.github.jacks.roleplayinggame.ui.views.MainGameView
 import com.github.jacks.roleplayinggame.ui.viewmodels.CharacterInfoViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.DialogViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.MainGameViewModel
@@ -46,7 +53,6 @@ import com.github.jacks.roleplayinggame.ui.viewmodels.MapViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.MenuViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.QuestViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.SkillViewModel
-import com.github.jacks.roleplayinggame.ui.views.FadeInOutView
 import com.github.jacks.roleplayinggame.ui.views.PauseView
 import com.github.jacks.roleplayinggame.ui.views.backgroundView
 import com.github.jacks.roleplayinggame.ui.views.battleView
@@ -60,6 +66,7 @@ import com.github.jacks.roleplayinggame.ui.views.menuView
 import com.github.jacks.roleplayinggame.ui.views.pauseView
 import com.github.jacks.roleplayinggame.ui.views.questView
 import com.github.jacks.roleplayinggame.ui.views.skillView
+import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.World
 import com.github.quillraven.fleks.world
 import ktx.app.KtxScreen
@@ -70,12 +77,14 @@ import ktx.math.vec2
 import ktx.preferences.get
 import ktx.scene2d.actors
 
-class GameScreen(game : RolePlayingGame) : KtxScreen {
+class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
     private val preferences = game.preferences
     private val gameStage = game.gameStage
     private val uiStage = game.uiStage
     private val textureAtlas : TextureAtlas = TextureAtlas("assets/graphics/gameObjects.atlas")
     private val physicsWorld = createWorld(gravity = vec2()).apply { autoClearForces = false }
+    private lateinit var fadeView: FadeInOutView
+    private var currentBattleEnemy: Entity? = null
 
     private val entityWorld : World = world {
         injectables {
@@ -160,6 +169,9 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
 
             // menu UI, actor.get(10)
             menuView(MenuViewModel(stage)) { isVisible = false }
+
+            // fade overlay, actor.get(11) — drawn on top for screen transitions
+            fadeView = fadeInOutView { isVisible = false }
         }
     }
 
@@ -171,6 +183,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
                 gameStage.addListener(system)
             }
         }
+        gameStage.addListener(this)
 
         gameStage.fire(InitializeGameEvent())
         PlayerKeyboardInputProcessor(entityWorld, gameStage, uiStage)
@@ -197,6 +210,56 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
     override fun pause() = pauseWorld(true)
     override fun resume() = pauseWorld(false)
 
+    override fun handle(event: Event): Boolean {
+        when (event) {
+            is BattleEvent -> {
+                enterBattleMode(event.enemy)
+                return true
+            }
+            is BattleEndEvent -> {
+                exitBattleMode()
+                return true
+            }
+            else -> return false
+        }
+    }
+
+    private fun enterBattleMode(enemy: Entity) {
+        currentBattleEnemy = enemy
+        fadeView.color.a = 0f
+        fadeView.isVisible = true
+        fadeView.clearActions()
+        fadeView.addAction(Actions.sequence(
+            Actions.fadeIn(FADE_DURATION),
+            Actions.run {
+                entityWorld.systems
+                    .filter { it::class !in battleModeSystems }
+                    .forEach { it.enabled = false }
+                uiStage.actors.filterIsInstance<MainGameView>().first().isVisible = false
+                uiStage.actors.filterIsInstance<BattleView>().first().isVisible = true
+            },
+            Actions.fadeOut(FADE_DURATION),
+            Actions.run { fadeView.isVisible = false }
+        ))
+    }
+
+    private fun exitBattleMode() {
+        fadeView.color.a = 0f
+        fadeView.isVisible = true
+        fadeView.clearActions()
+        fadeView.addAction(Actions.sequence(
+            Actions.fadeIn(FADE_DURATION),
+            Actions.run {
+                currentBattleEnemy = null
+                entityWorld.systems.forEach { it.enabled = true }
+                uiStage.actors.filterIsInstance<BattleView>().first().isVisible = false
+                uiStage.actors.filterIsInstance<MainGameView>().first().isVisible = true
+            },
+            Actions.fadeOut(FADE_DURATION),
+            Actions.run { fadeView.isVisible = false }
+        ))
+    }
+
     override fun render(delta: Float) {
         val deltaTime = delta.coerceAtMost(0.25f)
         GdxAI.getTimepiece().update(deltaTime)
@@ -209,6 +272,14 @@ class GameScreen(game : RolePlayingGame) : KtxScreen {
     }
 
     companion object {
-         private val log = logger<GameScreen>()
+        private val log = logger<GameScreen>()
+        private const val FADE_DURATION = 0.4f
+        private val battleModeSystems = setOf(
+            AnimationSystem::class,
+            CameraSystem::class,
+            RenderSystem::class,
+            DebugSystem::class,
+            BattleSystem::class,
+        )
     }
 }

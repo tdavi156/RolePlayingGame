@@ -21,6 +21,7 @@ data class MapChangeEvent(val map : TiledMap) : Event()
 data class BattleMapChangeEvent(val map : TiledMap) : Event()
 data class PortalEvent(val toMap : String, val toPortal : Int) : Event()
 data class BattleEvent(val enemy : Entity) : Event()
+class BattleEndEvent : Event()
 
 class CollisionDespawnEvent(val cell : Cell) : Event()
 class EntityAttackEvent(val model : AnimationModel) : Event()
