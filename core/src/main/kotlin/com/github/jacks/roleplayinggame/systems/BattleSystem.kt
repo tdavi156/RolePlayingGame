@@ -5,6 +5,7 @@ import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.BattleAction
+import com.github.jacks.roleplayinggame.components.AnimationComponent
 import com.github.jacks.roleplayinggame.components.BattleComponent
 import com.github.jacks.roleplayinggame.components.BattlePhase
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.physicsComponentFromShape2D
@@ -14,6 +15,7 @@ import com.github.jacks.roleplayinggame.events.BattleActionSelectedEvent
 import com.github.jacks.roleplayinggame.events.BattleEndEvent
 import com.github.jacks.roleplayinggame.events.BattleEvent
 import com.github.jacks.roleplayinggame.events.BattleHealthUpdateEvent
+import com.github.jacks.roleplayinggame.events.BattleLogEvent
 import com.github.jacks.roleplayinggame.events.BattlePhaseChangedEvent
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
 import com.github.jacks.roleplayinggame.events.fire
@@ -33,6 +35,7 @@ class BattleSystem(
     private val gameStage: Stage,
     private val battleComponents: ComponentMapper<BattleComponent>,
     private val statComponents: ComponentMapper<StatComponent>,
+    private val animationComponents: ComponentMapper<AnimationComponent>,
 ) : IteratingSystem(), EventListener {
 
     private var currentBattleEntity: Entity? = null
@@ -56,6 +59,7 @@ class BattleSystem(
             battleComponent.resolvingPlayer     = true
             gameStage.fire(BattleEvent(enemy = entity))
             fireHealthUpdate(currentPlayerEntity!!, entity)   // initialise health bars
+            gameStage.fire(BattleLogEvent("A ${enemyDisplayName(entity)} appears!"))
             return
         }
 
@@ -75,12 +79,17 @@ class BattleSystem(
 
     private fun resolveAction(enemyEntity: Entity, battleComponent: BattleComponent) {
         val playerEntity = currentPlayerEntity ?: return
+        val enemyName = enemyDisplayName(enemyEntity)
 
         if (battleComponent.resolvingPlayer) {
             // Player chosen action
             when (battleComponent.pendingPlayerAction) {
-                BattleAction.ATTACK -> applyDamage(attacker = playerEntity, target = enemyEntity)
+                BattleAction.ATTACK -> {
+                    val dmg = applyDamage(attacker = playerEntity, target = enemyEntity)
+                    gameStage.fire(BattleLogEvent("You attack for ${dmg.toInt()} damage!"))
+                }
                 BattleAction.FLEE   -> {
+                    gameStage.fire(BattleLogEvent("You escaped!"))
                     transitionPhase(battleComponent, BattlePhase.BATTLE_END)
                     return
                 }
@@ -89,6 +98,7 @@ class BattleSystem(
             fireHealthUpdate(playerEntity, enemyEntity)
             val enemyStat = statComponents.getOrNull(enemyEntity)
             if (enemyStat != null && enemyStat.isDead) {
+                gameStage.fire(BattleLogEvent("$enemyName is defeated!"))
                 transitionPhase(battleComponent, BattlePhase.BATTLE_END)
             } else {
                 transitionPhase(battleComponent, BattlePhase.ENEMY_TURN)
@@ -96,10 +106,12 @@ class BattleSystem(
 
         } else {
             // Enemy action (always basic attack)
-            applyDamage(attacker = enemyEntity, target = playerEntity)
+            val dmg = applyDamage(attacker = enemyEntity, target = playerEntity)
+            gameStage.fire(BattleLogEvent("$enemyName attacks for ${dmg.toInt()} damage!"))
             fireHealthUpdate(playerEntity, enemyEntity)
             val playerStat = statComponents.getOrNull(playerEntity)
             if (playerStat != null && playerStat.isDead) {
+                gameStage.fire(BattleLogEvent("You were defeated..."))
                 transitionPhase(battleComponent, BattlePhase.BATTLE_END)
             } else {
                 transitionPhase(battleComponent, BattlePhase.PLAYER_TURN)
@@ -137,12 +149,21 @@ class BattleSystem(
         gameStage.fire(BattlePhaseChangedEvent(newPhase))
     }
 
-    /** Apply damage formula: max(attackDamage - defense, 1). */
-    private fun applyDamage(attacker: Entity, target: Entity) {
-        val attackerStat = statComponents.getOrNull(attacker) ?: return
-        val targetStat   = statComponents.getOrNull(target)   ?: return
+    /** Apply damage formula: max(attackDamage - defense, 1). Returns damage dealt. */
+    private fun applyDamage(attacker: Entity, target: Entity): Float {
+        val attackerStat = statComponents.getOrNull(attacker) ?: return 0f
+        val targetStat   = statComponents.getOrNull(target)   ?: return 0f
         val damage = (attackerStat.attackDamage - targetStat.defense).coerceAtLeast(1f)
         targetStat.currentHealth = (targetStat.currentHealth - damage).coerceAtLeast(0f)
+        return damage
+    }
+
+    /** Get a display-friendly name from the enemy's AnimationModel (e.g. SLIME_GREEN → "Slime Green"). */
+    private fun enemyDisplayName(entity: Entity): String {
+        val model = animationComponents.getOrNull(entity)?.model ?: return "Enemy"
+        return model.name.split("_").joinToString(" ") { word ->
+            word.lowercase().replaceFirstChar { it.uppercase() }
+        }
     }
 
     /** Broadcast current health percentages so the ViewModel can update the UI. */

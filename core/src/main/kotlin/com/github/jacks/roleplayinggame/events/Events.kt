@@ -29,6 +29,7 @@ class BattleEndEvent : Event()
 data class BattlePhaseChangedEvent(val phase: BattlePhase) : Event()
 data class BattleActionSelectedEvent(val action: BattleAction) : Event()
 data class BattleHealthUpdateEvent(val playerHealthPct: Float, val enemyHealthPct: Float) : Event()
+data class BattleLogEvent(val message: String) : Event()
 
 class CollisionDespawnEvent(val cell : Cell) : Event()
 class EntityAttackEvent(val model : AnimationModel) : Event()
