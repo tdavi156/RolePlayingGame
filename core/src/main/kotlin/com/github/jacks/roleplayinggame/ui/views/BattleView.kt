@@ -3,6 +3,7 @@ package com.github.jacks.roleplayinggame.ui.views
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.scenes.scene2d.Actor
+import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.actions.Actions.delay
@@ -13,7 +14,10 @@ import com.badlogic.gdx.scenes.scene2d.actions.SequenceAction
 import com.badlogic.gdx.scenes.scene2d.ui.Label
 import com.badlogic.gdx.scenes.scene2d.ui.Skin
 import com.badlogic.gdx.scenes.scene2d.ui.Table
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 import com.badlogic.gdx.utils.Align
+import com.github.jacks.roleplayinggame.components.BattlePhase
+import com.github.jacks.roleplayinggame.ui.Buttons
 import com.github.jacks.roleplayinggame.ui.Drawables
 import com.github.jacks.roleplayinggame.ui.Labels
 import com.github.jacks.roleplayinggame.ui.get
@@ -31,6 +35,7 @@ import ktx.scene2d.Scene2dDsl
 import ktx.scene2d.actor
 import ktx.scene2d.label
 import ktx.scene2d.table
+import ktx.scene2d.textButton
 
 class BattleView(
     model : BattleViewModel,
@@ -45,17 +50,9 @@ class BattleView(
     private var playerMana = preferences["player_mana", 1.0]
     private var playerExperience = preferences["player_experience", 0]
 
-    // buttons
-    //private var characterInfoButton : TextButton
-    //private var settingsButton : TextButton
-    //private var menuButton : TextButton
-
-
-
-    // old stuff
     private val playerInfo : CharacterInfo
-    //private val enemyInfo : CharacterInfo
     private val popupLabel : Label
+    private lateinit var actionMenu : Table
 
     init {
         // UI elements
@@ -74,12 +71,36 @@ class BattleView(
 
         playerInfo = characterInfo(Drawables.PLAYER)
 
-        // data binding
+        // Action menu — shown only during PLAYER_TURN
+        actionMenu = table {
+            defaults().pad(6f).minWidth(90f)
+            textButton("Attack", Buttons.GREEN_BUTTON_MEDIUM.skinKey) {
+                addListener(object : ClickListener() {
+                    override fun clicked(event: InputEvent, x: Float, y: Float) {
+                        model.onAttack()
+                    }
+                })
+                it.row()
+            }
+            textButton("Flee", Buttons.RED_BUTTON_MEDIUM.skinKey) {
+                addListener(object : ClickListener() {
+                    override fun clicked(event: InputEvent, x: Float, y: Float) {
+                        model.onFlee()
+                    }
+                })
+            }
+            it.expand().bottom().padBottom(32f)
+        }
+
+        // Data binding
         model.onPropertyChange(BattleViewModel::playerLife) { playerLife ->
             playerLife(playerLife)
         }
         model.onPropertyChange(BattleViewModel::lootText) { lootText ->
             popup(lootText)
+        }
+        model.onPropertyChange(BattleViewModel::battlePhase) { phase ->
+            actionMenu.isVisible = (phase == BattlePhase.PLAYER_TURN)
         }
     }
 
