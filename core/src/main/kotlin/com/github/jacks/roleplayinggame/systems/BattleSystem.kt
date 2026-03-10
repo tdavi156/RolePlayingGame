@@ -7,6 +7,7 @@ import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.BattleComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.physicsComponentFromShape2D
 import com.github.jacks.roleplayinggame.components.PortalComponent
+import com.github.jacks.roleplayinggame.events.BattleEndEvent
 import com.github.jacks.roleplayinggame.events.BattleEvent
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
 import com.github.jacks.roleplayinggame.events.PortalEvent
@@ -28,17 +29,27 @@ class BattleSystem(
     private val battleComponents : ComponentMapper<BattleComponent>,
 ) : IteratingSystem(), EventListener {
 
+    private var currentBattleEntity: Entity? = null
+
     override fun onTickEntity(entity: Entity) {
         val battleComponent = battleComponents[entity]
         if (battleComponent.triggerEntities.isNotEmpty() && !battleComponent.battleInProgress) {
             battleComponent.battleInProgress = true
             battleComponent.triggerEntities.clear()
+            currentBattleEntity = entity
             gameStage.fire(BattleEvent(enemy = entity))
         }
     }
 
     override fun handle(event: Event): Boolean {
         when(event) {
+            is BattleEndEvent -> {
+                currentBattleEntity?.let { entity ->
+                    battleComponents.getOrNull(entity)?.battleInProgress = false
+                }
+                currentBattleEntity = null
+                return true
+            }
             is MapChangeEvent -> {
                 val portalLayer = event.map.layer("portals")
                 portalLayer.objects.forEach { mapObject ->

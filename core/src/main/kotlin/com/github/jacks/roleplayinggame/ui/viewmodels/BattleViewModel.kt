@@ -8,6 +8,7 @@ import com.github.jacks.roleplayinggame.components.ItemComponent
 import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
+import com.github.jacks.roleplayinggame.events.BattleEndEvent
 import com.github.jacks.roleplayinggame.events.BattleEvent
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.World
@@ -27,6 +28,9 @@ class BattleViewModel(
     var enemyLife by propertyNotify(1f)
     var lootText by propertyNotify("")
 
+    var currentEnemy: Entity? = null
+        private set
+
     init {
         stage.addListener(this)
     }
@@ -34,7 +38,13 @@ class BattleViewModel(
     override fun handle(event: Event): Boolean {
         when(event) {
             is BattleEvent -> {
-
+                currentEnemy = event.enemy
+                lifeComponents.getOrNull(event.enemy)?.let { lifeComp ->
+                    enemyLife = if (lifeComp.maxHealth > 0f) lifeComp.health / lifeComp.maxHealth else 1f
+                }
+            }
+            is BattleEndEvent -> {
+                currentEnemy = null
             }
             else -> return false
         }
