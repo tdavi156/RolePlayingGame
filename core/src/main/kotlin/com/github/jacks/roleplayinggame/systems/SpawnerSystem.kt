@@ -57,29 +57,30 @@ class SpawnerSystem(
                 val spawnerLayer = event.map.layer("spawners")
                 world.family(allOf = arrayOf(SpawnerComponent::class)).forEach { world.remove(it) }
                 spawnerLayer.objects.forEach { spawner ->
+                    val spawnerId = spawner.propertyOrNull<Int>("id") ?: gdxError("Map Object $spawner has no ID")
+                    val mapId = spawner.propertyOrNull<Int>("mapId") ?: gdxError("Map Object $spawner has no Map ID")
+                    val entityToSpawn = spawner.propertyOrNull<String>("entityToSpawn") ?: gdxError("Map Object $spawner has no Entity To Spawn")
+                    val spawnTimer = spawner.propertyOrNull<Float>("spawnTimer") ?: gdxError("Map Object $spawner has no Spawn Timer")
+                    val isSpawned = preferences["spawner_${spawnerId}_map_${mapId}_is_Spawned", false]
+                    val currentTime = preferences["spawner_${spawnerId}_map_${mapId}_current_time", 0f]
                     world.entity {
                         add<SpawnerComponent> {
-                            this.spawnerId = spawner.propertyOrNull<Int>("id") ?: gdxError("Map Object $spawner has no ID")
-                            this.mapId = spawner.propertyOrNull<Int>("mapId") ?: gdxError("Map Object $spawner has no Map ID")
-                            this.entityToSpawn = spawner.propertyOrNull<String>("entityToSpawn") ?: gdxError("Map Object $spawner has no Entity To Spawn")
-                            this.spawnTimer = spawner.propertyOrNull<Float>("spawnTimer") ?: gdxError("Map Object $spawner has no Spawn Timer")
+                            this.spawnerId = spawnerId
+                            this.mapId = mapId
+                            this.entityToSpawn = entityToSpawn
+                            this.spawnTimer = spawnTimer
                             this.location.set(spawner.x, spawner.y)
-                            this.currentTime = preferences["spawner_${this.spawnerId}_map_${this.mapId}_current_time", 0f]
-                            this.isSpawned = preferences["spawner_${this.spawnerId}_map_${this.mapId}_is_Spawned", false]
+                            this.currentTime = currentTime
+                            this.isSpawned = isSpawned
                         }
                     }
-                }
-                world.family(allOf = arrayOf(SpawnerComponent::class)).forEach { spawnerEntity ->
-                    val spawnerComp = spawnerComponents[spawnerEntity]
-                    if (event.map.propertyOrNull<Int>("mapId") == spawnerComp.mapId
-                        && spawnerComp.entityToSpawn != "player"
-                        && spawnerComp.isSpawned) {
+                    if (isSpawned && entityToSpawn != "player") {
                         world.entity {
                             add<EntityCreationComponent> {
-                                this.configurationType = getConfigurationType(spawnerComp.entityToSpawn)
-                                this.configuration = getConfiguration(spawnerComp.entityToSpawn)
-                                this.entityName = spawnerComp.entityToSpawn
-                                this.location.set(spawnerComp.location.x * UNIT_SCALE, spawnerComp.location.y * UNIT_SCALE)
+                                this.configurationType = getConfigurationType(entityToSpawn)
+                                this.configuration = getConfiguration(entityToSpawn)
+                                this.entityName = entityToSpawn
+                                this.location.set(spawner.x * UNIT_SCALE, spawner.y * UNIT_SCALE)
                             }
                         }
                     }
