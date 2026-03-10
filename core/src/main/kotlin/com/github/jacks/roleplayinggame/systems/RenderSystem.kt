@@ -11,6 +11,7 @@ import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
 import com.github.jacks.roleplayinggame.components.ImageComponent
+import com.github.jacks.roleplayinggame.events.BattleMapChangeEvent
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
 import com.github.jacks.roleplayinggame.ui.views.FadeInOutView
 import com.github.quillraven.fleks.AllOf
@@ -77,23 +78,23 @@ class RenderSystem(
     }
 
     override fun handle(event: Event): Boolean {
-        when (event) {
-            is MapChangeEvent -> {
-                backgroundLayers.clear()
-                foregroundLayers.clear()
-                event.map.forEachLayer<TiledMapTileLayer> { layer ->
-                    if (layer.name.startsWith("foreground_")) {
-                        foregroundLayers.add(layer)
-                    } else if (layer.name.startsWith("background_")) {
-                        backgroundLayers.add(layer)
-                    } else {
-                        log.debug { "${layer.name} is not a foreground or background" }
-                    }
-                }
-                return true
-            }
-            else -> { return false }
+        val map = when (event) {
+            is MapChangeEvent       -> event.map
+            is BattleMapChangeEvent -> event.map
+            else                    -> return false
         }
+        backgroundLayers.clear()
+        foregroundLayers.clear()
+        map.forEachLayer<TiledMapTileLayer> { layer ->
+            if (layer.name.startsWith("foreground_")) {
+                foregroundLayers.add(layer)
+            } else if (layer.name.startsWith("background_")) {
+                backgroundLayers.add(layer)
+            } else {
+                log.debug { "${layer.name} is not a foreground or background" }
+            }
+        }
+        return true
     }
 
     companion object {
