@@ -386,5 +386,9 @@ class BattleSystem(
 
     companion object {
         private const val END_DELAY_SECONDS = 1.5f
+        // TODO Step 11 (deferred): Add battle animations (hit flash, attack sequences)
+        //  and sound effects (attack SFX, damage SFX, victory/defeat jingles).
+        //  AudioSystem is currently commented out in GameScreen; re-enable it first.
+        //  Basic IDLE animations already play for both combatants during battle.
     }
 }

@@ -6,6 +6,7 @@ import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.AnimationComponent
 import com.github.jacks.roleplayinggame.components.AttackComponent
 import com.github.jacks.roleplayinggame.components.AttackState
+import com.github.jacks.roleplayinggame.components.BattleComponent
 import com.github.jacks.roleplayinggame.components.DialogComponent
 import com.github.jacks.roleplayinggame.components.DisarmComponent
 import com.github.jacks.roleplayinggame.components.ImageComponent
@@ -40,6 +41,7 @@ class AttackSystem(
     private val animationComponents : ComponentMapper<AnimationComponent>,
     private val moveComponents : ComponentMapper<MoveComponent>,
     private val dialogComponents : ComponentMapper<DialogComponent>,
+    private val battleComponents : ComponentMapper<BattleComponent>,
     private val physicsWorld : World,
     private val stage : Stage
 ) : IteratingSystem() {
@@ -130,6 +132,11 @@ class AttackSystem(
                 }
 
                 if (fixtureEntity == entity) {
+                    return@query true
+                }
+
+                // Step 11: skip battle-capable enemies — they must be fought via the turn-based system
+                if (fixtureEntity in battleComponents) {
                     return@query true
                 }
 

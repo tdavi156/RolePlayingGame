@@ -84,6 +84,7 @@ class Configurations {
             ),
             speedScaling = 0.5f,
             lifeScaling = 1f,
+            canAttack = false, // Step 11: battle-capable enemies use turn-based combat, not real-time hitbox attacks
             attackRange = 1f,
             attackScaling = 1f,
             battleMap = "map_1_battle_1",
@@ -104,6 +105,7 @@ class Configurations {
             ),
             speedScaling = 0.5f,
             lifeScaling = 1f,
+            canAttack = false, // Step 11: battle-capable enemies use turn-based combat, not real-time hitbox attacks
             attackRange = 1f,
             attackScaling = 1f,
             battleMap = "map_1_battle_1",
@@ -124,6 +126,7 @@ class Configurations {
             ),
             speedScaling = 0.5f,
             lifeScaling = 1f,
+            canAttack = false, // Step 11: battle-capable enemies use turn-based combat, not real-time hitbox attacks
             attackRange = 1f,
             attackScaling = 1f,
             battleMap = "map_1_battle_1",

@@ -12,6 +12,9 @@ import com.github.jacks.roleplayinggame.components.FloatingTextComponent.Compani
 import com.github.jacks.roleplayinggame.components.ImageComponent.Companion.ImageComponentListener
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.PhysicsComponentListener
 import com.github.jacks.roleplayinggame.components.StateComponent.Companion.StateComponentListener
+import com.github.jacks.roleplayinggame.components.AttackComponent
+import com.github.jacks.roleplayinggame.components.AttackState
+import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.events.BattleEndEvent
 import com.github.jacks.roleplayinggame.events.BattleEvent
 import com.github.jacks.roleplayinggame.events.InitializeGameEvent
@@ -86,6 +89,10 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
     private lateinit var fadeView: FadeInOutView
     private var currentBattleEnemy: Entity? = null
 
+    // Step 11: used to clear queued real-time attack state when exiting battle
+    private val playerFamily by lazy { entityWorld.family(allOf = arrayOf(PlayerComponent::class)) }
+    private val attackMapper by lazy { entityWorld.mapper<AttackComponent>() }
+
     private val entityWorld : World = world {
         injectables {
             add(gameStage)
@@ -126,7 +133,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
             add<FloatingTextSystem>()
             add<RenderSystem>()
             //add<AudioSystem>()
-            add<DebugSystem>()
+            //add<DebugSystem>()
         }
     }
 
@@ -253,6 +260,14 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
             Actions.run {
                 currentBattleEnemy = null
                 entityWorld.systems.forEach { it.enabled = true }
+                // Step 11: clear any queued real-time attack so the player doesn't
+                // immediately swing when returning to the overworld
+                playerFamily.forEach { playerEntity ->
+                    attackMapper.getOrNull(playerEntity)?.let { attack ->
+                        attack.doAttack = false
+                        attack.state = AttackState.READY
+                    }
+                }
                 uiStage.actors.filterIsInstance<BattleView>().first().isVisible = false
                 uiStage.actors.filterIsInstance<MainGameView>().first().isVisible = true
             },
