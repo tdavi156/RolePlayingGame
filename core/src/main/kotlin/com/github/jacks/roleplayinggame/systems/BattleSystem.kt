@@ -1,14 +1,21 @@
 package com.github.jacks.roleplayinggame.systems
 
+import com.badlogic.gdx.maps.tiled.TiledMap
 import com.badlogic.gdx.physics.box2d.World
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
-import com.github.jacks.roleplayinggame.components.BattleAction
+import com.badlogic.gdx.utils.Scaling
+import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
+import com.github.jacks.roleplayinggame.actors.FlipImage
 import com.github.jacks.roleplayinggame.components.AnimationComponent
+import com.github.jacks.roleplayinggame.components.AnimationModel
+import com.github.jacks.roleplayinggame.components.AnimationType
+import com.github.jacks.roleplayinggame.components.BattleAction
 import com.github.jacks.roleplayinggame.components.BattleComponent
 import com.github.jacks.roleplayinggame.components.BattleEndReason
 import com.github.jacks.roleplayinggame.components.BattlePhase
+import com.github.jacks.roleplayinggame.components.ImageComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.physicsComponentFromShape2D
 import com.github.jacks.roleplayinggame.components.PortalComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
@@ -17,6 +24,7 @@ import com.github.jacks.roleplayinggame.events.BattleEndEvent
 import com.github.jacks.roleplayinggame.events.BattleEvent
 import com.github.jacks.roleplayinggame.events.BattleHealthUpdateEvent
 import com.github.jacks.roleplayinggame.events.BattleLogEvent
+import com.github.jacks.roleplayinggame.events.BattleMapChangeEvent
 import com.github.jacks.roleplayinggame.events.BattlePhaseChangedEvent
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
 import com.github.jacks.roleplayinggame.events.fire
@@ -25,10 +33,14 @@ import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import ktx.app.gdxError
+import ktx.tiled.height
 import ktx.tiled.id
 import ktx.tiled.layer
 import ktx.tiled.property
 import ktx.tiled.shape
+import ktx.tiled.width
+import ktx.tiled.x
+import ktx.tiled.y
 
 @AllOf([BattleComponent::class])
 class BattleSystem(
@@ -37,10 +49,17 @@ class BattleSystem(
     private val battleComponents: ComponentMapper<BattleComponent>,
     private val statComponents: ComponentMapper<StatComponent>,
     private val animationComponents: ComponentMapper<AnimationComponent>,
+    private val imageComponents: ComponentMapper<ImageComponent>,
 ) : IteratingSystem(), EventListener {
 
     private var currentBattleEntity: Entity? = null
     private var currentPlayerEntity: Entity? = null
+
+    // Saved overworld enemy data (preserved across the map transition)
+    private var savedEnemyModel: AnimationModel = AnimationModel.UNDEFINED
+    private var savedEnemyStats: StatComponent? = null
+    private var savedEnemyImageWidth: Float = 0f
+    private var savedEnemyImageHeight: Float = 0f
 
     // -------------------------------------------------------------------------
     // Main tick — drives the state machine each ECS frame
@@ -52,15 +71,24 @@ class BattleSystem(
         // Start a new battle when the player walks into this enemy
         if (battleComponent.triggerEntities.isNotEmpty() && !battleComponent.battleInProgress) {
             battleComponent.battleInProgress    = true
-            currentBattleEntity                 = entity
             currentPlayerEntity                 = battleComponent.triggerEntities.first()  // stored by PhysicsSystem
             battleComponent.triggerEntities.clear()
-            battleComponent.phase               = BattlePhase.PLAYER_TURN
-            battleComponent.pendingPlayerAction = BattleAction.NONE
-            battleComponent.resolvingPlayer     = true
+
+            // Save overworld enemy data before the map transition destroys the entity
+            savedEnemyModel  = animationComponents.getOrNull(entity)?.model ?: AnimationModel.UNDEFINED
+            savedEnemyStats  = statComponents.getOrNull(entity)?.copy()
+            val img = imageComponents.getOrNull(entity)?.image
+            savedEnemyImageWidth  = img?.width  ?: 1f
+            savedEnemyImageHeight = img?.height ?: 1f
+
+            // Fire BattleEvent — MapSystem loads battle map, which fires BattleMapChangeEvent,
+            // which triggers createBattleEnemy() and sets currentBattleEntity to the new entity.
             gameStage.fire(BattleEvent(enemy = entity))
-            fireHealthUpdate(currentPlayerEntity!!, entity)   // initialise health bars
-            gameStage.fire(BattleLogEvent("A ${enemyDisplayName(entity)} appears!"))
+
+            // Use the new battle entity (created by createBattleEnemy via BattleMapChangeEvent)
+            val battleEnemy = currentBattleEntity ?: return
+            fireHealthUpdate(currentPlayerEntity!!, battleEnemy)
+            gameStage.fire(BattleLogEvent("A ${enemyDisplayName(battleEnemy)} appears!"))
             return
         }
 
@@ -178,6 +206,51 @@ class BattleSystem(
         gameStage.fire(BattleEndEvent(reason))
     }
     // -------------------------------------------------------------------------
+    // Battle enemy creation
+    // -------------------------------------------------------------------------
+
+    /** Create a lightweight enemy entity on the battle map using saved overworld data. */
+    private fun createBattleEnemy(map: TiledMap) {
+        val spawnerLayer = map.layer("spawners")
+        val enemySpawner = spawnerLayer.objects.first { it.name != "player_spawner" }
+        val stats = savedEnemyStats ?: return
+
+        val newEnemy = world.entity {
+            add<ImageComponent> {
+                image = FlipImage().apply {
+                    setPosition(
+                        enemySpawner.x * UNIT_SCALE - savedEnemyImageWidth * 0.5f + enemySpawner.width * 0.5f * UNIT_SCALE,
+                        enemySpawner.y * UNIT_SCALE - enemySpawner.height * 0.5f * UNIT_SCALE
+                    )
+                    setSize(savedEnemyImageWidth, savedEnemyImageHeight)
+                    setScaling(Scaling.fill)
+                }
+            }
+            add<AnimationComponent> {
+                nextAnimation(savedEnemyModel, AnimationType.IDLE)
+            }
+            add<StatComponent> {
+                prefsName     = stats.prefsName
+                currentHealth = stats.currentHealth
+                maxHealth     = stats.maxHealth
+                currentMana   = stats.currentMana
+                maxMana       = stats.maxMana
+                attackDamage  = stats.attackDamage
+                attackPercent = stats.attackPercent
+                attackSpeed   = stats.attackSpeed
+                defense       = stats.defense
+                defensePercent = stats.defensePercent
+                moveSpeed     = stats.moveSpeed
+            }
+            add<BattleComponent> {
+                battleInProgress = true
+                phase            = BattlePhase.PLAYER_TURN
+            }
+        }
+        currentBattleEntity = newEnemy
+    }
+
+    // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 
@@ -242,6 +315,12 @@ class BattleSystem(
                 }
                 currentBattleEntity = null
                 currentPlayerEntity = null
+                return true
+            }
+
+            // Battle map loaded — create the battle enemy entity
+            is BattleMapChangeEvent -> {
+                createBattleEnemy(event.map)
                 return true
             }
 

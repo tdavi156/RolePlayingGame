@@ -226,15 +226,16 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
 
     private fun enterBattleMode(enemy: Entity) {
         currentBattleEnemy = enemy
+        // Freeze gameplay immediately so the player can't move during the fade
+        entityWorld.systems
+            .filter { it::class !in battleModeSystems }
+            .forEach { it.enabled = false }
         fadeView.color.a = 0f
         fadeView.isVisible = true
         fadeView.clearActions()
         fadeView.addAction(Actions.sequence(
             Actions.fadeIn(FADE_DURATION),
             Actions.run {
-                entityWorld.systems
-                    .filter { it::class !in battleModeSystems }
-                    .forEach { it.enabled = false }
                 uiStage.actors.filterIsInstance<MainGameView>().first().isVisible = false
                 uiStage.actors.filterIsInstance<BattleView>().first().isVisible = true
             },
