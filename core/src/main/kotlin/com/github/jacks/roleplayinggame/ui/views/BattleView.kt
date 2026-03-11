@@ -51,12 +51,19 @@ class BattleView(
     private var playerExperience = preferences["player_experience", 0]
 
     private val playerInfo : CharacterInfo
+    private val enemyInfo : CharacterInfo
     private val popupLabel : Label
     private lateinit var actionMenu : Table
 
     init {
-        // UI elements
         setFillParent(true)
+
+        // === Row 1: Enemy info (top-right) ===
+        enemyInfo = characterInfo(Drawables.SLIME) {
+            it.colspan(2).expandX().right().padTop(8f).padRight(8f).row()
+        }
+
+        // === Row 2: Battle log popup (centered, expands to fill middle) ===
         table {
             background = skin[Drawables.FRAME_BGD]
             this@BattleView.popupLabel = label(text = "", style = Labels.FRAME.skinKey) { labelCell ->
@@ -66,12 +73,14 @@ class BattleView(
             }
 
             this.alpha = 0f
-            it.expand().width(130f).height(40f).top().padTop(8f).row()
+            it.width(130f).height(40f).colspan(2).expand().row()
         }
 
-        playerInfo = characterInfo(Drawables.PLAYER)
+        // === Row 3: Player info (bottom-left) + Action menu (bottom-center) ===
+        playerInfo = characterInfo(Drawables.PLAYER) {
+            it.padBottom(8f).padLeft(8f)
+        }
 
-        // Action menu � shown only during PLAYER_TURN
         actionMenu = table {
             defaults().pad(6f).minWidth(90f)
             textButton("Attack", Buttons.GREEN_BUTTON_MEDIUM.skinKey) {
@@ -89,12 +98,15 @@ class BattleView(
                     }
                 })
             }
-            it.expand().bottom().padBottom(32f)
+            it.expandX().padBottom(32f)
         }
 
-        // Data binding
+        // Data bindings
         model.onPropertyChange(BattleViewModel::playerLife) { playerLife ->
             playerLife(playerLife)
+        }
+        model.onPropertyChange(BattleViewModel::enemyLife) { pct ->
+            enemyLife(pct)
         }
         model.onPropertyChange(BattleViewModel::lootText) { lootText ->
             popup(lootText)
@@ -109,6 +121,10 @@ class BattleView(
 
     fun playerLife(percentage : Float) {
         playerInfo.life(percentage)
+    }
+
+    fun enemyLife(percentage : Float) {
+        enemyInfo.life(percentage)
     }
 
     private fun Actor.resetFadeOutDelay() {
