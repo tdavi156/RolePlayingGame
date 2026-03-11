@@ -30,5 +30,8 @@ data class EntityCreationComponent(
     var configurationType : ConfigurationType = ConfigurationType.UNDEFINED,
     var configuration : Any? = null,
     var entityName : String = "",
-    var location : Vector2 = vec2()
+    var location : Vector2 = vec2(),
+    // Spawner identity — passed through so battle-capable entities can link back to their spawner
+    var spawnerId: Int = -1,
+    var spawnerMapId: Int = -1,
 )

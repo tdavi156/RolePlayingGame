@@ -1,5 +1,7 @@
 package com.github.jacks.roleplayinggame.systems
 
+import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.maps.tiled.TiledMap
 import com.badlogic.gdx.physics.box2d.World
 import com.badlogic.gdx.scenes.scene2d.Event
@@ -33,6 +35,8 @@ import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import ktx.app.gdxError
+import ktx.preferences.flush
+import ktx.preferences.set
 import ktx.tiled.height
 import ktx.tiled.id
 import ktx.tiled.layer
@@ -52,6 +56,8 @@ class BattleSystem(
     private val imageComponents: ComponentMapper<ImageComponent>,
 ) : IteratingSystem(), EventListener {
 
+    private val preferences: Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
+
     private var currentBattleEntity: Entity? = null
     private var currentPlayerEntity: Entity? = null
 
@@ -60,6 +66,8 @@ class BattleSystem(
     private var savedEnemyStats: StatComponent? = null
     private var savedEnemyImageWidth: Float = 0f
     private var savedEnemyImageHeight: Float = 0f
+    private var savedSpawnerId: Int = -1
+    private var savedSpawnerMapId: Int = -1
 
     // -------------------------------------------------------------------------
     // Main tick — drives the state machine each ECS frame
@@ -80,6 +88,8 @@ class BattleSystem(
             val img = imageComponents.getOrNull(entity)?.image
             savedEnemyImageWidth  = img?.width  ?: 1f
             savedEnemyImageHeight = img?.height ?: 1f
+            savedSpawnerId    = battleComponent.spawnerId
+            savedSpawnerMapId = battleComponent.spawnerMapId
 
             // Fire BattleEvent — MapSystem loads battle map, which fires BattleMapChangeEvent,
             // which triggers createBattleEnemy() and sets currentBattleEntity to the new entity.
@@ -197,6 +207,13 @@ class BattleSystem(
                     }
                 }
                 gameStage.fire(BattleLogEvent(message))
+                // Mark the overworld spawner as dead so the enemy doesn't immediately respawn
+                if (savedSpawnerId >= 0 && savedSpawnerMapId >= 0) {
+                    preferences.flush {
+                        this["spawner_${savedSpawnerId}_map_${savedSpawnerMapId}_is_Spawned"] = false
+                        this["spawner_${savedSpawnerId}_map_${savedSpawnerMapId}_current_time"] = 0f
+                    }
+                }
             }
             BattleEndReason.LOSE -> {
                 // Restore player HP so LifeSystem/DeathSystem don't kill them in the overworld
@@ -219,6 +236,8 @@ class BattleSystem(
         val reason                       = battleComponent.endReason
         currentBattleEntity              = null
         currentPlayerEntity              = null
+        savedSpawnerId                   = -1
+        savedSpawnerMapId                = -1
         gameStage.fire(BattleEndEvent(reason))
     }
     // -------------------------------------------------------------------------

@@ -43,6 +43,8 @@ class SpawnerSystem(
                     this.configuration = getConfiguration(spawnerComp.entityToSpawn)
                     this.entityName = spawnerComp.entityToSpawn
                     this.location.set(spawnerComp.location.x * UNIT_SCALE, spawnerComp.location.y * UNIT_SCALE)
+                    this.spawnerId = spawnerComp.spawnerId
+                    this.spawnerMapId = spawnerComp.mapId
                 }
             }
             spawnerComp.currentTime = 0f
@@ -81,6 +83,8 @@ class SpawnerSystem(
                                 this.configuration = getConfiguration(entityToSpawn)
                                 this.entityName = entityToSpawn
                                 this.location.set(spawner.x * UNIT_SCALE, spawner.y * UNIT_SCALE)
+                                this.spawnerId = spawnerId
+                                this.spawnerMapId = mapId
                             }
                         }
                     }
