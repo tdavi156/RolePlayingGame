@@ -6,6 +6,7 @@ import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.AnimationModel
 import com.github.jacks.roleplayinggame.components.BattleAction
+import com.github.jacks.roleplayinggame.components.BattleEndReason
 import com.github.jacks.roleplayinggame.components.BattlePhase
 import com.github.jacks.roleplayinggame.components.ItemType
 import com.github.jacks.roleplayinggame.dialog.Dialog
@@ -23,7 +24,7 @@ data class MapChangeEvent(val map : TiledMap) : Event()
 data class BattleMapChangeEvent(val map : TiledMap) : Event()
 data class PortalEvent(val toMap : String, val toPortal : Int) : Event()
 data class BattleEvent(val enemy : Entity) : Event()
-class BattleEndEvent : Event()
+data class BattleEndEvent(val reason: BattleEndReason) : Event()
 
 // Battle state-machine events
 data class BattlePhaseChangedEvent(val phase: BattlePhase) : Event()

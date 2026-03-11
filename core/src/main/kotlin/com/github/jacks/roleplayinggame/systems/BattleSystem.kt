@@ -7,6 +7,7 @@ import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.BattleAction
 import com.github.jacks.roleplayinggame.components.AnimationComponent
 import com.github.jacks.roleplayinggame.components.BattleComponent
+import com.github.jacks.roleplayinggame.components.BattleEndReason
 import com.github.jacks.roleplayinggame.components.BattlePhase
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.physicsComponentFromShape2D
 import com.github.jacks.roleplayinggame.components.PortalComponent
@@ -90,6 +91,7 @@ class BattleSystem(
                 }
                 BattleAction.FLEE   -> {
                     gameStage.fire(BattleLogEvent("You escaped!"))
+                    battleComponent.endReason = BattleEndReason.FLEE
                     transitionPhase(battleComponent, BattlePhase.BATTLE_END)
                     return
                 }
@@ -99,6 +101,7 @@ class BattleSystem(
             val enemyStat = statComponents.getOrNull(enemyEntity)
             if (enemyStat != null && enemyStat.isDead) {
                 gameStage.fire(BattleLogEvent("$enemyName is defeated!"))
+                battleComponent.endReason = BattleEndReason.WIN
                 transitionPhase(battleComponent, BattlePhase.BATTLE_END)
             } else {
                 transitionPhase(battleComponent, BattlePhase.ENEMY_TURN)
@@ -112,6 +115,7 @@ class BattleSystem(
             val playerStat = statComponents.getOrNull(playerEntity)
             if (playerStat != null && playerStat.isDead) {
                 gameStage.fire(BattleLogEvent("You were defeated..."))
+                battleComponent.endReason = BattleEndReason.LOSE
                 transitionPhase(battleComponent, BattlePhase.BATTLE_END)
             } else {
                 transitionPhase(battleComponent, BattlePhase.PLAYER_TURN)
@@ -129,15 +133,49 @@ class BattleSystem(
     }
 
     // -------------------------------------------------------------------------
-    // BATTLE_END - fire event so GameScreen fades back to overworld
+    // BATTLE_END - wait for delay so log messages are readable, then fire event
     // -------------------------------------------------------------------------
 
     private fun endBattle(entity: Entity, battleComponent: BattleComponent) {
+        // Start the countdown on the first tick of BATTLE_END
+        if (battleComponent.endDelayTimer < 0f) {
+            battleComponent.endDelayTimer = END_DELAY_SECONDS
+            return
+        }
+
+        battleComponent.endDelayTimer -= deltaTime
+        if (battleComponent.endDelayTimer > 0f) return
+
+        // Timer expired — apply per-outcome logic before leaving battle
+        val playerEntity = currentPlayerEntity
+        when (battleComponent.endReason) {
+            BattleEndReason.WIN -> {
+                // Enemy health is already 0; LifeSystem + DeathSystem will handle removal
+                // Placeholder XP message (Step 9 will expand)
+                gameStage.fire(BattleLogEvent("Victory!"))
+            }
+            BattleEndReason.LOSE -> {
+                // Restore player HP so LifeSystem/DeathSystem don't kill them in the overworld
+                if (playerEntity != null) {
+                    val playerStat = statComponents.getOrNull(playerEntity)
+                    if (playerStat != null) {
+                        playerStat.currentHealth = playerStat.maxHealth
+                    }
+                }
+            }
+            BattleEndReason.FLEE -> {
+                // Both combatants keep their current health — nothing to do
+            }
+        }
+
+        // Reset state for next battle
         battleComponent.battleInProgress = false
-        battleComponent.phase            = BattlePhase.PLAYER_TURN   // reset for next battle
+        battleComponent.phase            = BattlePhase.PLAYER_TURN
+        battleComponent.endDelayTimer    = -1f
+        val reason                       = battleComponent.endReason
         currentBattleEntity              = null
         currentPlayerEntity              = null
-        gameStage.fire(BattleEndEvent())
+        gameStage.fire(BattleEndEvent(reason))
     }
     // -------------------------------------------------------------------------
     // Helpers
@@ -196,8 +234,11 @@ class BattleSystem(
 
             // External BattleEndEvent (safety / future-proofing)
             is BattleEndEvent -> {
-                currentBattleEntity?.let { entity ->
-                    battleComponents.getOrNull(entity)?.battleInProgress = false
+                currentBattleEntity?.let { battleEntity ->
+                    battleComponents.getOrNull(battleEntity)?.let {
+                        it.battleInProgress = false
+                        it.endDelayTimer = -1f
+                    }
                 }
                 currentBattleEntity = null
                 currentPlayerEntity = null
@@ -226,5 +267,9 @@ class BattleSystem(
 
             else -> return false
         }
+    }
+
+    companion object {
+        private const val END_DELAY_SECONDS = 1.5f
     }
 }

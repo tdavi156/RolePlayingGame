@@ -22,6 +22,7 @@ import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.SpawnerComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.configurations.Configurations.Companion.PLAYER_CONFIGURATION
+import com.github.jacks.roleplayinggame.events.BattleEndEvent
 import com.github.jacks.roleplayinggame.events.BattleEvent
 import com.github.jacks.roleplayinggame.events.BattleMapChangeEvent
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
@@ -55,6 +56,10 @@ class MapSystem(
 
     private val preferences : Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
     private var currentMap : TiledMap? = null
+    // Overworld state saved when entering a battle map
+    private var preBattleMapName: String? = null
+    private var preBattlePlayerX: Float = 0f
+    private var preBattlePlayerY: Float = 0f
 
     override fun onTick() = Unit
 
@@ -65,7 +70,18 @@ class MapSystem(
                 return true
             }
             is BattleEvent -> {
+                // Save overworld map name and player position before switching
+                preBattleMapName = preferences["current_map", "map_1"]
+                world.family(allOf = arrayOf(PlayerComponent::class)).forEach { playerEntity ->
+                    val playerImage = imageComponents[playerEntity].image
+                    preBattlePlayerX = playerImage.x
+                    preBattlePlayerY = playerImage.y
+                }
                 setBattleMap(battleComponents[event.enemy].toMap)
+                return true
+            }
+            is BattleEndEvent -> {
+                returnToOverworld()
                 return true
             }
             else -> return false
@@ -137,9 +153,34 @@ class MapSystem(
                 }
             }
         }
-        // this time we do need to store player location data so when the battle is over we go back to correct place
-
         gameStage.fire(BattleMapChangeEvent(newMap))
+    }
+
+    private fun returnToOverworld() {
+        val mapName = preBattleMapName ?: preferences["previous_map", "map_1"]
+        currentMap?.disposeSafely()
+        world.family(noneOf = arrayOf(PlayerComponent::class, ItemComponent::class)).forEach { world.remove(it) }
+        val newMap = TmxMapLoader().load("maps/$mapName.tmx")
+        currentMap = newMap
+        preferences.flush { this["current_map"] = mapName }
+
+        world.family(allOf = arrayOf(PlayerComponent::class)).forEach { playerEntity ->
+            val playerImage = imageComponents[playerEntity].image
+            playerImage.setPosition(preBattlePlayerX, preBattlePlayerY)
+            configureEntity(playerEntity) {
+                physicsComponents.remove(it)
+                physicsComponents.add(it) {
+                    body = bodyFromImageAndConfiguration(
+                        physicsWorld,
+                        playerImage,
+                        PLAYER_CONFIGURATION.bodyType,
+                        PLAYER_CONFIGURATION.physicsScaling,
+                        PLAYER_CONFIGURATION.physicsOffset)
+                }
+            }
+        }
+        preBattleMapName = null
+        gameStage.fire(MapChangeEvent(newMap))
     }
 
     private fun targetPortalById(map : TiledMap, portalId : Int) : MapObject {

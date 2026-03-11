@@ -10,6 +10,10 @@ enum class BattleAction {
     NONE, ATTACK, FLEE
 }
 
+enum class BattleEndReason {
+    WIN, LOSE, FLEE
+}
+
 data class BattleComponent(
     var toMap: String = "",
     var triggerEntities: MutableSet<Entity> = mutableSetOf(),
@@ -18,4 +22,7 @@ data class BattleComponent(
     var phase: BattlePhase = BattlePhase.PLAYER_TURN,
     var pendingPlayerAction: BattleAction = BattleAction.NONE,
     var resolvingPlayer: Boolean = true,   // true = resolving player action, false = resolving enemy action
+    // Battle-end fields
+    var endReason: BattleEndReason = BattleEndReason.WIN,
+    var endDelayTimer: Float = -1f,        // countdown before firing BattleEndEvent; < 0 = not started
 )

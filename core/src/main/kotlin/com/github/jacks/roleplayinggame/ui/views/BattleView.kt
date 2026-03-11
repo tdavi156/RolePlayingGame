@@ -89,7 +89,7 @@ class BattleView(
                         model.onAttack()
                     }
                 })
-                it.row()
+                it.height(60f).width(200f).row()
             }
             textButton("Flee", Buttons.RED_BUTTON_MEDIUM.skinKey) {
                 addListener(object : ClickListener() {
@@ -98,7 +98,7 @@ class BattleView(
                     }
                 })
             }
-            it.expandX().padBottom(32f)
+            it.height(60f).width(200f).expandX().padBottom(32f)
         }
 
         // Data bindings
