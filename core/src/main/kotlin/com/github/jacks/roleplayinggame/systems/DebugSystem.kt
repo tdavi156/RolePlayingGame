@@ -14,15 +14,10 @@ class DebugSystem(
     private val stage : Stage
 ) : IntervalSystem(enabled = false) {
 
-    private lateinit var physicsRenderer : Box2DDebugRenderer
-    private lateinit var shapeRenderer : ShapeRenderer
-
-    init {
-        if(enabled) {
-            physicsRenderer = Box2DDebugRenderer()
-            shapeRenderer = ShapeRenderer()
-        }
-    }
+    private val lazyPhysicsRenderer = lazy { Box2DDebugRenderer() }
+    private val lazyShapeRenderer = lazy { ShapeRenderer() }
+    private val physicsRenderer by lazyPhysicsRenderer
+    private val shapeRenderer by lazyShapeRenderer
 
     override fun onTick() {
         physicsRenderer.render(physicsWorld, stage.camera.combined)
@@ -33,9 +28,7 @@ class DebugSystem(
     }
 
     override fun onDispose() {
-        if(enabled) {
-            physicsRenderer.disposeSafely()
-            shapeRenderer.disposeSafely()
-        }
+        if (lazyPhysicsRenderer.isInitialized()) physicsRenderer.disposeSafely()
+        if (lazyShapeRenderer.isInitialized()) shapeRenderer.disposeSafely()
     }
 }

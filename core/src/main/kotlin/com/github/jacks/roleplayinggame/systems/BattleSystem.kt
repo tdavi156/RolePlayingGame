@@ -178,9 +178,25 @@ class BattleSystem(
         val playerEntity = currentPlayerEntity
         when (battleComponent.endReason) {
             BattleEndReason.WIN -> {
-                // Enemy health is already 0; LifeSystem + DeathSystem will handle removal
-                // Placeholder XP message (Step 9 will expand)
-                gameStage.fire(BattleLogEvent("Victory!"))
+                // Award XP from the defeated enemy and build a combined message
+                val message = buildString {
+                    append("Victory!")
+                    if (playerEntity != null) {
+                        val playerStat = statComponents.getOrNull(playerEntity)
+                        val enemyStat = statComponents.getOrNull(entity)
+                        if (playerStat != null && enemyStat != null) {
+                            val xpGained = enemyStat.xpReward
+                            if (xpGained > 0) {
+                                append("\nGained $xpGained XP!")
+                                val levelsGained = playerStat.gainExperience(xpGained)
+                                if (levelsGained > 0) {
+                                    append("\nLevel up! Now level ${playerStat.level}!")
+                                }
+                            }
+                        }
+                    }
+                }
+                gameStage.fire(BattleLogEvent(message))
             }
             BattleEndReason.LOSE -> {
                 // Restore player HP so LifeSystem/DeathSystem don't kill them in the overworld
@@ -241,6 +257,7 @@ class BattleSystem(
                 defense       = stats.defense
                 defensePercent = stats.defensePercent
                 moveSpeed     = stats.moveSpeed
+                xpReward      = stats.xpReward
             }
             add<BattleComponent> {
                 battleInProgress = true

@@ -115,6 +115,8 @@ class EntityCreationSystem(
                             defense = config.stats.defense
                             defensePercent = config.stats.defensePercent
                             moveSpeed = config.stats.moveSpeed
+                            level = preferences.getInteger("player_level", 1)
+                            experience = preferences.getInteger("player_experience", 0)
                         }
                         add<PlayerComponent>()
                         add<StateComponent>()
@@ -171,6 +173,7 @@ class EntityCreationSystem(
                                 defense = config.stats.defense
                                 defensePercent = config.stats.defensePercent
                                 moveSpeed = config.stats.moveSpeed
+                                xpReward = config.xpReward
                             }
                         }
                         add<CollisionComponent>()

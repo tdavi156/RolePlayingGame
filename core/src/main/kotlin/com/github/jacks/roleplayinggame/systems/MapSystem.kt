@@ -196,6 +196,8 @@ class MapSystem(
                 // eventually we need to include the player id when there are multiple characters
                 this["player_current_health"] = statComponent.currentHealth
                 this["player_current_mana"] = statComponent.currentMana
+                this["player_level"] = statComponent.level
+                this["player_experience"] = statComponent.experience
             }
         }
         world.family(allOf = arrayOf(SpawnerComponent::class)).forEach { spawnerEntity ->
