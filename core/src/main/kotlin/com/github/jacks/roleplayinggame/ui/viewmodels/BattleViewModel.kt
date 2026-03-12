@@ -23,7 +23,7 @@ import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.World
 
 class BattleViewModel(
-    world: World,
+    private val world: World,
     private val gameStage: Stage,
 ) : PropertyChangeSource(), EventListener {
 
@@ -36,6 +36,12 @@ class BattleViewModel(
     // Observable UI state
     var playerLife  by propertyNotify(1f)
     var enemyLife   by propertyNotify(1f)
+    var playerMana  by propertyNotify(1f)
+    var enemyMana   by propertyNotify(1f)
+    var playerName  by propertyNotify("Player")
+    var enemyName   by propertyNotify("Enemy")
+    var playerLevel by propertyNotify(1)
+    var enemyLevel  by propertyNotify(1)
     var lootText    by propertyNotify("")
     var battlePhase by propertyNotify(BattlePhase.PLAYER_TURN)
     var battleLog   by propertyNotify("")
@@ -60,6 +66,24 @@ class BattleViewModel(
             is BattleEvent -> {
                 currentEnemy = event.enemy
                 battlePhase  = BattlePhase.PLAYER_TURN   // show action menu immediately
+
+                // Populate enemy info
+                val enemyStat = statComponents[event.enemy]
+                val enemyAnim = animationComponents[event.enemy]
+                enemyName  = enemyAnim.model.name
+                    .split("_")
+                    .joinToString(" ") { it.lowercase().replaceFirstChar { c -> c.uppercase() } }
+                enemyLevel = enemyStat.level
+                enemyMana  = if (enemyStat.maxMana > 0f) enemyStat.currentMana / enemyStat.maxMana else 0f
+                enemyLife  = if (enemyStat.maxHealth > 0f) enemyStat.currentHealth / enemyStat.maxHealth else 1f
+
+                // Populate player info
+                world.family(allOf = arrayOf(PlayerComponent::class)).forEach { playerEntity ->
+                    val playerStat = statComponents[playerEntity]
+                    playerLevel = playerStat.level
+                    playerMana  = if (playerStat.maxMana > 0f) playerStat.currentMana / playerStat.maxMana else 0f
+                    playerLife  = if (playerStat.maxHealth > 0f) playerStat.currentHealth / playerStat.maxHealth else 1f
+                }
             }
             is BattlePhaseChangedEvent -> {
                 battlePhase = event.phase
