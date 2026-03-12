@@ -2,11 +2,14 @@ package com.github.jacks.roleplayinggame.systems
 
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Preferences
+import com.badlogic.gdx.graphics.g2d.Animation
 import com.badlogic.gdx.maps.tiled.TiledMap
 import com.badlogic.gdx.physics.box2d.World
+import com.badlogic.gdx.scenes.scene2d.Action
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
+import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.utils.Scaling
 import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
 import com.github.jacks.roleplayinggame.actors.FlipImage
@@ -73,6 +76,15 @@ class BattleSystem(
     private var savedSpawnerId: Int = -1
     private var savedSpawnerMapId: Int = -1
 
+    // Home positions — both entities return here after attacking
+    private var playerOriginX = 0f
+    private var playerOriginY = 0f
+    private var enemyOriginX = 0f
+    private var enemyOriginY = 0f
+
+    // True while a Scene2D action sequence is running on a combatant's FlipImage
+    private var sequenceRunning = false
+
     // -------------------------------------------------------------------------
     // Main tick — drives the state machine each ECS frame
     // -------------------------------------------------------------------------
@@ -83,7 +95,7 @@ class BattleSystem(
         // Start a new battle when the player walks into this enemy
         if (battleComponent.triggerEntities.isNotEmpty() && !battleComponent.battleInProgress) {
             battleComponent.battleInProgress    = true
-            currentPlayerEntity                 = battleComponent.triggerEntities.first()  // stored by PhysicsSystem
+            currentPlayerEntity                 = battleComponent.triggerEntities.first()
             battleComponent.triggerEntities.clear()
 
             // Save overworld enemy data before the map transition destroys the entity
@@ -95,7 +107,6 @@ class BattleSystem(
             savedSpawnerId    = battleComponent.spawnerId
             savedSpawnerMapId = battleComponent.spawnerMapId
 
-            // Request screen transition — the actual map change happens after the fade-to-black
             gameStage.fire(BattleTransitionStartEvent(entity))
             return
         }
@@ -104,91 +115,51 @@ class BattleSystem(
 
         // State machine
         when (battleComponent.phase) {
-            BattlePhase.PLAYER_TURN -> { /* idle - waiting for BattleActionSelectedEvent */ }
-            BattlePhase.RESOLVING   -> resolveAction(entity, battleComponent)
+            BattlePhase.PLAYER_TURN -> { /* idle — waiting for BattleActionSelectedEvent */ }
+            BattlePhase.RESOLVING   -> {
+                if (sequenceRunning) return  // animation sequence in progress, wait
+                resolveAction(entity, battleComponent)
+            }
             BattlePhase.ENEMY_TURN  -> executeEnemyTurn(entity, battleComponent)
             BattlePhase.BATTLE_END  -> endBattle(entity, battleComponent)
         }
     }
+
     // -------------------------------------------------------------------------
-    // RESOLVING - apply the pending action’s damage, then advance phase
+    // RESOLVING — kicks off the appropriate attack sequence
     // -------------------------------------------------------------------------
 
     private fun resolveAction(enemyEntity: Entity, battleComponent: BattleComponent) {
         val playerEntity = currentPlayerEntity ?: return
-        val enemyName = enemyDisplayName(enemyEntity)
 
         if (battleComponent.resolvingPlayer) {
-            // Player chosen action
             when (battleComponent.pendingPlayerAction) {
-                BattleAction.ATTACK -> {
-                    val dmg = applyDamage(attacker = playerEntity, target = enemyEntity)
-                    gameStage.fire(BattleLogEvent("You attack for ${dmg.toInt()} damage!"))
-                }
+                BattleAction.ATTACK -> startPlayerAttackSequence(playerEntity, enemyEntity, battleComponent)
                 BattleAction.FLEE   -> {
                     gameStage.fire(BattleLogEvent("You escaped!"))
                     battleComponent.endReason = BattleEndReason.FLEE
                     transitionPhase(battleComponent, BattlePhase.BATTLE_END)
-                    return
                 }
                 BattleAction.NONE   -> { /* no-op */ }
             }
-            fireHealthUpdate(playerEntity, enemyEntity)
-            val enemyStat = statComponents.getOrNull(enemyEntity)
-            if (enemyStat != null && enemyStat.isDead) {
-                gameStage.fire(BattleLogEvent("$enemyName is defeated!"))
-                battleComponent.endReason = BattleEndReason.WIN
-                transitionPhase(battleComponent, BattlePhase.BATTLE_END)
-            } else {
-                transitionPhase(battleComponent, BattlePhase.ENEMY_TURN)
-            }
-
         } else {
-            // Enemy action (always basic attack)
-            val dmg = applyDamage(attacker = enemyEntity, target = playerEntity)
-            gameStage.fire(BattleLogEvent("$enemyName attacks for ${dmg.toInt()} damage!"))
-            fireHealthUpdate(playerEntity, enemyEntity)
-            val playerStat = statComponents.getOrNull(playerEntity)
-            if (playerStat != null && playerStat.isDead) {
-                gameStage.fire(BattleLogEvent("You were defeated..."))
-                battleComponent.endReason = BattleEndReason.LOSE
-                transitionPhase(battleComponent, BattlePhase.BATTLE_END)
-            } else {
-                battleComponent.postEnemyResolve = true
-                transitionPhase(battleComponent, BattlePhase.ENEMY_TURN)
-            }
+            startEnemyAttackSequence(playerEntity, enemyEntity, battleComponent)
         }
     }
 
     // -------------------------------------------------------------------------
-    // ENEMY_TURN - simple AI: always attack, then hand off to RESOLVING
+    // ENEMY_TURN — immediately starts the enemy's attack sequence
     // -------------------------------------------------------------------------
 
     private fun executeEnemyTurn(enemyEntity: Entity, battleComponent: BattleComponent) {
-        // Start the countdown on the first tick of ENEMY_TURN
-        if (battleComponent.enemyTurnDelayTimer < 0f) {
-            battleComponent.enemyTurnDelayTimer = ENEMY_TURN_DELAY_SECONDS
-            return
-        }
-
-        battleComponent.enemyTurnDelayTimer -= deltaTime
-        if (battleComponent.enemyTurnDelayTimer > 0f) return
-
-        // Timer expired
-        battleComponent.enemyTurnDelayTimer = -1f
-        if (battleComponent.postEnemyResolve) {
-            // Delay was for showing enemy attack result — now return to player
-            battleComponent.postEnemyResolve = false
-            transitionPhase(battleComponent, BattlePhase.PLAYER_TURN)
-        } else {
-            // Delay was for showing player attack result — now resolve enemy action
-            battleComponent.resolvingPlayer = false
-            transitionPhase(battleComponent, BattlePhase.RESOLVING)
-        }
+        if (sequenceRunning) return  // sequence already started, wait for it to finish
+        val playerEntity = currentPlayerEntity ?: return
+        battleComponent.resolvingPlayer = false
+        startEnemyAttackSequence(playerEntity, enemyEntity, battleComponent)
     }
 
     // -------------------------------------------------------------------------
-    // BATTLE_END - wait for delay so log messages are readable, then fire event
+    // BATTLE_END — wait for delay so log messages are readable, then fire event
     // -------------------------------------------------------------------------
 
     private fun endBattle(entity: Entity, battleComponent: BattleComponent) {
@@ -198,14 +169,12 @@ class BattleSystem(
             return
         }
 
-        // Phase 2: Count down delay — when it expires, process outcome exactly once
+        // Phase 2: Count down — when it expires, process outcome exactly once
         if (battleComponent.endDelayTimer > 0f) {
             battleComponent.endDelayTimer -= deltaTime
             if (battleComponent.endDelayTimer > 0f) return
-            // Timer just expired — clamp to 0 so Phase 1 won't restart it
             battleComponent.endDelayTimer = 0f
 
-            // Process outcome and show result message
             val playerEntity = currentPlayerEntity
             when (battleComponent.endReason) {
                 BattleEndReason.WIN -> {
@@ -231,9 +200,7 @@ class BattleSystem(
                 BattleEndReason.LOSE -> {
                     if (playerEntity != null) {
                         val playerStat = statComponents.getOrNull(playerEntity)
-                        if (playerStat != null) {
-                            playerStat.currentHealth = playerStat.maxHealth
-                        }
+                        playerStat?.currentHealth = playerStat?.maxHealth ?: 0f
                     }
                     gameStage.fire(BattleLogEvent("You were defeated...\nReturning to last save point."))
                 }
@@ -256,17 +223,180 @@ class BattleSystem(
             }
         }
 
-        battleComponent.battleInProgress    = false
-        battleComponent.phase               = BattlePhase.PLAYER_TURN
-        battleComponent.endDelayTimer       = -1f
+        battleComponent.battleInProgress     = false
+        battleComponent.phase                = BattlePhase.PLAYER_TURN
+        battleComponent.endDelayTimer        = -1f
         battleComponent.waitingForEndDismiss = false
-        val reason                          = battleComponent.endReason
-        currentBattleEntity                 = null
-        currentPlayerEntity                 = null
-        savedSpawnerId                      = -1
-        savedSpawnerMapId                   = -1
+        val reason                           = battleComponent.endReason
+        currentBattleEntity                  = null
+        currentPlayerEntity                  = null
+        savedSpawnerId                       = -1
+        savedSpawnerMapId                    = -1
         gameStage.fire(BattleEndTransitionStartEvent(reason))
     }
+
+    // -------------------------------------------------------------------------
+    // Attack sequences — Scene2D Actions on FlipImage
+    // -------------------------------------------------------------------------
+
+    /**
+     * Player slides to enemy, plays ATTACK, flashes enemy white, applies damage,
+     * slides back, then waits for the player to dismiss before advancing.
+     */
+    private fun startPlayerAttackSequence(
+        playerEntity: Entity,
+        enemyEntity: Entity,
+        battleComponent: BattleComponent,
+    ) {
+        val playerImg      = imageComponents.getOrNull(playerEntity)?.image ?: return
+        val enemyImg       = imageComponents.getOrNull(enemyEntity)?.image  ?: return
+        val playerAnimComp = animationComponents.getOrNull(playerEntity)    ?: return
+        val enemyName      = enemyDisplayName(enemyEntity)
+
+        sequenceRunning = true
+        var intendedNextPhase = BattlePhase.ENEMY_TURN
+
+        playerImg.addAction(Actions.sequence(
+            // 1. Slide toward enemy
+            Actions.run { playerAnimComp.nextAnimation(AnimationType.MOVE, AnimationDirection.SIDE) },
+            Actions.moveTo(enemyOriginX - ATTACK_OFFSET, playerOriginY, SLIDE_DURATION),
+
+            // 2. Switch to ATTACK (play-once)
+            Actions.run {
+                playerAnimComp.nextAnimation(AnimationType.ATTACK, AnimationDirection.SIDE)
+                playerAnimComp.playMode = Animation.PlayMode.NORMAL
+                playerAnimComp.stateTime = 0f
+            },
+
+            // 3. Mid-animation: flash the enemy white
+            Actions.delay(HIT_FLASH_DELAY),
+            Actions.run { enemyImg.useWhiteShader = true },
+            Actions.delay(FLASH_DURATION),
+            Actions.run { enemyImg.useWhiteShader = false },
+
+            // 4. Wait for ATTACK animation to finish, then deal damage
+            waitUntil { playerAnimComp.isAnimationDone },
+            Actions.run {
+                val dmg = applyDamage(attacker = playerEntity, target = enemyEntity)
+                fireHealthUpdate(playerEntity, enemyEntity)
+                gameStage.fire(BattleLogEvent("You attack for ${dmg.toInt()} damage!"))
+            },
+
+            // 5. Slide back to origin
+            Actions.run { playerAnimComp.nextAnimation(AnimationType.MOVE, AnimationDirection.SIDE) },
+            Actions.moveTo(playerOriginX, playerOriginY, SLIDE_DURATION),
+            Actions.run { playerAnimComp.nextAnimation(AnimationType.IDLE, AnimationDirection.SIDE) },
+
+            // 6. Decide next phase, wait for dismiss
+            Actions.run {
+                val enemyStat = statComponents.getOrNull(enemyEntity)
+                if (enemyStat != null && enemyStat.isDead) {
+                    gameStage.fire(BattleLogEvent("$enemyName is defeated!"))
+                    battleComponent.endReason = BattleEndReason.WIN
+                    intendedNextPhase = BattlePhase.BATTLE_END
+                }
+                battleComponent.waitingForActionDismiss = true
+            },
+            waitUntil { !battleComponent.waitingForActionDismiss },
+
+            // 7. Advance state machine
+            Actions.run {
+                sequenceRunning = false
+                transitionPhase(battleComponent, intendedNextPhase)
+            }
+        ))
+    }
+
+    /**
+     * Enemy slides to player, plays ATTACK, flashes player white, applies damage,
+     * slides back, then waits for the player to dismiss before returning to PLAYER_TURN.
+     */
+    private fun startEnemyAttackSequence(
+        playerEntity: Entity,
+        enemyEntity: Entity,
+        battleComponent: BattleComponent,
+    ) {
+        val enemyImg      = imageComponents.getOrNull(enemyEntity)?.image  ?: return
+        val playerImg     = imageComponents.getOrNull(playerEntity)?.image ?: return
+        val enemyAnimComp = animationComponents.getOrNull(enemyEntity)     ?: return
+        val enemyName     = enemyDisplayName(enemyEntity)
+
+        sequenceRunning = true
+        var intendedNextPhase = BattlePhase.PLAYER_TURN
+
+        enemyImg.addAction(Actions.sequence(
+            // 1. Slide toward player
+            Actions.run {
+                if (enemyAnimComp.model.hasDirection) {
+                    enemyAnimComp.nextAnimation(AnimationType.MOVE, AnimationDirection.SIDE)
+                } else {
+                    enemyAnimComp.nextAnimation(AnimationType.MOVE)
+                }
+            },
+            Actions.moveTo(playerOriginX + ATTACK_OFFSET, enemyOriginY, SLIDE_DURATION),
+
+            // 2. Switch to ATTACK (play-once)
+            Actions.run {
+                if (enemyAnimComp.model.hasDirection) {
+                    enemyAnimComp.nextAnimation(AnimationType.ATTACK, AnimationDirection.SIDE)
+                } else {
+                    enemyAnimComp.nextAnimation(AnimationType.ATTACK)
+                }
+                enemyAnimComp.playMode = Animation.PlayMode.NORMAL
+                enemyAnimComp.stateTime = 0f
+            },
+
+            // 3. Mid-animation: flash the player white
+            Actions.delay(HIT_FLASH_DELAY),
+            Actions.run { playerImg.useWhiteShader = true },
+            Actions.delay(FLASH_DURATION),
+            Actions.run { playerImg.useWhiteShader = false },
+
+            // 4. Wait for ATTACK animation to finish, then deal damage
+            waitUntil { enemyAnimComp.isAnimationDone },
+            Actions.run {
+                val dmg = applyDamage(attacker = enemyEntity, target = playerEntity)
+                fireHealthUpdate(playerEntity, enemyEntity)
+                gameStage.fire(BattleLogEvent("$enemyName attacks for ${dmg.toInt()} damage!"))
+            },
+
+            // 5. Slide back to origin
+            Actions.run {
+                if (enemyAnimComp.model.hasDirection) {
+                    enemyAnimComp.nextAnimation(AnimationType.MOVE, AnimationDirection.SIDE)
+                } else {
+                    enemyAnimComp.nextAnimation(AnimationType.MOVE)
+                }
+            },
+            Actions.moveTo(enemyOriginX, enemyOriginY, SLIDE_DURATION),
+            Actions.run {
+                if (enemyAnimComp.model.hasDirection) {
+                    enemyAnimComp.nextAnimation(AnimationType.IDLE, AnimationDirection.SIDE)
+                } else {
+                    enemyAnimComp.nextAnimation(AnimationType.IDLE)
+                }
+            },
+
+            // 6. Decide next phase, wait for dismiss
+            Actions.run {
+                val playerStat = statComponents.getOrNull(playerEntity)
+                if (playerStat != null && playerStat.isDead) {
+                    gameStage.fire(BattleLogEvent("You were defeated..."))
+                    battleComponent.endReason = BattleEndReason.LOSE
+                    intendedNextPhase = BattlePhase.BATTLE_END
+                }
+                battleComponent.waitingForActionDismiss = true
+            },
+            waitUntil { !battleComponent.waitingForActionDismiss },
+
+            // 7. Advance state machine
+            Actions.run {
+                sequenceRunning = false
+                transitionPhase(battleComponent, intendedNextPhase)
+            }
+        ))
+    }
+
     // -------------------------------------------------------------------------
     // Battle enemy creation
     // -------------------------------------------------------------------------
@@ -277,33 +407,35 @@ class BattleSystem(
         val enemySpawner = spawnerLayer.objects.first { it.name != "player_spawner" }
         val stats = savedEnemyStats ?: return
 
+        // Compute enemy spawn position for origin tracking
+        val newEnemyX = enemySpawner.x * UNIT_SCALE - savedEnemyImageWidth * 0.5f + enemySpawner.width * 0.5f * UNIT_SCALE
+        val newEnemyY = enemySpawner.y * UNIT_SCALE - enemySpawner.height * 0.5f * UNIT_SCALE
+
         val newEnemy = world.entity {
             add<ImageComponent> {
                 image = FlipImage().apply {
-                    setPosition(
-                        enemySpawner.x * UNIT_SCALE - savedEnemyImageWidth * 0.5f + enemySpawner.width * 0.5f * UNIT_SCALE,
-                        enemySpawner.y * UNIT_SCALE - enemySpawner.height * 0.5f * UNIT_SCALE
-                    )
+                    setPosition(newEnemyX, newEnemyY)
                     setSize(savedEnemyImageWidth, savedEnemyImageHeight)
                     setScaling(Scaling.fill)
+                    flipX = true  // enemy is on the right side — face left toward player
                 }
             }
             add<AnimationComponent> {
                 nextAnimation(savedEnemyModel, AnimationType.IDLE)
             }
             add<StatComponent> {
-                prefsName     = stats.prefsName
-                currentHealth = stats.currentHealth
-                maxHealth     = stats.maxHealth
-                currentMana   = stats.currentMana
-                maxMana       = stats.maxMana
-                attackDamage  = stats.attackDamage
-                attackPercent = stats.attackPercent
-                attackSpeed   = stats.attackSpeed
-                defense       = stats.defense
+                prefsName      = stats.prefsName
+                currentHealth  = stats.currentHealth
+                maxHealth      = stats.maxHealth
+                currentMana    = stats.currentMana
+                maxMana        = stats.maxMana
+                attackDamage   = stats.attackDamage
+                attackPercent  = stats.attackPercent
+                attackSpeed    = stats.attackSpeed
+                defense        = stats.defense
                 defensePercent = stats.defensePercent
-                moveSpeed     = stats.moveSpeed
-                xpReward      = stats.xpReward
+                moveSpeed      = stats.moveSpeed
+                xpReward       = stats.xpReward
             }
             add<BattleComponent> {
                 battleInProgress = true
@@ -311,12 +443,16 @@ class BattleSystem(
             }
         }
         currentBattleEntity = newEnemy
+        enemyOriginX = newEnemyX
+        enemyOriginY = newEnemyY
 
-        // Reset player to side-facing idle (facing right toward enemy)
+        // Reset player to side-facing idle and save player origin
         val playerEntity = currentPlayerEntity ?: return
         animationComponents.getOrNull(playerEntity)?.nextAnimation(AnimationType.IDLE, AnimationDirection.SIDE)
         imageComponents.getOrNull(playerEntity)?.image?.let { playerImg ->
             if (playerImg is FlipImage) playerImg.flipX = false
+            playerOriginX = playerImg.x
+            playerOriginY = playerImg.y
         }
 
         fireHealthUpdate(playerEntity, newEnemy)
@@ -326,6 +462,11 @@ class BattleSystem(
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    /** Returns an Action that polls [condition] each frame, completing when it returns true. */
+    private fun waitUntil(condition: () -> Boolean): Action = object : Action() {
+        override fun act(delta: Float) = condition()
+    }
 
     /** Set the new phase and notify all listeners (ViewModel, View). */
     private fun transitionPhase(battleComponent: BattleComponent, newPhase: BattlePhase) {
@@ -378,12 +519,12 @@ class BattleSystem(
                 return true
             }
 
-            // Player clicked the battle log popup — skip delay or dismiss victory message
+            // Player clicked the battle log — dismiss action turn or end-battle message
             is BattleLogDismissedEvent -> {
                 val battleEntity    = currentBattleEntity ?: return false
                 val battleComponent = battleComponents.getOrNull(battleEntity) ?: return false
-                if (battleComponent.phase == BattlePhase.ENEMY_TURN && battleComponent.enemyTurnDelayTimer > 0f) {
-                    battleComponent.enemyTurnDelayTimer = 0f
+                if (battleComponent.waitingForActionDismiss) {
+                    battleComponent.waitingForActionDismiss = false
                 }
                 if (battleComponent.phase == BattlePhase.BATTLE_END && battleComponent.waitingForEndDismiss) {
                     battleComponent.waitingForEndDismiss = false
@@ -393,10 +534,12 @@ class BattleSystem(
 
             // External BattleEndEvent (safety / future-proofing)
             is BattleEndEvent -> {
+                sequenceRunning = false
                 currentBattleEntity?.let { battleEntity ->
                     battleComponents.getOrNull(battleEntity)?.let {
-                        it.battleInProgress = false
-                        it.endDelayTimer = -1f
+                        it.battleInProgress         = false
+                        it.endDelayTimer            = -1f
+                        it.waitingForActionDismiss  = false
                     }
                 }
                 currentBattleEntity = null
@@ -436,10 +579,9 @@ class BattleSystem(
 
     companion object {
         private const val END_DELAY_SECONDS = 1.5f
-        private const val ENEMY_TURN_DELAY_SECONDS = 1.5f
-        // TODO Step 11 (deferred): Add battle animations (hit flash, attack sequences)
-        //  and sound effects (attack SFX, damage SFX, victory/defeat jingles).
-        //  AudioSystem is currently commented out in GameScreen; re-enable it first.
-        //  Basic IDLE animations already play for both combatants during battle.
+        private const val SLIDE_DURATION    = 0.4f
+        private const val FLASH_DURATION    = 0.1f
+        private const val HIT_FLASH_DELAY   = 0.25f  // seconds after ATTACK starts before the flash
+        private const val ATTACK_OFFSET     = 1.5f   // world units — stop this far from target center
     }
 }

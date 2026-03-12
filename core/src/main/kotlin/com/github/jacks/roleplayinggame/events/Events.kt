@@ -34,6 +34,7 @@ data class BattleActionSelectedEvent(val action: BattleAction) : Event()
 data class BattleHealthUpdateEvent(val playerHealthPct: Float, val enemyHealthPct: Float) : Event()
 data class BattleLogEvent(val message: String) : Event()
 class BattleLogDismissedEvent : Event()
+data class BattleTargetSelectedEvent(val target: Entity) : Event()
 
 class CollisionDespawnEvent(val cell : Cell) : Event()
 class EntityAttackEvent(val model : AnimationModel) : Event()
