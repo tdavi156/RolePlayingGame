@@ -75,7 +75,7 @@
   <object id="41" name="slime_spawner_3" x="460.333" y="360" width="26" height="26">
    <properties>
     <property name="entityToSpawn" value="slimeBlue"/>
-    <property name="id" type="int" value="3"/>
+    <property name="id" type="int" value="4"/>
     <property name="mapId" type="int" value="1"/>
     <property name="spawnTimer" type="float" value="5"/>
    </properties>
@@ -84,7 +84,7 @@
   <object id="42" name="slime_spawner_4" x="377.333" y="382.667" width="26" height="26">
    <properties>
     <property name="entityToSpawn" value="slimeRed"/>
-    <property name="id" type="int" value="3"/>
+    <property name="id" type="int" value="5"/>
     <property name="mapId" type="int" value="1"/>
     <property name="spawnTimer" type="float" value="5"/>
    </properties>

@@ -167,6 +167,7 @@ data class AiEntity(
     }
 
     fun canAttack(): Boolean {
+        if (entity !in attackComponents) return false
         val attackComponent = attackComponents[entity]
         if (!attackComponent.isReady) {
             return false

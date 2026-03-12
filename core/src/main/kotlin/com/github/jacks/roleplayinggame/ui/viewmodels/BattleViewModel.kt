@@ -14,6 +14,7 @@ import com.github.jacks.roleplayinggame.events.BattleActionSelectedEvent
 import com.github.jacks.roleplayinggame.events.BattleEndEvent
 import com.github.jacks.roleplayinggame.events.BattleEvent
 import com.github.jacks.roleplayinggame.events.BattleHealthUpdateEvent
+import com.github.jacks.roleplayinggame.events.BattleLogDismissedEvent
 import com.github.jacks.roleplayinggame.events.BattleLogEvent
 import com.github.jacks.roleplayinggame.events.BattlePhaseChangedEvent
 import com.github.jacks.roleplayinggame.events.fire
@@ -48,8 +49,9 @@ class BattleViewModel(
 
     // -- Action callbacks invoked by BattleView button clicks -----------------
 
-    fun onAttack() = gameStage.fire(BattleActionSelectedEvent(BattleAction.ATTACK))
-    fun onFlee()   = gameStage.fire(BattleActionSelectedEvent(BattleAction.FLEE))
+    fun onAttack()      = gameStage.fire(BattleActionSelectedEvent(BattleAction.ATTACK))
+    fun onFlee()        = gameStage.fire(BattleActionSelectedEvent(BattleAction.FLEE))
+    fun onLogDismissed() = gameStage.fire(BattleLogDismissedEvent())
 
     // -- Event handling -------------------------------------------------------
 

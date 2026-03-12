@@ -14,9 +14,12 @@ import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.Ph
 import com.github.jacks.roleplayinggame.components.StateComponent.Companion.StateComponentListener
 import com.github.jacks.roleplayinggame.components.AttackComponent
 import com.github.jacks.roleplayinggame.components.AttackState
+import com.github.jacks.roleplayinggame.components.BattleEndReason
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.events.BattleEndEvent
+import com.github.jacks.roleplayinggame.events.BattleEndTransitionStartEvent
 import com.github.jacks.roleplayinggame.events.BattleEvent
+import com.github.jacks.roleplayinggame.events.BattleTransitionStartEvent
 import com.github.jacks.roleplayinggame.events.InitializeGameEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.input.PlayerKeyboardInputProcessor
@@ -219,12 +222,12 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
 
     override fun handle(event: Event): Boolean {
         when (event) {
-            is BattleEvent -> {
+            is BattleTransitionStartEvent -> {
                 enterBattleMode(event.enemy)
                 return true
             }
-            is BattleEndEvent -> {
-                exitBattleMode()
+            is BattleEndTransitionStartEvent -> {
+                exitBattleMode(event.reason)
                 return true
             }
             else -> return false
@@ -243,21 +246,27 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
         fadeView.addAction(Actions.sequence(
             Actions.fadeIn(FADE_DURATION),
             Actions.run {
+                // Fire BattleEvent while screen is black — MapSystem loads the battle map,
+                // which fires BattleMapChangeEvent, creating the battle enemy entity.
+                gameStage.fire(BattleEvent(enemy = enemy))
                 uiStage.actors.filterIsInstance<MainGameView>().first().isVisible = false
                 uiStage.actors.filterIsInstance<BattleView>().first().isVisible = true
             },
+            Actions.delay(FADE_HOLD_DURATION),
             Actions.fadeOut(FADE_DURATION),
             Actions.run { fadeView.isVisible = false }
         ))
     }
 
-    private fun exitBattleMode() {
+    private fun exitBattleMode(reason: BattleEndReason) {
         fadeView.color.a = 0f
         fadeView.isVisible = true
         fadeView.clearActions()
         fadeView.addAction(Actions.sequence(
             Actions.fadeIn(FADE_DURATION),
             Actions.run {
+                // Fire BattleEndEvent while screen is black — MapSystem loads the overworld map
+                gameStage.fire(BattleEndEvent(reason))
                 currentBattleEnemy = null
                 entityWorld.systems.forEach { it.enabled = true }
                 // Step 11: clear any queued real-time attack so the player doesn't
@@ -271,6 +280,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
                 uiStage.actors.filterIsInstance<BattleView>().first().isVisible = false
                 uiStage.actors.filterIsInstance<MainGameView>().first().isVisible = true
             },
+            Actions.delay(FADE_HOLD_DURATION),
             Actions.fadeOut(FADE_DURATION),
             Actions.run { fadeView.isVisible = false }
         ))
@@ -290,6 +300,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
     companion object {
         private val log = logger<GameScreen>()
         private const val FADE_DURATION = 0.4f
+        private const val FADE_HOLD_DURATION = 0.4f
         private val battleModeSystems = setOf(
             AnimationSystem::class,
             CameraSystem::class,

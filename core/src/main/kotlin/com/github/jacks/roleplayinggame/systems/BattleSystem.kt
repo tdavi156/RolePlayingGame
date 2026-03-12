@@ -12,6 +12,7 @@ import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
 import com.github.jacks.roleplayinggame.actors.FlipImage
 import com.github.jacks.roleplayinggame.components.AnimationComponent
 import com.github.jacks.roleplayinggame.components.AnimationModel
+import com.github.jacks.roleplayinggame.components.AnimationDirection
 import com.github.jacks.roleplayinggame.components.AnimationType
 import com.github.jacks.roleplayinggame.components.BattleAction
 import com.github.jacks.roleplayinggame.components.BattleComponent
@@ -23,11 +24,14 @@ import com.github.jacks.roleplayinggame.components.PortalComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.events.BattleActionSelectedEvent
 import com.github.jacks.roleplayinggame.events.BattleEndEvent
+import com.github.jacks.roleplayinggame.events.BattleLogDismissedEvent
+import com.github.jacks.roleplayinggame.events.BattleEndTransitionStartEvent
 import com.github.jacks.roleplayinggame.events.BattleEvent
 import com.github.jacks.roleplayinggame.events.BattleHealthUpdateEvent
 import com.github.jacks.roleplayinggame.events.BattleLogEvent
 import com.github.jacks.roleplayinggame.events.BattleMapChangeEvent
 import com.github.jacks.roleplayinggame.events.BattlePhaseChangedEvent
+import com.github.jacks.roleplayinggame.events.BattleTransitionStartEvent
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.quillraven.fleks.AllOf
@@ -91,14 +95,8 @@ class BattleSystem(
             savedSpawnerId    = battleComponent.spawnerId
             savedSpawnerMapId = battleComponent.spawnerMapId
 
-            // Fire BattleEvent — MapSystem loads battle map, which fires BattleMapChangeEvent,
-            // which triggers createBattleEnemy() and sets currentBattleEntity to the new entity.
-            gameStage.fire(BattleEvent(enemy = entity))
-
-            // Use the new battle entity (created by createBattleEnemy via BattleMapChangeEvent)
-            val battleEnemy = currentBattleEntity ?: return
-            fireHealthUpdate(currentPlayerEntity!!, battleEnemy)
-            gameStage.fire(BattleLogEvent("A ${enemyDisplayName(battleEnemy)} appears!"))
+            // Request screen transition — the actual map change happens after the fade-to-black
+            gameStage.fire(BattleTransitionStartEvent(entity))
             return
         }
 
@@ -166,6 +164,17 @@ class BattleSystem(
     // -------------------------------------------------------------------------
 
     private fun executeEnemyTurn(enemyEntity: Entity, battleComponent: BattleComponent) {
+        // Start the countdown on the first tick of ENEMY_TURN
+        if (battleComponent.enemyTurnDelayTimer < 0f) {
+            battleComponent.enemyTurnDelayTimer = ENEMY_TURN_DELAY_SECONDS
+            return
+        }
+
+        battleComponent.enemyTurnDelayTimer -= deltaTime
+        if (battleComponent.enemyTurnDelayTimer > 0f) return
+
+        // Timer expired — proceed with enemy action
+        battleComponent.enemyTurnDelayTimer = -1f
         battleComponent.resolvingPlayer = false          // next RESOLVING pass = enemy branch
         transitionPhase(battleComponent, BattlePhase.RESOLVING)
     }
@@ -207,13 +216,6 @@ class BattleSystem(
                     }
                 }
                 gameStage.fire(BattleLogEvent(message))
-                // Mark the overworld spawner as dead so the enemy doesn't immediately respawn
-                if (savedSpawnerId >= 0 && savedSpawnerMapId >= 0) {
-                    preferences.flush {
-                        this["spawner_${savedSpawnerId}_map_${savedSpawnerMapId}_is_Spawned"] = false
-                        this["spawner_${savedSpawnerId}_map_${savedSpawnerMapId}_current_time"] = 0f
-                    }
-                }
             }
             BattleEndReason.LOSE -> {
                 // Restore player HP so LifeSystem/DeathSystem don't kill them in the overworld
@@ -229,6 +231,14 @@ class BattleSystem(
             }
         }
 
+        // Mark the overworld spawner so the enemy doesn't immediately respawn (all outcomes)
+        if (savedSpawnerId >= 0 && savedSpawnerMapId >= 0) {
+            preferences.flush {
+                this["spawner_${savedSpawnerId}_map_${savedSpawnerMapId}_is_Spawned"] = false
+                this["spawner_${savedSpawnerId}_map_${savedSpawnerMapId}_current_time"] = 0f
+            }
+        }
+
         // Reset state for next battle
         battleComponent.battleInProgress = false
         battleComponent.phase            = BattlePhase.PLAYER_TURN
@@ -238,7 +248,7 @@ class BattleSystem(
         currentPlayerEntity              = null
         savedSpawnerId                   = -1
         savedSpawnerMapId                = -1
-        gameStage.fire(BattleEndEvent(reason))
+        gameStage.fire(BattleEndTransitionStartEvent(reason))
     }
     // -------------------------------------------------------------------------
     // Battle enemy creation
@@ -284,6 +294,16 @@ class BattleSystem(
             }
         }
         currentBattleEntity = newEnemy
+
+        // Reset player to side-facing idle (facing right toward enemy)
+        val playerEntity = currentPlayerEntity ?: return
+        animationComponents.getOrNull(playerEntity)?.nextAnimation(AnimationType.IDLE, AnimationDirection.SIDE)
+        imageComponents.getOrNull(playerEntity)?.image?.let { playerImg ->
+            if (playerImg is FlipImage) playerImg.flipX = false
+        }
+
+        fireHealthUpdate(playerEntity, newEnemy)
+        gameStage.fire(BattleLogEvent("A ${enemyDisplayName(newEnemy)} appears!"))
     }
 
     // -------------------------------------------------------------------------
@@ -341,6 +361,16 @@ class BattleSystem(
                 return true
             }
 
+            // Player clicked the battle log popup — skip enemy turn delay
+            is BattleLogDismissedEvent -> {
+                val battleEntity    = currentBattleEntity ?: return false
+                val battleComponent = battleComponents.getOrNull(battleEntity) ?: return false
+                if (battleComponent.phase == BattlePhase.ENEMY_TURN && battleComponent.enemyTurnDelayTimer > 0f) {
+                    battleComponent.enemyTurnDelayTimer = 0f
+                }
+                return true
+            }
+
             // External BattleEndEvent (safety / future-proofing)
             is BattleEndEvent -> {
                 currentBattleEntity?.let { battleEntity ->
@@ -386,6 +416,7 @@ class BattleSystem(
 
     companion object {
         private const val END_DELAY_SECONDS = 1.5f
+        private const val ENEMY_TURN_DELAY_SECONDS = 1.5f
         // TODO Step 11 (deferred): Add battle animations (hit flash, attack sequences)
         //  and sound effects (attack SFX, damage SFX, victory/defeat jingles).
         //  AudioSystem is currently commented out in GameScreen; re-enable it first.

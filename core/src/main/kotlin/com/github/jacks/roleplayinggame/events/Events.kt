@@ -25,12 +25,15 @@ data class BattleMapChangeEvent(val map : TiledMap) : Event()
 data class PortalEvent(val toMap : String, val toPortal : Int) : Event()
 data class BattleEvent(val enemy : Entity) : Event()
 data class BattleEndEvent(val reason: BattleEndReason) : Event()
+data class BattleTransitionStartEvent(val enemy: Entity) : Event()
+data class BattleEndTransitionStartEvent(val reason: BattleEndReason) : Event()
 
 // Battle state-machine events
 data class BattlePhaseChangedEvent(val phase: BattlePhase) : Event()
 data class BattleActionSelectedEvent(val action: BattleAction) : Event()
 data class BattleHealthUpdateEvent(val playerHealthPct: Float, val enemyHealthPct: Float) : Event()
 data class BattleLogEvent(val message: String) : Event()
+class BattleLogDismissedEvent : Event()
 
 class CollisionDespawnEvent(val cell : Cell) : Event()
 class EntityAttackEvent(val model : AnimationModel) : Event()

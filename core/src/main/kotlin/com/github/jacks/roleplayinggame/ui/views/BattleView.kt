@@ -72,6 +72,13 @@ class BattleView(
                 labelCell.expand().fill().pad(14f)
             }
 
+            // Click to dismiss popup and skip enemy turn delay
+            addListener(object : ClickListener() {
+                override fun clicked(event: InputEvent, x: Float, y: Float) {
+                    model.onLogDismissed()
+                }
+            })
+
             this.alpha = 0f
             it.width(130f).height(40f).colspan(2).expand().row()
         }
