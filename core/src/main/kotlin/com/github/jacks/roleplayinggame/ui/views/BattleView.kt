@@ -77,7 +77,7 @@ class BattleView(
 
         // -- Action table (2x2 grid) --
         actionTable = Table(skin).apply {
-            defaults().expand().fill().pad(4f)
+            defaults().expand().fill().pad(4f).minSize(0f)
             add(com.badlogic.gdx.scenes.scene2d.ui.TextButton("Attack", skin, Buttons.GREEN_BUTTON_MEDIUM.skinKey).apply {
                 addListener(object : ClickListener() {
                     override fun clicked(event: InputEvent, x: Float, y: Float) {

@@ -25,8 +25,11 @@ class CameraSystem (
     private var maxMapWidth = 0f
     private var maxMapHeight = 0f
     private val camera = stage.camera
+    private var lockToMap = false
 
     override fun onTickEntity(entity: Entity) {
+        if (lockToMap) return
+
         with(imageComponents[entity]) {
             val viewWidth = camera.viewportWidth * 0.5f
             val viewHeight = camera.viewportHeight * 0.5f
@@ -48,12 +51,17 @@ class CameraSystem (
             is MapChangeEvent -> {
                 maxMapWidth = event.map.width.toFloat()
                 maxMapHeight = event.map.height.toFloat()
+                lockToMap = false
                 return true
             }
             is BattleMapChangeEvent -> {
-                // set the camera to a fixed position on the map, and possibly zoom out as well
-                // or consider making the map smaller to fit everything on screen
-                // there will be quite a bit of UI for the battle map so there needs to be enough space for it
+                val mapW = event.map.width.toFloat()
+                val mapH = event.map.height.toFloat()
+                maxMapWidth = mapW
+                maxMapHeight = mapH
+                camera.position.set(mapW * 0.5f, mapH * 0.5f, camera.position.z)
+                camera.update()
+                lockToMap = true
                 return true
             }
             else -> return false

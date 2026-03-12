@@ -26,6 +26,8 @@ data class BattleComponent(
     var endReason: BattleEndReason = BattleEndReason.WIN,
     var endDelayTimer: Float = -1f,        // countdown before firing BattleEndEvent; < 0 = not started
     var enemyTurnDelayTimer: Float = -1f,  // countdown before enemy acts; < 0 = not started
+    var postEnemyResolve: Boolean = false, // true = delay is for showing enemy attack result, then go to PLAYER_TURN
+    var waitingForEndDismiss: Boolean = false, // true = victory/XP message shown, waiting for player click to end battle
     // Spawner identity — links this enemy back to its overworld spawner
     var spawnerId: Int = -1,
     var spawnerMapId: Int = -1,

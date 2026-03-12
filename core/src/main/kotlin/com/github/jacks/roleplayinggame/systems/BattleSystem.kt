@@ -154,7 +154,8 @@ class BattleSystem(
                 battleComponent.endReason = BattleEndReason.LOSE
                 transitionPhase(battleComponent, BattlePhase.BATTLE_END)
             } else {
-                transitionPhase(battleComponent, BattlePhase.PLAYER_TURN)
+                battleComponent.postEnemyResolve = true
+                transitionPhase(battleComponent, BattlePhase.ENEMY_TURN)
             }
         }
     }
@@ -173,10 +174,17 @@ class BattleSystem(
         battleComponent.enemyTurnDelayTimer -= deltaTime
         if (battleComponent.enemyTurnDelayTimer > 0f) return
 
-        // Timer expired — proceed with enemy action
+        // Timer expired
         battleComponent.enemyTurnDelayTimer = -1f
-        battleComponent.resolvingPlayer = false          // next RESOLVING pass = enemy branch
-        transitionPhase(battleComponent, BattlePhase.RESOLVING)
+        if (battleComponent.postEnemyResolve) {
+            // Delay was for showing enemy attack result — now return to player
+            battleComponent.postEnemyResolve = false
+            transitionPhase(battleComponent, BattlePhase.PLAYER_TURN)
+        } else {
+            // Delay was for showing player attack result — now resolve enemy action
+            battleComponent.resolvingPlayer = false
+            transitionPhase(battleComponent, BattlePhase.RESOLVING)
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -184,54 +192,63 @@ class BattleSystem(
     // -------------------------------------------------------------------------
 
     private fun endBattle(entity: Entity, battleComponent: BattleComponent) {
-        // Start the countdown on the first tick of BATTLE_END
+        // Phase 1: Start delay on first tick so the triggering log is readable
         if (battleComponent.endDelayTimer < 0f) {
             battleComponent.endDelayTimer = END_DELAY_SECONDS
             return
         }
 
-        battleComponent.endDelayTimer -= deltaTime
-        if (battleComponent.endDelayTimer > 0f) return
+        // Phase 2: Count down delay — when it expires, process outcome exactly once
+        if (battleComponent.endDelayTimer > 0f) {
+            battleComponent.endDelayTimer -= deltaTime
+            if (battleComponent.endDelayTimer > 0f) return
+            // Timer just expired — clamp to 0 so Phase 1 won't restart it
+            battleComponent.endDelayTimer = 0f
 
-        // Timer expired — apply per-outcome logic before leaving battle
-        val playerEntity = currentPlayerEntity
-        when (battleComponent.endReason) {
-            BattleEndReason.WIN -> {
-                // Award XP from the defeated enemy and build a combined message
-                val message = buildString {
-                    append("Victory!")
-                    if (playerEntity != null) {
-                        val playerStat = statComponents.getOrNull(playerEntity)
-                        val enemyStat = statComponents.getOrNull(entity)
-                        if (playerStat != null && enemyStat != null) {
-                            val xpGained = enemyStat.xpReward
-                            if (xpGained > 0) {
-                                append("\nGained $xpGained XP!")
-                                val levelsGained = playerStat.gainExperience(xpGained)
-                                if (levelsGained > 0) {
-                                    append("\nLevel up! Now level ${playerStat.level}!")
+            // Process outcome and show result message
+            val playerEntity = currentPlayerEntity
+            when (battleComponent.endReason) {
+                BattleEndReason.WIN -> {
+                    val message = buildString {
+                        append("Victory!")
+                        if (playerEntity != null) {
+                            val playerStat = statComponents.getOrNull(playerEntity)
+                            val enemyStat = statComponents.getOrNull(entity)
+                            if (playerStat != null && enemyStat != null) {
+                                val xpGained = enemyStat.xpReward
+                                if (xpGained > 0) {
+                                    append("\nGained $xpGained XP!")
+                                    val levelsGained = playerStat.gainExperience(xpGained)
+                                    if (levelsGained > 0) {
+                                        append("\nLevel up! Now level ${playerStat.level}!")
+                                    }
                                 }
                             }
                         }
                     }
+                    gameStage.fire(BattleLogEvent(message))
                 }
-                gameStage.fire(BattleLogEvent(message))
-            }
-            BattleEndReason.LOSE -> {
-                // Restore player HP so LifeSystem/DeathSystem don't kill them in the overworld
-                if (playerEntity != null) {
-                    val playerStat = statComponents.getOrNull(playerEntity)
-                    if (playerStat != null) {
-                        playerStat.currentHealth = playerStat.maxHealth
+                BattleEndReason.LOSE -> {
+                    if (playerEntity != null) {
+                        val playerStat = statComponents.getOrNull(playerEntity)
+                        if (playerStat != null) {
+                            playerStat.currentHealth = playerStat.maxHealth
+                        }
                     }
+                    gameStage.fire(BattleLogEvent("You were defeated...\nReturning to last save point."))
+                }
+                BattleEndReason.FLEE -> {
+                    gameStage.fire(BattleLogEvent("You successfully escaped!"))
                 }
             }
-            BattleEndReason.FLEE -> {
-                // Both combatants keep their current health — nothing to do
-            }
+            battleComponent.waitingForEndDismiss = true
+            return
         }
 
-        // Mark the overworld spawner so the enemy doesn't immediately respawn (all outcomes)
+        // Phase 3: Wait for player to dismiss the result message
+        if (battleComponent.waitingForEndDismiss) return
+
+        // Phase 4: Player dismissed — cleanup and transition to overworld
         if (savedSpawnerId >= 0 && savedSpawnerMapId >= 0) {
             preferences.flush {
                 this["spawner_${savedSpawnerId}_map_${savedSpawnerMapId}_is_Spawned"] = false
@@ -239,15 +256,15 @@ class BattleSystem(
             }
         }
 
-        // Reset state for next battle
-        battleComponent.battleInProgress = false
-        battleComponent.phase            = BattlePhase.PLAYER_TURN
-        battleComponent.endDelayTimer    = -1f
-        val reason                       = battleComponent.endReason
-        currentBattleEntity              = null
-        currentPlayerEntity              = null
-        savedSpawnerId                   = -1
-        savedSpawnerMapId                = -1
+        battleComponent.battleInProgress    = false
+        battleComponent.phase               = BattlePhase.PLAYER_TURN
+        battleComponent.endDelayTimer       = -1f
+        battleComponent.waitingForEndDismiss = false
+        val reason                          = battleComponent.endReason
+        currentBattleEntity                 = null
+        currentPlayerEntity                 = null
+        savedSpawnerId                      = -1
+        savedSpawnerMapId                   = -1
         gameStage.fire(BattleEndTransitionStartEvent(reason))
     }
     // -------------------------------------------------------------------------
@@ -361,12 +378,15 @@ class BattleSystem(
                 return true
             }
 
-            // Player clicked the battle log popup — skip enemy turn delay
+            // Player clicked the battle log popup — skip delay or dismiss victory message
             is BattleLogDismissedEvent -> {
                 val battleEntity    = currentBattleEntity ?: return false
                 val battleComponent = battleComponents.getOrNull(battleEntity) ?: return false
                 if (battleComponent.phase == BattlePhase.ENEMY_TURN && battleComponent.enemyTurnDelayTimer > 0f) {
                     battleComponent.enemyTurnDelayTimer = 0f
+                }
+                if (battleComponent.phase == BattlePhase.BATTLE_END && battleComponent.waitingForEndDismiss) {
+                    battleComponent.waitingForEndDismiss = false
                 }
                 return true
             }
