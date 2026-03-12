@@ -251,7 +251,13 @@ class BattleSystem(
         val playerImg      = imageComponents.getOrNull(playerEntity)?.image ?: return
         val enemyImg       = imageComponents.getOrNull(enemyEntity)?.image  ?: return
         val playerAnimComp = animationComponents.getOrNull(playerEntity)    ?: return
+        val enemyAnimComp  = animationComponents.getOrNull(enemyEntity)     ?: return
         val enemyName      = enemyDisplayName(enemyEntity)
+
+        // Pre-compute lethality so the death animation can fire with the flash
+        val isLethalHit = peekDamage(playerEntity, enemyEntity).let { dmg ->
+            (statComponents.getOrNull(enemyEntity)?.currentHealth ?: 0f) - dmg <= 0f
+        }
 
         sequenceRunning = true
         var intendedNextPhase = BattlePhase.ENEMY_TURN
@@ -268,9 +274,16 @@ class BattleSystem(
                 playerAnimComp.stateTime = 0f
             },
 
-            // 3. Mid-animation: flash the enemy white
+            // 3. Mid-animation: flash the enemy white; start death animation simultaneously on a lethal hit
             Actions.delay(HIT_FLASH_DELAY),
-            Actions.run { enemyImg.useWhiteShader = true },
+            Actions.run {
+                enemyImg.useWhiteShader = true
+                if (isLethalHit) {
+                    enemyAnimComp.nextAnimation(AnimationType.DEATH)
+                    enemyAnimComp.playMode = Animation.PlayMode.NORMAL
+                    enemyAnimComp.stateTime = 0f
+                }
+            },
             Actions.delay(FLASH_DURATION),
             Actions.run { enemyImg.useWhiteShader = false },
 
@@ -287,10 +300,12 @@ class BattleSystem(
             Actions.moveTo(playerOriginX, playerOriginY, SLIDE_DURATION),
             Actions.run { playerAnimComp.nextAnimation(AnimationType.IDLE, AnimationDirection.SIDE) },
 
-            // 6. Decide next phase, wait for dismiss
+            // 6. Wait for enemy death animation to finish (no-op on a non-lethal hit)
+            waitUntil { !isLethalHit || enemyAnimComp.isAnimationDone },
+
+            // 7. Decide next phase, wait for dismiss
             Actions.run {
-                val enemyStat = statComponents.getOrNull(enemyEntity)
-                if (enemyStat != null && enemyStat.isDead) {
+                if (isLethalHit) {
                     gameStage.fire(BattleLogEvent("$enemyName is defeated!"))
                     battleComponent.endReason = BattleEndReason.WIN
                     intendedNextPhase = BattlePhase.BATTLE_END
@@ -299,7 +314,7 @@ class BattleSystem(
             },
             waitUntil { !battleComponent.waitingForActionDismiss },
 
-            // 7. Advance state machine
+            // 8. Advance state machine
             Actions.run {
                 sequenceRunning = false
                 transitionPhase(battleComponent, intendedNextPhase)
@@ -316,10 +331,16 @@ class BattleSystem(
         enemyEntity: Entity,
         battleComponent: BattleComponent,
     ) {
-        val enemyImg      = imageComponents.getOrNull(enemyEntity)?.image  ?: return
-        val playerImg     = imageComponents.getOrNull(playerEntity)?.image ?: return
-        val enemyAnimComp = animationComponents.getOrNull(enemyEntity)     ?: return
-        val enemyName     = enemyDisplayName(enemyEntity)
+        val enemyImg       = imageComponents.getOrNull(enemyEntity)?.image  ?: return
+        val playerImg      = imageComponents.getOrNull(playerEntity)?.image ?: return
+        val enemyAnimComp  = animationComponents.getOrNull(enemyEntity)     ?: return
+        val playerAnimComp = animationComponents.getOrNull(playerEntity)    ?: return
+        val enemyName      = enemyDisplayName(enemyEntity)
+
+        // Pre-compute lethality so the death animation can fire with the flash
+        val isLethalHit = peekDamage(enemyEntity, playerEntity).let { dmg ->
+            (statComponents.getOrNull(playerEntity)?.currentHealth ?: 0f) - dmg <= 0f
+        }
 
         sequenceRunning = true
         var intendedNextPhase = BattlePhase.PLAYER_TURN
@@ -346,9 +367,16 @@ class BattleSystem(
                 enemyAnimComp.stateTime = 0f
             },
 
-            // 3. Mid-animation: flash the player white
+            // 3. Mid-animation: flash the player white; start death animation simultaneously on a lethal hit
             Actions.delay(HIT_FLASH_DELAY),
-            Actions.run { playerImg.useWhiteShader = true },
+            Actions.run {
+                playerImg.useWhiteShader = true
+                if (isLethalHit) {
+                    playerAnimComp.nextAnimation(AnimationType.DEATH)
+                    playerAnimComp.playMode = Animation.PlayMode.NORMAL
+                    playerAnimComp.stateTime = 0f
+                }
+            },
             Actions.delay(FLASH_DURATION),
             Actions.run { playerImg.useWhiteShader = false },
 
@@ -377,10 +405,12 @@ class BattleSystem(
                 }
             },
 
-            // 6. Decide next phase, wait for dismiss
+            // 6. Wait for player death animation to finish (no-op on a non-lethal hit)
+            waitUntil { !isLethalHit || playerAnimComp.isAnimationDone },
+
+            // 7. Decide next phase, wait for dismiss
             Actions.run {
-                val playerStat = statComponents.getOrNull(playerEntity)
-                if (playerStat != null && playerStat.isDead) {
+                if (isLethalHit) {
                     gameStage.fire(BattleLogEvent("You were defeated..."))
                     battleComponent.endReason = BattleEndReason.LOSE
                     intendedNextPhase = BattlePhase.BATTLE_END
@@ -389,7 +419,7 @@ class BattleSystem(
             },
             waitUntil { !battleComponent.waitingForActionDismiss },
 
-            // 7. Advance state machine
+            // 8. Advance state machine
             Actions.run {
                 sequenceRunning = false
                 transitionPhase(battleComponent, intendedNextPhase)
@@ -481,6 +511,13 @@ class BattleSystem(
         val damage = (attackerStat.attackDamage - targetStat.defense).coerceAtLeast(1f)
         targetStat.currentHealth = (targetStat.currentHealth - damage).coerceAtLeast(0f)
         return damage
+    }
+
+    /** Compute damage without applying it — used to pre-check lethality before a sequence starts. */
+    private fun peekDamage(attacker: Entity, target: Entity): Float {
+        val attackerStat = statComponents.getOrNull(attacker) ?: return 0f
+        val targetStat   = statComponents.getOrNull(target)   ?: return 0f
+        return (attackerStat.attackDamage - targetStat.defense).coerceAtLeast(1f)
     }
 
     /** Get a display-friendly name from the enemy's AnimationModel (e.g. SLIME_GREEN → "Slime Green"). */
