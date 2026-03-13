@@ -34,6 +34,7 @@ import com.github.jacks.roleplayinggame.systems.CollisionSpawnSystem
 import com.github.jacks.roleplayinggame.systems.DeathSystem
 import com.github.jacks.roleplayinggame.systems.DebugSystem
 import com.github.jacks.roleplayinggame.systems.DialogSystem
+import com.github.jacks.roleplayinggame.systems.InteractionSystem
 import com.github.jacks.roleplayinggame.systems.EntityCreationSystem
 import com.github.jacks.roleplayinggame.systems.FloatingTextSystem
 import com.github.jacks.roleplayinggame.systems.InitializeGameSystem
@@ -126,6 +127,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
             add<BattleSystem>()
             add<LootSystem>()
             add<DialogSystem>()
+            add<InteractionSystem>()
             add<DeathSystem>()
             add<LifeSystem>()
             add<PhysicsSystem>()
@@ -198,6 +200,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
         gameStage.fire(InitializeGameEvent())
         PlayerKeyboardInputProcessor(entityWorld, gameStage, uiStage)
         gdxInputProcessor(uiStage)
+        disableOverworldSystems()
     }
 
     private fun pauseWorld(pause : Boolean) {
@@ -213,6 +216,10 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
         entityWorld.systems
             .filter { it::class !in mandatorySystems}
             .forEach { it.enabled = !pause }
+
+        if (!pause) {
+            disableOverworldSystems()
+        }
 
         uiStage.actors.filterIsInstance<PauseView>().first().isVisible = pause
     }
@@ -269,6 +276,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
                 gameStage.fire(BattleEndEvent(reason))
                 currentBattleEnemy = null
                 entityWorld.systems.forEach { it.enabled = true }
+                disableOverworldSystems()
                 // Step 11: clear any queued real-time attack so the player doesn't
                 // immediately swing when returning to the overworld
                 playerFamily.forEach { playerEntity ->
@@ -297,6 +305,12 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
         entityWorld.dispose()
     }
 
+    private fun disableOverworldSystems() {
+        entityWorld.systems
+            .filter { it::class in overworldDisabledSystems }
+            .forEach { it.enabled = false }
+    }
+
     companion object {
         private val log = logger<GameScreen>()
         private const val FADE_DURATION = 0.4f
@@ -307,6 +321,10 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
             RenderSystem::class,
             DebugSystem::class,
             BattleSystem::class,
+        )
+        private val overworldDisabledSystems = setOf(
+            AiSystem::class,
+            AttackSystem::class,
         )
     }
 }

@@ -8,6 +8,8 @@
 - **Build:** `./gradlew :core:compileKotlin` to verify compilation
 - **Source root:** `core/src/main/kotlin/com/github/jacks/roleplayinggame/`
 
+---
+
 ## Architecture Overview
 
 ### UI Pattern (MVVM)
@@ -15,175 +17,152 @@
 - **ViewModels** (`ui/viewmodels/`) extend `PropertyChangeSource`, implement `EventListener`, hold observable properties via `propertyNotify`
 - **Widgets** (`ui/widgets/`) are reusable UI components (extend `Table` or `WidgetGroup`)
 - Views bind to ViewModel properties via `model.onPropertyChange(ViewModel::prop) { value -> ... }`
-- Each View has a DSL factory function (e.g., `fun <S> KWidget<S>.battleView(...)`)
 
 ### Event System
-- Events fired on `gameStage` (a LibGDX Stage) via `gameStage.fire(SomeEvent())`
+- Events fired on `gameStage` via `gameStage.fire(SomeEvent())`
 - Systems and ViewModels register as `EventListener` on `gameStage`
 - Events are synchronous — `fire()` blocks until all listeners return
 - `system.enabled = false` only stops `onTick`/`onTickEntity`, NOT event handlers
 
 ### Viewports
-- `gameStage`: `FitViewport(24f, 13.5f)` — fixed aspect ratio world rendering
-- `uiStage`: `ScreenViewport()` — pixel-based, 1 unit = 1 pixel, no scaling
+- `gameStage`: `FitViewport(24f, 13.5f)` — world units, fixed aspect ratio
+- `uiStage`: `ScreenViewport()` — pixel-based, 1 unit = 1 pixel
 
 ### Skin System (`ui/Skin.kt`)
-- `Drawables` enum → atlas keys for texture drawables
-- `Labels` enum → label styles (each has `.skinKey` for lookup)
-- `Buttons` enum → button styles with up/down/over/disabled states
+- `Drawables`, `Labels`, `Buttons` enums for atlas-based lookups
 - Access: `skin[Drawables.LIFE_BAR]`, `skin[Fonts.SMALL]`
-- Key drawables for bars: `BAR_GREEN_THICK` (9-patch, good for fill bars), `BAR_GREY_THICK` (9-patch, good for bar backgrounds)
-- `MANA_BAR` is only 42x3px, NOT a 9-patch — do not use for resizable bars
-
-### Battle System Flow
-```
-Player collides with enemy → BattleTransitionStartEvent
-  → GameScreen.enterBattleMode(): disable systems, fade in, fire BattleEvent, show BattleView
-  → BattleSystem creates lightweight battle enemy (ImageComponent, AnimationComponent, StatComponent, BattleComponent only)
-  → Phase loop: PLAYER_TURN → RESOLVING → ENEMY_TURN → RESOLVING → PLAYER_TURN (repeat)
-  → BATTLE_END → BattleEndTransitionStartEvent
-  → GameScreen.exitBattleMode(): fade in, fire BattleEndEvent, enable systems, show MainGameView
-```
-
-### Key Battle Events (in `events/Events.kt`)
-| Event | Purpose |
-|-------|---------|
-| `BattleEvent(enemy)` | Battle starts, enemy entity passed |
-| `BattleEndEvent(reason)` | Battle ends (WIN/LOSE/FLEE) |
-| `BattlePhaseChangedEvent(phase)` | State machine phase changed |
-| `BattleActionSelectedEvent(action)` | Player chose an action (ATTACK/FLEE) |
-| `BattleHealthUpdateEvent(playerPct, enemyPct)` | HP percentages updated |
-| `BattleLogEvent(message)` | Battle message to display |
-| `BattleLogDismissedEvent` | Player clicked to skip enemy turn delay |
-
-### Key Components
-- `StatComponent`: `currentHealth`, `maxHealth`, `currentMana`, `maxMana`, `attackDamage`, `defense`, `level`, `experience`, `xpReward`
-- `BattleComponent`: `phase` (BattlePhase), `pendingPlayerAction` (BattleAction), `enemyTurnDelayTimer`, `endDelayTimer`
-- `BattlePhase` enum: `PLAYER_TURN`, `RESOLVING`, `ENEMY_TURN`, `BATTLE_END`
-- `BattleAction` enum: `NONE`, `ATTACK`, `FLEE`
-- `AnimationComponent`: has `model` (AnimationModel enum, e.g., `SLIME`, `PLAYER`)
 
 ---
 
-# Active Plan: Pokemon-Style Battle UI Overhaul
+## Key Overworld Files
 
-## Goal
-Replace the current BattleView layout with a Pokemon-inspired design: floating stat bars over the battle scene, and a full-width opaque bottom panel that toggles between a 2x2 action grid and a message area.
-
-## Target Layout
-```
-+-----------------------------------------------+
-|                                                |
-|              [Enemy: Name Lv.1]  (top-right)   |
-|              [HP bar] [MP bar]                 |
-|                                                |
-|         (battle scene renders here)            |
-|                                                |
-|  [Player: Name Lv.1]  (lower-left)            |
-|  [HP bar] [MP bar]                             |
-+-----------------------------------------------+
-| BOTTOM PANEL (opaque dark grey, 25% height)    |
-|                                                |
-| PLAYER_TURN:          | Other phases:          |
-| ┌────────┬─────────┐  | Full-width message     |
-| │ Attack │ Skills  │  | (click to dismiss)     |
-| ├────────┼─────────┤  |                        |
-| │ Items  │  Flee   │  |                        |
-| └────────┴─────────┘  |                        |
-+-----------------------------------------------+
-```
-
-## Implementation Steps (do one per chat)
-
-### Step 1: Create `BattleStatBar.kt` (NEW FILE)
-**Path:** `core/src/main/kotlin/com/github/jacks/roleplayinggame/ui/widgets/BattleStatBar.kt`
-**Package:** `com.github.jacks.roleplayinggame.ui.widgets`
-
-Create a lightweight widget extending `Table` with `KTable`:
-- **Row 1:** Name label (`Labels.SMALL`) left-aligned + "Lv.X" label (`Labels.SMALL`) right-aligned
-- **Row 2:** HP bar — `Stack` containing `BAR_GREY_THICK` background + `BAR_GREEN_THICK` fill
-- **Row 3:** Mana bar — `Stack` containing `BAR_GREY_THICK` background + `BAR_GREEN_THICK` tinted blue (`Color(0.3f, 0.5f, 0.9f, 1f)`)
-
-Public methods:
-- `setName(name: String)` — updates name label
-- `setLevel(level: Int)` — updates level label text to "Lv.$level"
-- `life(percentage: Float, duration: Float = 0.75f)` — animates HP bar via `Actions.scaleTo(clamp(pct, 0, 1), 1f, duration)` (same technique as `CharacterInfo.life()`)
-- `mana(percentage: Float, duration: Float = 0.75f)` — same animation for mana bar
-
-Include DSL factory: `fun <S> KWidget<S>.battleStatBar(skin, init): BattleStatBar`
-
-**Note:** The `scaleX` animation scales from origin (0,0) so bars shrink from right-to-left. If origin shifts inside Stack, override `layout()` to call `hpBarFill.setOrigin(0f, 0f)` after super.
-
-**Verify:** `./gradlew :core:compileKotlin`
+| File | Purpose |
+|------|---------|
+| `screens/GameScreen.kt` | Main screen. Owns `gameStage`, `uiStage`, `entityWorld`. Manages system enable/disable, UI layer transitions (fade in/out), input processors. `render()` drives the ECS tick. |
+| `ui/views/MainGameView.kt` | Overworld HUD overlay. Player info, experience bar, menu buttons (inventory, skills, quests, map, menu). Built with Scene2D DSL. |
+| `ui/viewmodels/MainGameViewModel.kt` | Bridges ECS events to HUD properties. Listens for `EntityTakeDamageEvent`, `EntityRespawnEvent`, `EntityAddItemEvent`. Exposes `playerLife`, `expAmount`, `lootText`. |
+| `systems/MapSystem.kt` | Loads Tiled maps, places player at spawners/portals, persists map state to preferences. Responds to `PortalEvent`. `setMap(mapName, targetPortalId)` handles overworld transitions. |
+| `systems/MoveSystem.kt` | Converts movement input (`MoveComponent.cos`/`sin` + speed) into Box2D impulses. Handles image flip for facing direction. Operates on entities with `MoveComponent`, `PhysicsComponent`, `StatComponent`. |
 
 ---
 
-### Step 2: Update `BattleViewModel.kt`
-**Path:** `core/src/main/kotlin/com/github/jacks/roleplayinggame/ui/viewmodels/BattleViewModel.kt`
+## Next Feature
 
-Changes:
-1. Change constructor parameter `world: World` → `private val world: World` (currently not stored as property)
-2. Add observable properties:
-   ```kotlin
-   var playerName  by propertyNotify("Player")
-   var enemyName   by propertyNotify("Enemy")
-   var playerLevel by propertyNotify(1)
-   var enemyLevel  by propertyNotify(1)
-   var playerMana  by propertyNotify(1f)
-   var enemyMana   by propertyNotify(1f)
-   ```
-3. In `handle()`, expand the `is BattleEvent` branch to populate these from entity data:
-   - Enemy: get `AnimationComponent.model.name` for display name (convert from `BLUE_SLIME` → `Blue Slime`), `StatComponent.level`, mana percentage
-   - Player: find via `world.family(allOf = arrayOf(PlayerComponent::class))`, get `StatComponent.level`, mana percentage
-   - Player name can stay as "Player" for now
+# Overworld Mechanics Update
 
-**Do NOT** add `onSkills()` or `onItems()` callbacks — those buttons will be disabled.
-
-**Verify:** `./gradlew :core:compileKotlin`
+## Context
+The overworld currently allows NPC entities to move freely via AI behavior trees, and the player can attack with spacebar. This feature removes those real-time combat mechanics from the overworld (preserving them for battle), adds a dedicated E key interaction system for NPCs/signs/items, and builds out the CharacterInfoView with full player stats.
 
 ---
 
-### Step 3: Rewrite `BattleView.kt`
-**Path:** `core/src/main/kotlin/com/github/jacks/roleplayinggame/ui/views/BattleView.kt`
+## Part 1: Disable NPC Overworld Movement & Player Overworld Attack
 
-Complete rewrite. Key structure:
+**Why combined:** Both changes use the same mechanism — a set of systems to disable in overworld mode.
 
-1. **Dark panel background:** Create a `Pixmap(1, 1, RGBA8888)` with color `(0.15, 0.15, 0.15, 1.0)` (fully opaque dark grey), wrap in `TextureRegionDrawable`, cache in skin under key `"battlePanelBgd"`
+### Files to modify:
 
-2. **Table layout** (setFillParent(true)):
-   - **Row 1:** Spacer (expandX) + Enemy `BattleStatBar` (right-aligned, width = `Value.percentWidth(0.30f, this)`, padded from top/right)
-   - **Row 2:** Inner table with Player `BattleStatBar` (left-aligned, bottom of cell) + spacer. This row gets `expand().fill()` + colspan(2) to absorb vertical space
-   - **Row 3:** Bottom panel table with dark grey background, colspan(2), height = `Value.percentHeight(0.25f, this)`. Contains a `Stack` with:
-     - `actionTable`: 2x2 grid with `defaults().expand().fill().pad(4f)`:
-       - Attack (GREEN_BUTTON_MEDIUM) — calls `model.onAttack()`
-       - Skills (BLUE_BUTTON_MEDIUM) — `isDisabled = true`
-       - Items (YELLOW_BUTTON_MEDIUM) — `isDisabled = true`
-       - Flee (RED_BUTTON_MEDIUM) — calls `model.onFlee()`
-     - `messageTable`: Label (`Labels.DEFAULT`, topLeft aligned, wrap=true, padded), with ClickListener calling `model.onLogDismissed()`. Starts `isVisible = false`
+**`screens/GameScreen.kt`**
+- Add a new `overworldDisabledSystems` set containing `AiSystem::class` and `AttackSystem::class`
+- Add a `disableOverworldSystems()` helper that disables all systems in that set
+- Call `disableOverworldSystems()` at the end of `show()` (after systems are registered as listeners)
+- Call `disableOverworldSystems()` in `exitBattleMode()` after line 271 (`entityWorld.systems.forEach { it.enabled = true }`) — since that blanket re-enables everything
+- Call `disableOverworldSystems()` in `pauseWorld(false)` path (resume) — since that also re-enables systems
 
-3. **Data bindings:**
-   - `playerLife` → `playerStatBar.life(pct)`
-   - `enemyLife` → `enemyStatBar.life(pct)`
-   - `playerMana` → `playerStatBar.mana(pct)`
-   - `enemyMana` → `enemyStatBar.mana(pct)`
-   - `playerName` → `playerStatBar.updateName(name)`
-   - `enemyName` → `enemyStatBar.updateName(name)`
-   - `playerLevel` → `playerStatBar.updateLevel(level)`
-   - `enemyLevel` → `enemyStatBar.updateLevel(level)`
-   - `battleLog` → set `messageLabel.txt` (if not blank)
-   - `lootText` → set `messageLabel.txt` (if not blank)
-   - `battlePhase` → toggle visibility: PLAYER_TURN shows actionTable, hides messageTable; other phases do the opposite
-
-4. **Remove entirely:** popup system (`popup()`, `resetFadeOutDelay()`, fade actions), `CharacterInfo` references, `Drawables.SLIME`/`PLAYER`/`FRAME_BGD` imports, preferences-based init (`playerHealth`, `playerMana`, `playerExperience`), `Stage` field
-
-**Verify:** `./gradlew :core:compileKotlin`
+**`input/PlayerKeyboardInputProcessor.kt`**
+- Remove the SPACE key handler (lines 162-168) that sets `doAttack = true`
+- The `attackComponents` constructor parameter and import can be removed since nothing else uses it
 
 ---
 
-## Important Notes for Implementation
-- **Do NOT modify** `GameScreen.kt`, `BattleSystem.kt`, `BattleComponent.kt`, `Events.kt`, `CharacterInfo.kt`, or `Skin.kt`
-- The `CharacterInfo` widget is used by `MainGameView` for the overworld HUD — leave it untouched
-- `BattleView` is instantiated at `GameScreen.kt:154` as `battleView(BattleViewModel(entityWorld, gameStage)) { isVisible = false }` — no changes needed there
-- All battle log messages (damage, victory, flee, level-up) already flow through `BattleLogEvent` → `BattleViewModel.battleLog` — no new events needed
-- The phase-based visibility toggle replaces the popup animation system naturally
-- Message auto-advance is handled by existing timers: `enemyTurnDelayTimer` (1.5s) in ENEMY_TURN, `endDelayTimer` (1.5s) in BATTLE_END
+## Part 2: Add E Key Interaction System
+
+### Files to modify:
+
+**`events/Events.kt`**
+- Add `class InteractionEvent : Event()`
+
+**New file: `systems/InteractionSystem.kt`**
+- `@AllOf([PlayerComponent::class, PhysicsComponent::class, MoveComponent::class])` — iterates over player entity
+- Listens for `InteractionEvent` via `EventListener` interface, sets `interactionRequested = true` flag
+- On `onTickEntity`: if `interactionRequested` is false, early return. Otherwise:
+  - Get player position, size, offset from `PhysicsComponent`
+  - Get facing direction from `MoveComponent`
+  - Build a directional AABB rectangle in front of the player (reuse the same hitbox logic from `AttackSystem` lines 83-116 but with a slightly wider/more forgiving range)
+  - Query `physicsWorld` for entities in the AABB
+  - For each found entity: set `dialogComponent.interactingEntity` or `lootComponent.interactingEntity` to the player entity (same as AttackSystem lines 153-160 does currently)
+  - Skip self, skip non-hitbox-sensor fixtures (same filters as AttackSystem)
+  - Reset `interactionRequested = false`
+
+**`input/PlayerKeyboardInputProcessor.kt`**
+- Replace E key placeholder (lines 169-174) with: `gameStage.fire(InteractionEvent())`
+- Add import for `InteractionEvent`
+
+**`screens/GameScreen.kt`**
+- Register `InteractionSystem` in the ECS world systems block (add `add<InteractionSystem>()` after `DialogSystem`)
+
+---
+
+## Part 3: Build Out CharacterInfoView
+
+### Files to modify:
+
+**`ui/viewmodels/CharacterInfoViewModel.kt`** (rewrite from skeleton)
+- Store `world` and `gameStage` as properties (currently constructor params are unused)
+- Create player family: `world.family(allOf = arrayOf(PlayerComponent::class))`
+- Create stat mapper: `world.mapper<StatComponent>()`
+- Add observable properties via `propertyNotify`:
+  - `playerLevel: Int`, `playerExperience: Int`, `playerExperienceToNext: Int`
+  - `playerCurrentHealth: Float`, `playerMaxHealth: Float`
+  - `playerCurrentMana: Float`, `playerMaxMana: Float`
+  - `playerAttack: Float`, `playerDefense: Float`, `playerSpeed: Float`
+- Add `refreshStats()` method that reads all stats from the player entity's `StatComponent` and updates all properties
+- Listen for `EntityTakeDamageEvent` (update HP) and `EntityRespawnEvent` (full refresh)
+
+**`ui/views/CharacterInfoView.kt`** (rewrite from placeholder)
+- Store `model` as a property (currently shadowed)
+- Layout using Scene2D DSL inside a `FRAME_BGD` background table:
+  - Title label: "Character"
+  - Level row
+  - XP bar (grey background + green fill, like the existing exp bar pattern in MainGameView)
+  - HP row: label + value
+  - Mana row: label + value
+  - Attack row: label + value
+  - Defense row: label + value
+  - Speed row: label + value
+- Bind each label to the corresponding ViewModel property via `model.onPropertyChange(...)`
+- Override `setVisible()` to call `model.refreshStats()` when becoming visible — ensures stats are fresh every time the C key opens the panel
+
+---
+
+## Implementation Order
+
+1. **Part 1** — Disable AiSystem + AttackSystem, remove SPACE handler (quick, low risk)
+2. **Part 2** — InteractionSystem + E key wiring (medium complexity, new file)
+3. **Part 3** — CharacterInfoView + ViewModel (self-contained UI work)
+
+---
+
+## Key Files Reference
+
+| File | Path |
+|------|------|
+| GameScreen | `core/src/main/kotlin/.../screens/GameScreen.kt` |
+| PlayerKeyboardInputProcessor | `core/src/main/kotlin/.../input/PlayerKeyboardInputProcessor.kt` |
+| Events | `core/src/main/kotlin/.../events/Events.kt` |
+| AttackSystem (reference for AABB) | `core/src/main/kotlin/.../systems/AttackSystem.kt` |
+| AiSystem | `core/src/main/kotlin/.../systems/AiSystem.kt` |
+| DialogSystem | `core/src/main/kotlin/.../systems/DialogSystem.kt` |
+| CharacterInfoViewModel | `core/src/main/kotlin/.../ui/viewmodels/CharacterInfoViewModel.kt` |
+| CharacterInfoView | `core/src/main/kotlin/.../ui/views/CharacterInfoView.kt` |
+| StatComponent | `core/src/main/kotlin/.../components/StatComponent.kt` |
+
+## Verification
+
+1. `./gradlew :core:compileKotlin` — must pass after each part
+2. Run the game:
+   - NPC entities (slimes, old man) should stand still in the overworld
+   - Spacebar should do nothing
+   - Walk up to a sign/NPC, press E — dialog should appear
+   - Press C — CharacterInfoView should show level, HP, mana, attack, defense, speed
+   - Enter battle — battle should work exactly as before (attacks, AI unaffected)
+   - Exit battle — overworld systems should remain disabled (NPCs still, no attack)

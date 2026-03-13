@@ -6,11 +6,11 @@ import com.badlogic.gdx.InputMultiplexer
 import com.badlogic.gdx.InputProcessor
 import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Stage
-import com.github.jacks.roleplayinggame.components.AttackComponent
 import com.github.jacks.roleplayinggame.components.MoveComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.events.GamePauseEvent
 import com.github.jacks.roleplayinggame.events.GameResumeEvent
+import com.github.jacks.roleplayinggame.events.InteractionEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.ui.views.BackgroundView
 import com.github.jacks.roleplayinggame.ui.views.CharacterInfoView
@@ -57,7 +57,6 @@ class PlayerKeyboardInputProcessor(
     private val gameStage : Stage,
     private val uiStage : Stage,
     private val moveComponents : ComponentMapper<MoveComponent> = world.mapper(),
-    private val attackComponents : ComponentMapper<AttackComponent> = world.mapper(),
 ) : KtxInputAdapter {
 
     private var playerSin = 0f
@@ -159,18 +158,8 @@ class PlayerKeyboardInputProcessor(
                         gameStage.fire(GameResumeEvent())
                     }
                 }
-                SPACE -> {
-                    playerEntities.forEach {
-                        with(attackComponents[it]) {
-                            doAttack = true
-                        }
-                    }
-                }
                 E -> {
-                    // interact with other entities
-                    // initiate dialog with a sign or another entity
-                    // open a chest on the ground or pick something up from the ground (for quests later)
-                    // use an item on the overworld, like opening a locked door with a key
+                    gameStage.fire(InteractionEvent())
                 }
                 C -> {
                     val characterInfoView = uiStage.actors.filterIsInstance<CharacterInfoView>().first()
