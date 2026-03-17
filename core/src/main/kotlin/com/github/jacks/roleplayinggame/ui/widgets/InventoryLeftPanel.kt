@@ -27,22 +27,41 @@ class InventoryLeftPanel(
 ) : Table(skin), KTable {
 
     init {
+        defaults().minSize(0f)
         rebuildContent()
 
         model.onPropertyChange(InventoryViewModel::activeTab) { rebuildContent() }
         model.onPropertyChange(InventoryViewModel::activeContext) { rebuildContent() }
         model.onPropertyChange(InventoryViewModel::focusedCharacterIndex) { rebuildContent() }
         model.onPropertyChange(InventoryViewModel::focusedItemIndex) { rebuildContent() }
+        model.onPropertyChange(InventoryViewModel::resultMessage) { rebuildContent() }
     }
 
     private fun rebuildContent() {
+        clearListeners()
         clear()
+        // Result / warning message takes priority over normal content
+        if (model.resultMessage.isNotEmpty()) {
+            buildResultMessage(model.resultMessage)
+            return
+        }
         when (model.activeTab) {
             InventoryTab.EQUIPMENT,
             InventoryTab.CONSUMABLES  -> buildCharacterList()
             InventoryTab.QUEST_ITEMS  -> buildQuestStub()
             InventoryTab.ENCHANTMENTS -> buildEnchantmentDetail()
         }
+    }
+
+    private fun buildResultMessage(message: String) {
+        add(Label(message, skin, Labels.SMALL.skinKey)).expandX().fillX().left().pad(4f).row()
+        add(Label("Press Enter to continue", skin, Labels.SMALL.skinKey)).expandX().left().padLeft(4f).row()
+        add().expand().row()
+        addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent, x: Float, y: Float) {
+                model.dismissResult()
+            }
+        })
     }
 
     // --- Equipment / Consumables: character list ---
@@ -72,7 +91,7 @@ class InventoryLeftPanel(
     }
 
     private fun buildCharacterRow(name: String, hpPct: Float, focused: Boolean): Table {
-        val row = Table(skin)
+        val row = Table(skin).apply { defaults().minSize(0f) }
         if (focused) row.background = skin[Drawables.BACKGROUND_GREY]
 
         // Portrait placeholder
@@ -80,7 +99,7 @@ class InventoryLeftPanel(
         row.add(portrait).size(PORTRAIT_SIZE).padLeft(3f).padRight(4f)
 
         // Name + HP bar stacked vertically
-        val infoCol = Table(skin)
+        val infoCol = Table(skin).apply { defaults().minSize(0f) }
         infoCol.add(Label(name, skin, Labels.SMALL.skinKey)).expandX().left().row()
 
         val hpBarBg = Image(skin[Drawables.BAR_GREY_THICK])

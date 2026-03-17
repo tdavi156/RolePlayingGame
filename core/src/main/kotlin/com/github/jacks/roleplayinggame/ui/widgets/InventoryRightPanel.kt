@@ -52,6 +52,7 @@ class InventoryRightPanel(
             rebuildItemList()
             rebuildInfoPanel()
         }
+        model.onPropertyChange(InventoryViewModel::isCombatMode) { updateTabHighlights() }
         model.onPropertyChange(InventoryViewModel::focusedItemIndex) {
             updateRowHighlights()
             rebuildInfoPanel()
@@ -72,6 +73,7 @@ class InventoryRightPanel(
             tabLabels[tab] = lbl
             lbl.addListener(object : ClickListener() {
                 override fun clicked(event: InputEvent, x: Float, y: Float) {
+                    if (model.isCombatMode) return  // tab switching locked in combat
                     model.activeTab = tab
                     model.focusedItemIndex = 0
                     model.showingActionMenu = false
@@ -85,8 +87,11 @@ class InventoryRightPanel(
 
     private fun updateTabHighlights() {
         tabLabels.forEach { (tab, lbl) ->
-            val styleKey = if (tab == model.activeTab) Labels.SMALL_WHITE_BGD.skinKey else Labels.SMALL.skinKey
+            val isActive = tab == model.activeTab
+            val isFaded  = model.isCombatMode && tab != InventoryTab.CONSUMABLES
+            val styleKey = if (isActive) Labels.SMALL_WHITE_BGD.skinKey else Labels.SMALL.skinKey
             lbl.style = skin.get(styleKey, Label.LabelStyle::class.java)
+            lbl.color = if (isFaded) com.badlogic.gdx.graphics.Color(1f, 1f, 1f, 0.35f) else com.badlogic.gdx.graphics.Color.WHITE
         }
     }
 

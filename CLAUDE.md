@@ -39,220 +39,151 @@
 | File | Purpose |
 |------|---------|
 | `screens/GameScreen.kt` | Main screen. Owns `gameStage`, `uiStage`, `entityWorld`. Manages system enable/disable, UI layer transitions (fade in/out), input processors. `render()` drives the ECS tick. |
-| `systems/InteractionSystem.kt` | Handles entity interaction detection and routing. To be fully reworked — directional hitbox → circular radius, clean player/NPC separation, typed component dispatch. |
-| `systems/InitializeGameSystem.kt` | Handles game startup — loads prefs, initializes systems. |
-| `systems/InventorySystem.kt` | Singleton inventory source of truth. `addItem()` and `removeItem()` used by shop buy/sell. |
-| `systems/ResourceSystem.kt` | Holds `Resources` (gold). Gold debited/credited on buy/sell; `saveResources()` called after each transaction. |
-| `components/ItemComponent.kt` | `InventoryComponent` on PlayerEntity holds equipped item IDs per slot — used by sell guard to count equipped copies. |
-| `input/PlayerKeyboardInputProcessor.kt` | All keyboard input routing. Shop navigation and ESC rollback handled here when `ShopView` is active. |
-| `events/Events.kt` | Central event definitions. All new shop events added here. |
-| `maps/map_1_house_1.tmx` | Map containing the oldman NPC entity. `ShopComponent` (shopId) added to this entity. |
+| `systems/BattleSystem.kt` | Drives battle flow, turn order, and animations. Items button currently disabled — to be enabled here. Turn advancement gated on result message dismissal after item use. |
+| `systems/StatSystem.kt` | Handles stat recalculation and current value modification. Extended here to expose a full-stat check function. |
+| `systems/InventorySystem.kt` | Singleton inventory source of truth. `removeItem()` called on successful consumable use. |
+| `ui/views/BattleView.kt` | Battle UI layer. Items button wired here to fire `CombatInventoryOpenEvent`. |
+| `ui/views/InventoryView.kt` | Existing inventory UI. Reused in combat with tab locked to Consumables via `isCombatMode` flag. |
+| `ui/viewmodels/InventoryViewModel.kt` | Shared ViewModel for inventory. Extended with `isCombatMode` flag and combat-specific open/close event handling. |
+| `ui/widgets/InventoryLeftPanel.kt` | Character list panel. Extended to show result messages and full-stat warnings inline. |
+| `configurations/ConsumableItems.kt` | Consumable item config. Extended with `flashColor: Color` field per item. |
+| `events/Events.kt` | Central event definitions. New combat inventory and flash events added here. |
 
 ---
 
 ## Next Feature
 
-# Shops — Buying and Selling Items
+# Consumable Items in Combat
 
 ## Context
-- Shop inventory is infinite — purchasing never reduces stock
-- Shop opens directly into BUY mode — no prior Buy/Sell/Leave selection screen
-- BUY and SELL share a single `ShopViewModel` and `ShopView`, toggled via a mode flag
-- `ShopComponent` holds only a `shopId` — full item lists are defined in `ShopConfigs.kt` and looked up at runtime
-- Sell price is always `ceil(goldValue / 2f)` — half the buy price, rounded up
-- Items currently equipped across any party member cannot be sold — available sell quantity = `ownedQuantity - equippedCount`
-- ESC always rolls back one context level: quantity selector → item list → close shop
-- Leave option is always present as the last row in every tab in both BUY and SELL modes — no state where the player is trapped
+- The Items button in `BattleView` is already present but disabled — this feature enables it
+- The existing `InventoryView` and `InventoryViewModel` are reused directly in combat, locked to the Consumables tab via an `isCombatMode` flag — no separate combat view is created
+- `UseConsumableEvent` is shared between overworld and combat; an `isCombatItemUse: Boolean` flag (default `false`) distinguishes the two contexts for turn-advancement purposes
+- Stat application logic is identical in both contexts — only turn advancement differs
+- Full stat restriction (HP/mana already full) is checked after the player confirms a character, not before — character appears selectable, warning shown on confirm
+- Turn does not advance until the player dismisses the result message in combat
+- Flash animation reuses the existing hit-flash mechanism with a per-item color defined in `ConsumableItems.kt`
 
 ---
 
-## Part 1 — Create `ShopConfigs.kt` and `ShopComponent`
+## Part 1 — Add `flashColor` to `ConsumableItemData`
 
-Create `configurations/ShopConfigs.kt`:
-- Data class `ShopConfig`: `shopId: Int`, `shopName: String`, typed item ID lists per tab: `equipmentIds: List<Int>`, `consumableIds: List<Int>`, `questIds: List<Int>`, `enchantmentIds: List<Int>`
-- Define `OLDMAN_SHOP` as the first entry — populate with a reasonable spread of existing item IDs from each config for testing
-- Include a commented template block for adding new shops:
-  ```
-  // ShopConfig(
-  //     shopId = 1,
-  //     shopName = "Shop Name",
-  //     equipmentIds = listOf(1001, 1002),
-  //     consumableIds = listOf(2001),
-  //     questIds = emptyList(),
-  //     enchantmentIds = emptyList()
-  // ),
-  ```
-
-Create `components/ShopComponent.kt`:
-- Data class / component holding only `shopId: Int`
-- Add `ShopComponent` with the appropriate `shopId` to the oldman entity in `map_1_house_1.tmx`
+Modify `configurations/ConsumableItems.kt`:
+- Add `flashColor: Color` field to `ConsumableItemData` (LibGDX `Color`)
+- Update all existing consumable entries with appropriate colors:
+  - Health-restoring items → `Color.GREEN`
+  - Mana-restoring items → `Color.BLUE`
+- Update any existing construction sites of `ConsumableItemData` to include the new field
+- Compilation must pass after this step
 
 ---
 
-## Part 2 — Full Rework of `InteractionSystem.kt`
+## Part 2 — Add Combat Lock Flag to `InventoryViewModel`
 
-Rework `systems/InteractionSystem.kt`:
-- **Detection**: replace directional hitbox check with circular radius check around both the player entity and the NPC entity — interaction triggers if the two radii overlap
-- **Player/NPC identification**: unambiguously determine which entity is the player and which is the NPC on every `InteractionEvent` — no directional assumptions
-- **Typed dispatch**: after contact confirmed, inspect the NPC entity for component presence and route accordingly:
-  - `LootComponent` → existing loot handling (behavior unchanged)
-  - `DialogComponent` → existing `DialogSystem` (behavior unchanged)
-  - `ShopComponent` → fire `ShopInteractionEvent(shopId)` to new `ShopSystem`
-- Pause overworld mechanics (player movement, game tick systems) on interaction start; resume on `ShopClosedEvent`, `DialogClosedEvent`, or equivalent
-- All existing interaction types (Loot, Dialog) must continue to function correctly after rework
-
----
-
-## Part 3 — Create `ShopSystem.kt`
-
-Create `systems/ShopSystem.kt`:
-- Extend `IntervalSystem()`, implement `EventListener`; register in `GameScreen.kt`
-- Enum `ShopMode { BUY, SELL }` defined here or in a shared enums file
-- Handles `ShopInteractionEvent(shopId: Int)`: looks up `ShopConfig` from `ShopConfigs.kt`, stores as `activeShopConfig`, fires `ShopOpenEvent(shopConfig)`
-- Transient session state: `activeShopConfig`, `shopMode`, `pendingItemId`, `pendingQuantity` — all cleared on shop close
-- Handles `ShopBuyConfirmedEvent(itemId: Int, quantity: Int)`:
-  - Deduct `goldValue * quantity` from `ResourceSystem.resources.gold`; call `resourceSystem.saveResources()`
-  - Call `inventorySystem.addItem(itemId, quantity)` — stacking handled automatically
-- Handles `ShopSellConfirmedEvent(itemId: Int, quantity: Int)`:
-  - Calculate sell price: `ceil(goldValue / 2f) * quantity`
-  - Add result to `ResourceSystem.resources.gold`; call `resourceSystem.saveResources()`
-  - Call `inventorySystem.removeItem(itemId, quantity)`
-- Handles `ShopClosedEvent`: clears all session state, fires event to resume overworld mechanics
+Modify `ui/viewmodels/InventoryViewModel.kt`:
+- Add `isCombatMode by propertyNotify(false)` observable property
+- When `isCombatMode == true`:
+  - Force `activeTab = InventoryTab.CONSUMABLES` on open and prevent tab changes — Left/Right key cycling and tab header clicks are no-ops
+  - Non-consumable tabs rendered faded and unselectable in the tab bar
+- Add to `events/Events.kt`:
+  - `class CombatInventoryOpenEvent : Event()`
+  - `class CombatInventoryClosedEvent : Event()`
+  - `class CombatItemUseDismissedEvent : Event()` — fired when result message is dismissed in combat
+  - `class ItemUseFlashEvent(val characterIndex: Int, val flashColor: Color) : Event()`
+- On `CombatInventoryOpenEvent`: set `isCombatMode = true`, reset `focusedItemIndex` to 0, set `activeTab = CONSUMABLES`
+- On `CombatInventoryClosedEvent`: set `isCombatMode = false`
+- Existing `InventoryOpenEvent` behavior unchanged — overworld flow unaffected
 
 ---
 
-## Part 4 — Build `ShopViewModel.kt`
+## Part 3 — Enable Items Button in `BattleView` and Wire to Inventory
 
-Create `ui/viewmodels/ShopViewModel.kt`:
-- Extend `PropertyChangeSource`, implement `EventListener`; register on `uiStage`
-- Enum `ShopTab { EQUIPMENT, CONSUMABLES, QUEST_ITEMS, ENCHANTMENTS }`
-- Observable properties: `shopMode by propertyNotify(ShopMode.BUY)`, `activeTab by propertyNotify(ShopTab.EQUIPMENT)`, `focusedItemIndex by propertyNotify(0)`, `pendingItemId by propertyNotify<Int?>(null)`, `pendingQuantity by propertyNotify(1)`, `insufficientGoldVisible by propertyNotify(false)`
-- On `ShopOpenEvent`: store config, reset all properties to defaults (mode = BUY, tab = EQUIPMENT, focus = 0)
-- **Buy mode computed accessors**: return items from `activeShopConfig` filtered by `activeTab`; annotate each with affordability flag (`goldValue <= ResourceSystem.resources.gold`)
-- **Sell mode computed accessors**: return items from `InventorySystem` filtered by `activeTab`; for each item compute:
-  - `availableQty = ownedQuantity - equippedCountAcrossAllCharacters` (via `InventoryComponent` equipped map)
-  - `sellable = isSellable && availableQty > 0`
-  - Items with `availableQty == 0` due to all copies being equipped are treated as unsellable (faded, unselectable) even if `isSellable = true`
-- Quantity selector ceiling: BUY mode → clamped by `floor(playerGold / goldValue)`; SELL mode → clamped by `availableQty`
+Modify `ui/views/BattleView.kt` and its ViewModel:
+- Enable the currently-disabled Items button
+- On Items button press (keyboard or mouse): fire `CombatInventoryOpenEvent` on `uiStage`
+- `InventoryView` overlays on top of the battle UI — same layout as overworld, tab bar locked to Consumables
+- ESC or cancel from within the inventory while `isCombatMode == true`: fire `CombatInventoryClosedEvent`, return focus to battle action buttons — player's turn is NOT consumed
 
 ---
 
-## Part 5 — Build `ShopView.kt`
+## Part 4 — Update `UseConsumableEvent` with Combat Flag
 
-Create `ui/views/ShopView.kt` as a non-fullscreen right-side overlay (overworld remains visible behind it):
-- **Top bar**: BUY / SELL toggle (highlighted based on `shopMode`) + current gold display (e.g. `Gold: 500g`) — mirrors "Money" box in reference image
-- **Tab bar**: Equipment / Consumables / Quest Items / Enchantments — same style as inventory right panel; Left/Right cycles tabs
-- **Item list**: scrollable rows, Up/Down moves focus
-  - Buy mode row: `[icon] Item Name -------- 50g` — unaffordable items rendered faded; selectable for description only
-  - Sell mode row: `[icon] Item Name --- x2 --- 25g` — unsellable or fully-equipped items faded, no price shown, unselectable
-  - Last entry in every tab, every mode: **Leave** — always selectable, always present
-- **Description panel**: fixed at bottom of panel, updates on focus change or mouse hover — never moves, not a floating tooltip
-- **Quantity selector**: appears inline on the focused row after item is selected (Enter/double-click); Left/Right adjusts `pendingQuantity` within computed ceiling; Enter confirms; ESC cancels back to item list
-- **Insufficient gold popup**: small transient overlay message shown when player attempts to select an unaffordable item — auto-dismisses after ~1.5s, interaction continues
-- Binds all elements to `ShopViewModel` via `model.onPropertyChange()`
-- DSL extension function following existing view patterns
+Modify `events/Events.kt`:
+- Add `isCombatItemUse: Boolean = false` parameter to `UseConsumableEvent`
+- Default is `false` — all existing overworld usages are unaffected without changes
+- `InventoryViewModel` sets `isCombatItemUse = true` when firing the event from combat context (i.e. when `isCombatMode == true`)
+- `BattleSystem` inspects this flag to determine whether to gate turn advancement on result message dismissal
 
 ---
 
-## Part 6 — Keyboard Navigation
+## Part 5 — Extend `StatSystem` with Full Stat Check
 
-Modify `input/PlayerKeyboardInputProcessor.kt`:
-
-When `ShopView` is active and **no item pending**:
-- **Left / Right**: cycle `model.activeTab`; reset `focusedItemIndex` to 0
-- **Up / Down**: move `model.focusedItemIndex` (clamped; Leave is always last)
-- **Tab** (or designated key): toggle `model.shopMode` between BUY and SELL; reset focus to 0
-- **Enter**:
-  - Leave row → fire `ShopClosedEvent`
-  - Unaffordable item (buy) → set `insufficientGoldVisible = true`
-  - Unsellable / fully-equipped item (sell) → no-op
-  - Valid item → set `model.pendingItemId`, `model.pendingQuantity = 1`, show quantity selector
-- **Esc**: fire `ShopClosedEvent`
-
-When **quantity selector is active**:
-- **Left / Right**: adjust `model.pendingQuantity` (clamped by ceiling)
-- **Enter**: fire `ShopBuyConfirmedEvent` or `ShopSellConfirmedEvent`; clear pending state; return to item list
-- **Esc**: clear `model.pendingItemId`; return to item list (no purchase/sale made)
+Modify `systems/StatSystem.kt`:
+- Add `isStatFull(characterIndex: Int, statType: ConsumableStatType): Boolean`
+  - Returns `true` if the relevant current stat equals its maximum: `currentHealth == maxHealth` for `HEALTH`, `currentMana == maxMana` for `MANA`
+- Called by `InventoryViewModel` after item use is confirmed on a character, before applying any stat delta
+- Used identically in both combat and overworld contexts
 
 ---
 
-## Part 7 — Mouse Interaction
+## Part 6 — Result Message, Full Stat Warning, and Turn Gating
 
-Modify `ShopView.kt`:
-- Hovering a row updates `model.focusedItemIndex` and refreshes description panel immediately
-- Clicking a row sets focus
-- Clicking an unaffordable item (buy) sets `insufficientGoldVisible = true`
-- Clicking an unsellable / fully-equipped item (sell) → no-op
-- Double-clicking a valid item sets `model.pendingItemId` and shows quantity selector (same as Enter)
-- BUY / SELL toggle buttons clickable — sets `model.shopMode`, resets focus
-- Tab headers clickable — sets `model.activeTab`, resets focus
-- Clicking Leave row fires `ShopClosedEvent`
+Modify `ui/viewmodels/InventoryViewModel.kt` and `ui/widgets/InventoryLeftPanel.kt`:
 
----
+**After `UseConsumableEvent` is confirmed on a character:**
+- Call `StatSystem.isStatFull()` for the item's `statType`
+- If **stat is full**:
+  - Show warning message in left panel: `"[CharacterName] is already at full [HP/MP]!"`
+  - Do NOT apply stat delta; do NOT remove item from inventory
+  - Return focus to character list for re-selection — turn is NOT consumed in combat
+- If **stat is not full**:
+  - Apply stat delta via `StatSystem`
+  - Call `inventorySystem.removeItem(itemId, 1)` — removes entry if quantity reaches 0
+  - Fire `ItemUseFlashEvent(characterIndex, item.flashColor)` on `gameStage`
+  - Show result message in left panel: `"[CharacterName] recovered [value] HP!"` or equivalent
+  - Result message requires player input (Enter or click) to dismiss
+  - On dismiss in **combat**: fire `CombatItemUseDismissedEvent` on `gameStage`; close inventory overlay; `BattleSystem` then advances the turn
+  - On dismiss in **overworld**: return focus to item list — no turn consumption
 
-## Part 8 — Equipped Item Sell Guard
-
-Extend sell-side computed accessors in `ShopViewModel`:
-- For each equipment item in `InventorySystem`, count how many copies are currently equipped across all characters by inspecting the `InventoryComponent` equipped ID map per party member
-- `availableQty = ownedQuantity - equippedCount`
-- If `availableQty == 0`: render faded and unselectable — treated identically to `isSellable = false` in the UI, even though the item data itself is sellable
-- Quantity selector ceiling in sell mode = `availableQty` (never allows selling equipped copies)
-- Edge case — all copies equipped across multiple characters (e.g. 3x boots, 3 characters each wearing one): `availableQty = 0`, item shown faded and unselectable
-
----
-
-## Part 9 — Session Cleanup and Leave Handling
-
-In `ShopSystem.kt`:
-- On `ShopClosedEvent`: clear `activeShopConfig`, `pendingItemId`, `pendingQuantity`, reset `shopMode` to BUY
-- Fire event to `GameScreen` (or appropriate system) to re-enable player movement and overworld input processors
-- Ensure ESC rollback is consistent at every depth:
-  - Quantity selector active → clear pending, return to item list
-  - Item list active → fire `ShopClosedEvent`, close shop, resume overworld
-- Leave row always fires `ShopClosedEvent` regardless of current mode or tab
+Modify `systems/BattleSystem.kt`:
+- Listen for `CombatItemUseDismissedEvent` — advance turn to the next entity (same flow as after an attack action)
+- Do NOT advance turn on `UseConsumableEvent` directly — always wait for dismissal
 
 ---
 
-## Part 10 — Wire New Shop Events to `Events.kt`
+## Part 7 — Item Use Flash Animation
 
-Add to `events/Events.kt`:
-- `class ShopInteractionEvent(val shopId: Int) : Event()`
-- `class ShopOpenEvent(val shopConfig: ShopConfig) : Event()`
-- `class ShopClosedEvent : Event()`
-- `class ShopBuyConfirmedEvent(val itemId: Int, val quantity: Int) : Event()`
-- `class ShopSellConfirmedEvent(val itemId: Int, val quantity: Int) : Event()`
+Modify the system handling the existing hit-flash effect (whichever system drives the white flash on hit):
+- Handle `ItemUseFlashEvent(characterIndex, flashColor)`: tint the target character entity to `flashColor` for `0.2s`, then restore original color
+- Reuse the same tint/restore action sequence as the existing hit-flash — only the color and duration differ
+- Flash plays in both combat and overworld contexts — fired identically from `InventoryViewModel` in both cases
+- `FLASH_DURATION = 0.2f` — define as a constant alongside existing flash duration constants, or reuse if already at the same value
 
 ---
 
-## Part 11 — Verification Pass
+## Part 8 — Verification Pass
 
-- Confirm circular radius interaction detection fires correctly for oldman in `map_1_house_1.tmx`
-- Confirm existing Dialog and Loot interactions still work correctly after `InteractionSystem` rework
-- Confirm BUY: gold deducted at full `goldValue * quantity`; item added to inventory with correct stacking
-- Confirm SELL: gold added at `ceil(goldValue / 2f) * quantity`; item quantity decremented correctly; entry removed at 0
-- Confirm unaffordable items: faded in list, insufficient gold popup shown, no purchase made
-- Confirm unsellable items: faded in list, unselectable, no price displayed
-- Confirm equipped item sell guard: available sell quantity correctly excludes equipped copies across all party members
-- Confirm ESC rollback at each depth: quantity selector → item list → shop closed
-- Confirm Leave option present in every tab, every mode, always selectable
-- Confirm gold persists correctly across shop close via `ResourceSystem.saveResources()`
+- Confirm Items button is enabled in battle and opens `InventoryView` locked to Consumables tab
+- Confirm Left/Right tab cycling and tab header clicks are disabled in combat mode; non-consumable tabs are faded
+- Confirm ESC from combat inventory closes without consuming the player's turn
+- Confirm full stat warning: message shown, item not consumed, focus returns to character list, turn not consumed
+- Confirm successful use: stat delta applied, inventory quantity decremented (entry removed at 0), result message shown, flash animation plays in correct color
+- Confirm turn advances only after result message is dismissed via `CombatItemUseDismissedEvent`
+- Confirm overworld item use unchanged: no `isCombatItemUse` flag set, no turn gating, result message dismisses back to item list
 - `./gradlew :core:compileKotlin` — must pass after each part
 
 ---
 
 ## Implementation Order
 
-1. **Part 1** — Create `ShopConfigs.kt` with `OLDMAN_SHOP` config and commented template; create `ShopComponent`; add to oldman entity in `map_1_house_1.tmx`
-2. **Part 2** — Full rework of `InteractionSystem` — circular radius detection, clean player/NPC identification, typed component dispatch for Loot/Dialog/Shop
-3. **Part 3** — Create `ShopSystem` — handles `ShopInteractionEvent`, session state, `ShopBuyConfirmedEvent`, `ShopSellConfirmedEvent`, `ShopClosedEvent`
-4. **Part 4** — Create `ShopViewModel` — mode flag, tab, focus, pending item/quantity, buy/sell computed accessors with affordability and sell guard logic
-5. **Part 5** — Build `ShopView` — right-side overlay, top bar (mode toggle + gold), tab bar, item list with pricing/fading rules, description panel, quantity selector, insufficient gold popup
-6. **Part 6** — Implement keyboard navigation — tab cycling, item focus, mode toggle, Enter/ESC context rollback at each depth
-7. **Part 7** — Implement mouse interaction — hover, click, double-click, mode toggle, tab click, Leave click
-8. **Part 8** — Implement equipped item sell guard in `ShopViewModel` computed accessors — subtract equipped count per party member, clamp sell quantity ceiling
-9. **Part 9** — Wire session cleanup and Leave handling — `ShopClosedEvent` clears state, resumes overworld, ESC rollback consistent at all depths
-10. **Part 10** — Add all new shop events to `Events.kt`
-11. **Part 11** — Verification pass: interaction detection, existing interaction types, buy/sell correctness, all edge cases, ESC rollback, Leave presence, gold persistence
+1. **Part 1** — Add `flashColor: Color` to `ConsumableItemData`; update all existing entries with appropriate colors
+2. **Part 2** — Add `isCombatMode` flag to `InventoryViewModel`; add `CombatInventoryOpenEvent`, `CombatInventoryClosedEvent`, `CombatItemUseDismissedEvent`, `ItemUseFlashEvent` to `Events.kt`; wire tab-lock behavior
+3. **Part 3** — Enable Items button in `BattleView`; fire `CombatInventoryOpenEvent` on press; wire ESC to close without consuming turn
+4. **Part 4** — Add `isCombatItemUse: Boolean = false` to `UseConsumableEvent`; set to `true` when fired from combat context
+5. **Part 5** — Add `isStatFull()` check function to `StatSystem` for `HEALTH` and `MANA` stat types
+6. **Part 6** — Wire full stat warning and result message in `InventoryViewModel` and `InventoryLeftPanel`; gate combat turn advancement on `CombatItemUseDismissedEvent` in `BattleSystem`
+7. **Part 7** — Implement `ItemUseFlashEvent` handler using existing hit-flash mechanism with per-item `flashColor` and `0.2s` duration
+8. **Part 8** — Verification pass: combat lock, ESC behavior, full stat warning, successful use flow, turn gating, overworld unchanged, compilation after each part
 
 ---
 
@@ -261,19 +192,15 @@ Add to `events/Events.kt`:
 | File | Path |
 |------|------|
 | GameScreen | `core/src/main/kotlin/.../screens/GameScreen.kt` |
-| InteractionSystem | `core/src/main/kotlin/.../systems/InteractionSystem.kt` |
-| InitializeGameSystem | `core/src/main/kotlin/.../systems/InitializeGameSystem.kt` |
+| BattleSystem | `core/src/main/kotlin/.../systems/BattleSystem.kt` |
+| StatSystem | `core/src/main/kotlin/.../systems/StatSystem.kt` |
 | InventorySystem | `core/src/main/kotlin/.../systems/InventorySystem.kt` |
-| ResourceSystem | `core/src/main/kotlin/.../systems/ResourceSystem.kt` |
-| ItemComponent / InventoryComponent | `core/src/main/kotlin/.../components/ItemComponent.kt` |
-| PlayerKeyboardInputProcessor | `core/src/main/kotlin/.../input/PlayerKeyboardInputProcessor.kt` |
+| BattleView | `core/src/main/kotlin/.../ui/views/BattleView.kt` |
+| InventoryView | `core/src/main/kotlin/.../ui/views/InventoryView.kt` |
+| InventoryViewModel | `core/src/main/kotlin/.../ui/viewmodels/InventoryViewModel.kt` |
+| InventoryLeftPanel | `core/src/main/kotlin/.../ui/widgets/InventoryLeftPanel.kt` |
+| ConsumableItems | `core/src/main/kotlin/.../configurations/ConsumableItems.kt` |
 | Events | `core/src/main/kotlin/.../events/Events.kt` |
-| map_1_house_1.tmx | `assets/maps/map_1_house_1.tmx` |
-| **[NEW] ShopConfigs** | `core/src/main/kotlin/.../configurations/ShopConfigs.kt` |
-| **[NEW] ShopComponent** | `core/src/main/kotlin/.../components/ShopComponent.kt` |
-| **[NEW] ShopSystem** | `core/src/main/kotlin/.../systems/ShopSystem.kt` |
-| **[NEW] ShopViewModel** | `core/src/main/kotlin/.../ui/viewmodels/ShopViewModel.kt` |
-| **[NEW] ShopView** | `core/src/main/kotlin/.../ui/views/ShopView.kt` |
 
 ## Verification
 

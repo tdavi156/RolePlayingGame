@@ -11,6 +11,7 @@ import com.github.jacks.roleplayinggame.events.GamePauseEvent
 import com.github.jacks.roleplayinggame.events.GameResumeEvent
 import com.github.jacks.roleplayinggame.events.InteractionEvent
 import com.github.jacks.roleplayinggame.events.EquipItemEvent
+import com.github.jacks.roleplayinggame.events.CombatInventoryClosedEvent
 import com.github.jacks.roleplayinggame.events.InventoryClosedEvent
 import com.github.jacks.roleplayinggame.events.InventoryOpenEvent
 import com.github.jacks.roleplayinggame.events.UseConsumableEvent
@@ -510,16 +511,20 @@ class PlayerKeyboardInputProcessor(
                 }
             } else when (keycode) {
                 LEFT, A -> {
-                    val newIdx = (model.activeTab.ordinal - 1 + tabs.size) % tabs.size
-                    model.activeTab = tabs[newIdx]
-                    model.focusedItemIndex = 0
-                    model.showingActionMenu = false
+                    if (!model.isCombatMode) {
+                        val newIdx = (model.activeTab.ordinal - 1 + tabs.size) % tabs.size
+                        model.activeTab = tabs[newIdx]
+                        model.focusedItemIndex = 0
+                        model.showingActionMenu = false
+                    }
                 }
                 RIGHT, D -> {
-                    val newIdx = (model.activeTab.ordinal + 1) % tabs.size
-                    model.activeTab = tabs[newIdx]
-                    model.focusedItemIndex = 0
-                    model.showingActionMenu = false
+                    if (!model.isCombatMode) {
+                        val newIdx = (model.activeTab.ordinal + 1) % tabs.size
+                        model.activeTab = tabs[newIdx]
+                        model.focusedItemIndex = 0
+                        model.showingActionMenu = false
+                    }
                 }
                 UP, W -> {
                     model.focusedItemIndex = (model.focusedItemIndex - 1).coerceAtLeast(0)
@@ -537,33 +542,46 @@ class PlayerKeyboardInputProcessor(
                     }
                 }
                 ESCAPE -> {
-                    val backgroundView = uiStage.actors.filterIsInstance<BackgroundView>().first()
-                    backgroundView.isVisible = false
-                    uiStage.actors.filterIsInstance<InventoryView>().first().isVisible = false
-                    gameStage.fire(InventoryClosedEvent())
-                    gameStage.fire(GameResumeEvent())
+                    if (model.isCombatMode) {
+                        gameStage.fire(CombatInventoryClosedEvent())
+                        // GameScreen will hide the inventory overlay
+                    } else {
+                        val backgroundView = uiStage.actors.filterIsInstance<BackgroundView>().first()
+                        backgroundView.isVisible = false
+                        uiStage.actors.filterIsInstance<InventoryView>().first().isVisible = false
+                        gameStage.fire(InventoryClosedEvent())
+                        gameStage.fire(GameResumeEvent())
+                    }
                 }
             }
             InventoryContext.LEFT -> when (keycode) {
                 UP, W -> {
-                    model.focusedCharacterIndex = (model.focusedCharacterIndex - 1).coerceAtLeast(0)
+                    if (model.resultMessage.isEmpty())
+                        model.focusedCharacterIndex = (model.focusedCharacterIndex - 1).coerceAtLeast(0)
                 }
                 DOWN, S -> {
-                    val max = (model.partyCharacters.size - 1).coerceAtLeast(0)
-                    model.focusedCharacterIndex = (model.focusedCharacterIndex + 1).coerceAtMost(max)
+                    if (model.resultMessage.isEmpty()) {
+                        val max = (model.partyCharacters.size - 1).coerceAtLeast(0)
+                        model.focusedCharacterIndex = (model.focusedCharacterIndex + 1).coerceAtMost(max)
+                    }
                 }
                 ENTER -> {
-                    when (val action = model.pendingAction) {
-                        is PendingAction.Equipment ->
-                            gameStage.fire(EquipItemEvent(action.item.id, model.focusedCharacterIndex))
-                        is PendingAction.Consumable ->
-                            gameStage.fire(UseConsumableEvent(action.item.id, model.focusedCharacterIndex))
-                        PendingAction.None -> {}
+                    if (model.resultMessage.isNotEmpty()) {
+                        model.dismissResult()
+                    } else {
+                        model.confirmPendingAction(model.focusedCharacterIndex)
                     }
                 }
                 ESCAPE, B -> {
-                    model.pendingAction = PendingAction.None
-                    model.activeContext = InventoryContext.RIGHT
+                    if (model.resultMessage.isNotEmpty()) {
+                        model.dismissResult()
+                    } else if (!model.isCombatMode) {
+                        model.pendingAction = PendingAction.None
+                        model.activeContext = InventoryContext.RIGHT
+                    } else {
+                        // In combat, ESC from character list closes the inventory entirely
+                        gameStage.fire(CombatInventoryClosedEvent())
+                    }
                 }
             }
         }

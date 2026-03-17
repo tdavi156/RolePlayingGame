@@ -25,6 +25,7 @@ class InventoryView(
 
     init {
         setFillParent(true)
+        defaults().minSize(0f)
         background = skin[Drawables.FRAME_BGD]
 
         leftPanel  = inventoryLeftPanel(model)  { it.expand().fill().padRight(2f) }

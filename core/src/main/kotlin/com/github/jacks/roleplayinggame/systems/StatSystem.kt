@@ -20,6 +20,31 @@ class StatSystem : IntervalSystem(), EventListener {
 
     override fun onTick() = Unit
 
+    /** Returns true if the character's stat targeted by [statType] is already at its maximum. */
+    fun isStatFull(characterIndex: Int, statType: ConsumableStatType): Boolean {
+        val entity = playerFamily.firstOrNull() ?: return true
+        val stat = statMapper.getOrNull(entity) ?: return true
+        return when (statType) {
+            ConsumableStatType.HEALTH -> stat.currentHealth >= stat.maxHealth
+            ConsumableStatType.MANA   -> stat.currentMana   >= stat.maxMana
+        }
+    }
+
+    /**
+     * Returns the actual amount that would be restored for [item], clamped to the remaining
+     * capacity of the stat. Does NOT apply the change.
+     */
+    fun computeActualRecovery(characterIndex: Int, item: com.github.jacks.roleplayinggame.configurations.ConsumableItemData): Int {
+        val entity = playerFamily.firstOrNull() ?: return 0
+        val stat = statMapper.getOrNull(entity) ?: return 0
+        return when (item.statType) {
+            ConsumableStatType.HEALTH ->
+                item.statValue.toFloat().coerceAtMost(stat.maxHealth - stat.currentHealth).toInt()
+            ConsumableStatType.MANA ->
+                item.statValue.toFloat().coerceAtMost(stat.maxMana - stat.currentMana).toInt()
+        }
+    }
+
     override fun handle(event: Event): Boolean {
         when (event) {
             is EquipItemEvent -> {

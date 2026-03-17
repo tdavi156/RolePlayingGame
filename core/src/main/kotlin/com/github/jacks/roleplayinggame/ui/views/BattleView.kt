@@ -89,7 +89,11 @@ class BattleView(
                 isDisabled = true
             }).row()
             add(com.badlogic.gdx.scenes.scene2d.ui.TextButton("Items", skin, Buttons.YELLOW_BUTTON_MEDIUM.skinKey).apply {
-                isDisabled = true
+                addListener(object : ClickListener() {
+                    override fun clicked(event: InputEvent, x: Float, y: Float) {
+                        model.onItems()
+                    }
+                })
             })
             add(com.badlogic.gdx.scenes.scene2d.ui.TextButton("Flee", skin, Buttons.RED_BUTTON_MEDIUM.skinKey).apply {
                 addListener(object : ClickListener() {

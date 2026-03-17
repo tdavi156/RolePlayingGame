@@ -23,6 +23,7 @@ import com.github.jacks.roleplayinggame.components.BattleEndReason
 import com.github.jacks.roleplayinggame.components.BattlePhase
 import com.github.jacks.roleplayinggame.components.ImageComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.physicsComponentFromShape2D
+import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.PortalComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.components.NonPlayerConfiguration
@@ -41,6 +42,8 @@ import com.github.jacks.roleplayinggame.events.BattlePhaseChangedEvent
 import com.github.jacks.roleplayinggame.events.BattleRewardData
 import com.github.jacks.roleplayinggame.events.BattleRewardEvent
 import com.github.jacks.roleplayinggame.events.BattleTransitionStartEvent
+import com.github.jacks.roleplayinggame.events.CombatItemUseDismissedEvent
+import com.github.jacks.roleplayinggame.events.ItemUseFlashEvent
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.quillraven.fleks.AllOf
@@ -70,6 +73,7 @@ class BattleSystem(
 ) : IteratingSystem(), EventListener {
 
     private val preferences: Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
+    private val playerFamily by lazy { world.family(allOf = arrayOf(PlayerComponent::class)) }
 
     private var currentBattleEntity: Entity? = null
     private var currentPlayerEntity: Entity? = null
@@ -593,6 +597,29 @@ class BattleSystem(
                 return true
             }
 
+            // Player dismissed the item-use result message — advance the turn
+            is CombatItemUseDismissedEvent -> {
+                val battleEntity    = currentBattleEntity ?: return false
+                val battleComponent = battleComponents.getOrNull(battleEntity) ?: return false
+                if (battleComponent.phase == BattlePhase.PLAYER_TURN) {
+                    transitionPhase(battleComponent, BattlePhase.ENEMY_TURN)
+                }
+                return true
+            }
+
+            // Tint the target character to the item's flash color for ITEM_FLASH_DURATION, then restore
+            is ItemUseFlashEvent -> {
+                // characterIndex 0 always maps to the player entity
+                val targetEntity = playerFamily.firstOrNull() ?: return false
+                val targetImg = imageComponents.getOrNull(targetEntity)?.image ?: return false
+                targetImg.addAction(Actions.sequence(
+                    Actions.run { targetImg.color.set(event.flashColor) },
+                    Actions.delay(ITEM_FLASH_DURATION),
+                    Actions.run { targetImg.color.set(com.badlogic.gdx.graphics.Color.WHITE) }
+                ))
+                return true
+            }
+
             // External BattleEndEvent (safety / future-proofing)
             is BattleEndEvent -> {
                 sequenceRunning = false
@@ -641,10 +668,11 @@ class BattleSystem(
     }
 
     companion object {
-        private const val END_DELAY_SECONDS = 1.5f
-        private const val SLIDE_DURATION    = 0.4f
-        private const val FLASH_DURATION    = 0.1f
-        private const val HIT_FLASH_DELAY   = 0.25f  // seconds after ATTACK starts before the flash
-        private const val ATTACK_OFFSET     = 1.5f   // world units — stop this far from target center
+        private const val END_DELAY_SECONDS  = 1.5f
+        private const val SLIDE_DURATION     = 0.4f
+        private const val FLASH_DURATION     = 0.1f
+        private const val ITEM_FLASH_DURATION = 0.2f
+        private const val HIT_FLASH_DELAY    = 0.25f  // seconds after ATTACK starts before the flash
+        private const val ATTACK_OFFSET      = 1.5f   // world units — stop this far from target center
     }
 }

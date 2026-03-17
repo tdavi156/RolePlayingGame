@@ -6,12 +6,18 @@ import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.configurations.ConsumableItemData
+import com.github.jacks.roleplayinggame.configurations.ConsumableStatType
 import com.github.jacks.roleplayinggame.configurations.EquipmentItemData
+import com.github.jacks.roleplayinggame.events.CombatInventoryClosedEvent
+import com.github.jacks.roleplayinggame.events.CombatInventoryOpenEvent
+import com.github.jacks.roleplayinggame.events.CombatItemUseDismissedEvent
 import com.github.jacks.roleplayinggame.events.EquipItemEvent
 import com.github.jacks.roleplayinggame.events.InventoryOpenEvent
+import com.github.jacks.roleplayinggame.events.ItemUseFlashEvent
 import com.github.jacks.roleplayinggame.events.UseConsumableEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.systems.InventorySystem
+import com.github.jacks.roleplayinggame.systems.StatSystem
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.World
 
@@ -25,6 +31,8 @@ sealed class PendingAction {
 }
 
 data class CharacterDisplayInfo(val name: String, val hpPct: Float)
+
+private enum class ResultType { NONE, WARNING, OVERWORLD_SUCCESS, COMBAT_SUCCESS }
 
 class InventoryViewModel(
     private val world: World,
@@ -49,6 +57,11 @@ class InventoryViewModel(
     var pendingAction by propertyNotify<PendingAction>(PendingAction.None)
     var showingActionMenu by propertyNotify(false)
     var actionMenuFocusIndex by propertyNotify(0)  // 0 = primary action (Equip/Use), 1 = Cancel
+    var isCombatMode by propertyNotify(false)
+    // Non-empty while a result or warning message is shown in the left panel; empty = no message
+    var resultMessage by propertyNotify("")
+
+    private var currentResultType = ResultType.NONE
 
     val activeItemList: List<InventorySystem.InventoryEntry<*>>
         get() {
@@ -65,9 +78,56 @@ class InventoryViewModel(
         when (val action = pendingAction) {
             is PendingAction.Equipment ->
                 gameStage.fire(EquipItemEvent(action.item.id, characterIndex))
-            is PendingAction.Consumable ->
-                gameStage.fire(UseConsumableEvent(action.item.id, characterIndex))
+            is PendingAction.Consumable -> handleConsumableUse(action.item, characterIndex)
             PendingAction.None -> {}
+        }
+    }
+
+    private fun handleConsumableUse(item: ConsumableItemData, characterIndex: Int) {
+        val statSystem = world.system<StatSystem>()
+        val statLabel = if (item.statType == ConsumableStatType.HEALTH) "HP" else "MP"
+        val charName = partyCharacters.getOrNull(characterIndex)?.name ?: "Character"
+
+        if (statSystem.isStatFull(characterIndex, item.statType)) {
+            resultMessage = "$charName is already at full $statLabel!"
+            currentResultType = ResultType.WARNING
+            return
+        }
+
+        val recovery = statSystem.computeActualRecovery(characterIndex, item)
+        gameStage.fire(UseConsumableEvent(item.id, characterIndex, isCombatItemUse = isCombatMode))
+
+        // Reset action-selection state
+        pendingAction = PendingAction.None
+        showingActionMenu = false
+
+        // Fire flash effect on the character entity
+        gameStage.fire(ItemUseFlashEvent(characterIndex, item.flashColor))
+
+        // Show result message
+        resultMessage = "$charName recovered $recovery $statLabel!"
+        currentResultType = if (isCombatMode) ResultType.COMBAT_SUCCESS else ResultType.OVERWORLD_SUCCESS
+    }
+
+    /** Called when the player presses Enter or clicks to dismiss the current result/warning message. */
+    fun dismissResult() {
+        val type = currentResultType
+        resultMessage = ""
+        currentResultType = ResultType.NONE
+
+        when (type) {
+            ResultType.WARNING -> {
+                // Keep focus on character list so the player can pick a different character
+            }
+            ResultType.OVERWORLD_SUCCESS -> {
+                pendingAction = PendingAction.None
+                activeContext = InventoryContext.RIGHT
+            }
+            ResultType.COMBAT_SUCCESS -> {
+                gameStage.fire(CombatItemUseDismissedEvent())
+                // GameScreen closes the inventory overlay after this event
+            }
+            ResultType.NONE -> {}
         }
     }
 
@@ -78,14 +138,37 @@ class InventoryViewModel(
     override fun handle(event: Event): Boolean {
         when (event) {
             is InventoryOpenEvent -> {
+                isCombatMode = false
                 activeTab = InventoryTab.EQUIPMENT
                 focusedItemIndex = 0
                 activeContext = InventoryContext.RIGHT
                 showingActionMenu = false
                 actionMenuFocusIndex = 0
+                resultMessage = ""
+                currentResultType = ResultType.NONE
                 return true
             }
-            is EquipItemEvent, is UseConsumableEvent -> {
+            is CombatInventoryOpenEvent -> {
+                isCombatMode = true
+                activeTab = InventoryTab.CONSUMABLES
+                focusedItemIndex = 0
+                focusedCharacterIndex = 0
+                activeContext = InventoryContext.RIGHT
+                showingActionMenu = false
+                actionMenuFocusIndex = 0
+                resultMessage = ""
+                currentResultType = ResultType.NONE
+                return true
+            }
+            is CombatInventoryClosedEvent -> {
+                isCombatMode = false
+                pendingAction = PendingAction.None
+                showingActionMenu = false
+                resultMessage = ""
+                currentResultType = ResultType.NONE
+                return true
+            }
+            is EquipItemEvent -> {
                 pendingAction = PendingAction.None
                 showingActionMenu = false
                 actionMenuFocusIndex = 0

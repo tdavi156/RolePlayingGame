@@ -21,6 +21,9 @@ import com.github.jacks.roleplayinggame.events.BattleEndTransitionStartEvent
 import com.github.jacks.roleplayinggame.events.BattleEvent
 import com.github.jacks.roleplayinggame.events.BattleRewardEvent
 import com.github.jacks.roleplayinggame.events.BattleTransitionStartEvent
+import com.github.jacks.roleplayinggame.events.CombatInventoryClosedEvent
+import com.github.jacks.roleplayinggame.events.CombatInventoryOpenEvent
+import com.github.jacks.roleplayinggame.events.CombatItemUseDismissedEvent
 import com.github.jacks.roleplayinggame.events.RewardDismissedEvent
 import com.github.jacks.roleplayinggame.events.InitializeGameEvent
 import com.github.jacks.roleplayinggame.events.fire
@@ -275,6 +278,18 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
             is RewardDismissedEvent -> {
                 uiStage.actors.filterIsInstance<RewardView>().first().isVisible = false
                 exitBattleMode(BattleEndReason.WIN)
+                return true
+            }
+            is CombatInventoryOpenEvent -> {
+                uiStage.actors.filterIsInstance<com.github.jacks.roleplayinggame.ui.views.InventoryView>().first().isVisible = true
+                return true
+            }
+            is CombatInventoryClosedEvent -> {
+                uiStage.actors.filterIsInstance<com.github.jacks.roleplayinggame.ui.views.InventoryView>().first().isVisible = false
+                return true
+            }
+            is CombatItemUseDismissedEvent -> {
+                uiStage.actors.filterIsInstance<com.github.jacks.roleplayinggame.ui.views.InventoryView>().first().isVisible = false
                 return true
             }
             is ShopOpenEvent -> {

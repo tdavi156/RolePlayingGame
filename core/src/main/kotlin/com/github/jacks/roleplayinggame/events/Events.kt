@@ -1,5 +1,6 @@
 package com.github.jacks.roleplayinggame.events
 
+import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.maps.tiled.TiledMap
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer.Cell
 import com.badlogic.gdx.scenes.scene2d.Event
@@ -57,7 +58,13 @@ class InventoryOpenEvent : Event()
 class InventoryClosedEvent : Event()
 
 data class EquipItemEvent(val itemId: Int, val characterIndex: Int) : Event()
-data class UseConsumableEvent(val itemId: Int, val characterIndex: Int) : Event()
+data class UseConsumableEvent(val itemId: Int, val characterIndex: Int, val isCombatItemUse: Boolean = false) : Event()
+
+// Combat inventory events
+class CombatInventoryOpenEvent : Event()
+class CombatInventoryClosedEvent : Event()
+class CombatItemUseDismissedEvent : Event()
+data class ItemUseFlashEvent(val characterIndex: Int, val flashColor: Color) : Event()
 
 // Shop events
 class ShopInteractionEvent(val shopId: Int) : Event()

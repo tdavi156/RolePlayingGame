@@ -16,6 +16,7 @@ import com.github.jacks.roleplayinggame.events.BattleHealthUpdateEvent
 import com.github.jacks.roleplayinggame.events.BattleLogDismissedEvent
 import com.github.jacks.roleplayinggame.events.BattleLogEvent
 import com.github.jacks.roleplayinggame.events.BattlePhaseChangedEvent
+import com.github.jacks.roleplayinggame.events.CombatInventoryOpenEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.Entity
@@ -52,8 +53,9 @@ class BattleViewModel(
 
     // -- Action callbacks invoked by BattleView button clicks -----------------
 
-    fun onAttack()      = gameStage.fire(BattleActionSelectedEvent(BattleAction.ATTACK))
-    fun onFlee()        = gameStage.fire(BattleActionSelectedEvent(BattleAction.FLEE))
+    fun onAttack()       = gameStage.fire(BattleActionSelectedEvent(BattleAction.ATTACK))
+    fun onFlee()         = gameStage.fire(BattleActionSelectedEvent(BattleAction.FLEE))
+    fun onItems()        = gameStage.fire(CombatInventoryOpenEvent())
     fun onLogDismissed() = gameStage.fire(BattleLogDismissedEvent())
 
     // -- Event handling -------------------------------------------------------
