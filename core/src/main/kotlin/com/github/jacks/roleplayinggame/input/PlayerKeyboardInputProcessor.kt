@@ -4,7 +4,6 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input.Keys.*
 import com.badlogic.gdx.InputMultiplexer
 import com.badlogic.gdx.InputProcessor
-import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.MoveComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
@@ -17,16 +16,11 @@ import com.github.jacks.roleplayinggame.ui.views.CharacterInfoView
 import com.github.jacks.roleplayinggame.ui.views.InventoryView
 import com.github.jacks.roleplayinggame.ui.views.MapView
 import com.github.jacks.roleplayinggame.ui.views.MenuView
-import com.github.jacks.roleplayinggame.ui.views.PauseView
 import com.github.jacks.roleplayinggame.ui.views.QuestView
+import com.github.jacks.roleplayinggame.ui.views.SettingsView
 import com.github.jacks.roleplayinggame.ui.views.SkillView
-import com.github.jacks.roleplayinggame.ui.views.characterInfoView
-import com.github.jacks.roleplayinggame.ui.views.inventoryView
-import com.github.jacks.roleplayinggame.ui.views.mapView
-import com.github.jacks.roleplayinggame.ui.views.menuView
-import com.github.jacks.roleplayinggame.ui.views.questView
-import com.github.jacks.roleplayinggame.ui.views.skillView
 import com.github.jacks.roleplayinggame.input.ViewType.*
+import com.github.jacks.roleplayinggame.ui.viewmodels.SettingsViewModel
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.World
 import ktx.app.KtxInputAdapter
@@ -34,7 +28,7 @@ import ktx.log.logger
 import ktx.math.vec2
 
 enum class ViewType {
-    NO_VIEW, CHARACTER, INVENTORY, SKILL, QUEST, MAP, MAIN_MENU
+    NO_VIEW, CHARACTER, INVENTORY, SKILL, QUEST, MAP, MAIN_MENU, SETTINGS
 }
 
 fun gdxInputProcessor(processor : InputProcessor) {
@@ -53,10 +47,11 @@ fun gdxInputProcessor(processor : InputProcessor) {
 }
 
 class PlayerKeyboardInputProcessor(
-    private val world : World,
-    private val gameStage : Stage,
-    private val uiStage : Stage,
-    private val moveComponents : ComponentMapper<MoveComponent> = world.mapper(),
+    private val world: World,
+    private val gameStage: Stage,
+    private val uiStage: Stage,
+    private val settingsViewModel: SettingsViewModel? = null,
+    private val moveComponents: ComponentMapper<MoveComponent> = world.mapper(),
 ) : KtxInputAdapter {
 
     private var playerSin = 0f
@@ -101,6 +96,20 @@ class PlayerKeyboardInputProcessor(
 //    }
 
     override fun keyDown(keycode: Int): Boolean {
+        // Settings navigation takes priority over all other key handling
+        if (getActiveView() == SETTINGS) {
+            val model = settingsViewModel ?: return false
+            when (keycode) {
+                UP -> model.moveFocusedRow(-1)
+                DOWN -> model.moveFocusedRow(1)
+                LEFT -> model.adjustCurrentValue(-10)
+                RIGHT -> model.adjustCurrentValue(10)
+                ENTER -> model.confirmCurrentRow()
+                ESCAPE -> model.cancel()
+            }
+            return true
+        }
+
         if (keycode.isMovementKey()) {
             when (keycode) {
                 UP -> {
@@ -140,7 +149,7 @@ class PlayerKeyboardInputProcessor(
             updatePlayerDirection()
             log.debug { "key pressed: $keycode, cos: $playerCos, sin: $playerSin, direction: $playerDirection" }
             return true
-        } else if (!keycode.isMovementKey()) {
+        } else {
             val backgroundView = uiStage.actors.filterIsInstance<BackgroundView>().first()
             when (keycode) {
                 ESCAPE -> {
@@ -253,12 +262,12 @@ class PlayerKeyboardInputProcessor(
                 }
             }
             return true
-        } else {
-            return false
         }
     }
 
     override fun keyUp(keycode: Int): Boolean {
+        if (getActiveView() == SETTINGS) return true
+
         if (keycode.isMovementKey()) {
             when (keycode) {
                 UP -> {
@@ -318,7 +327,8 @@ class PlayerKeyboardInputProcessor(
         return false
     }
 
-    private fun getActiveView() : ViewType {
+    private fun getActiveView(): ViewType {
+        val settingsView = uiStage.actors.filterIsInstance<SettingsView>().firstOrNull()
         val characterInfoView = uiStage.actors.filterIsInstance<CharacterInfoView>().first()
         val inventoryView = uiStage.actors.filterIsInstance<InventoryView>().first()
         val skillView = uiStage.actors.filterIsInstance<SkillView>().first()
@@ -326,6 +336,7 @@ class PlayerKeyboardInputProcessor(
         val mapView = uiStage.actors.filterIsInstance<MapView>().first()
         val menuView = uiStage.actors.filterIsInstance<MenuView>().first()
 
+        if (settingsView?.isVisible == true) { return SETTINGS }
         if (characterInfoView.isVisible) { return CHARACTER }
         if (inventoryView.isVisible) { return INVENTORY }
         if (skillView.isVisible) { return SKILL }
@@ -337,6 +348,7 @@ class PlayerKeyboardInputProcessor(
 
     private fun clearActiveView() {
         uiStage.actors.filterIsInstance<BackgroundView>().first().isVisible = false
+        uiStage.actors.filterIsInstance<SettingsView>().firstOrNull()?.isVisible = false
         uiStage.actors.filterIsInstance<CharacterInfoView>().first().isVisible = false
         uiStage.actors.filterIsInstance<InventoryView>().first().isVisible = false
         uiStage.actors.filterIsInstance<SkillView>().first().isVisible = false
