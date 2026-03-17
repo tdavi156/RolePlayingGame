@@ -39,176 +39,250 @@
 | File | Purpose |
 |------|---------|
 | `screens/GameScreen.kt` | Main screen. Owns `gameStage`, `uiStage`, `entityWorld`. Manages system enable/disable, UI layer transitions (fade in/out), input processors. `render()` drives the ECS tick. |
-| `systems/BattleSystem.kt` | Contains events for battle actions and animations. Drives battle flow and enemy death logic. |
 | `systems/InitializeGameSystem.kt` | Handles game startup — loads prefs, initializes systems. Pattern for loading/writing defaults. |
-| `ui/views/BattleView.kt` | Battle UI layer. Reward overlay will be shown here at end of battle. |
-| `ui/views/CharacterInfoView.kt` | Displays character stats. Will be extended to show gold. |
-| `components/ItemComponent.kt` | Holds item data per entity. To be refactored to reference items by name key. |
+| `systems/StatSystem.kt` | Handles stat recalculation for player entities. Currently recalculates equipment-derived stats. Will be extended to support current HP/MP modification from consumables. |
+| `components/ItemComponent.kt` | Currently holds equipped item data per entity. To be reworked — will only hold equipped item references by ID. |
+| `ui/views/InventoryView.kt` | Existing inventory UI using drag-and-drop. Will be fully replaced by the new tabbed inventory view. |
+| `input/PlayerKeyboardInputProcessor.kt` | Handles all keyboard input routing. Inventory open (`I` key) and in-inventory navigation handled here. |
+| `ui/views/MainGameView.kt` | Contains the Inventory button that opens `InventoryView`. Will be rewired to new view. |
+| `events/Events.kt` | Central event definitions. New inventory events added here. |
 
 ---
 
 ## Next Feature
 
-# Items, Loot, and Gold Reward System
+# Inventory Rework — UI, Item Types, and Functionality
 
 ## Context
-- `Resources` is account-scoped (not character-scoped) — gold must persist independently of the active character, as multiple characters will be supported in future
-- Items are currently defined via `ItemType` enum in `ItemComponent.kt` — this will be migrated to a named data class config in `Items.kt`
-- Loot drops are intentionally rare: typical enemies roll a drop chance first (e.g. 25%), then select randomly from an equal-weight item pool
-- The reward screen is an overlay inside `BattleView` — battle does not conclude until the player dismisses it
+- The existing inventory is a drag-and-drop grid system — it has bugs, is hard to extend, and will be fully replaced
+- Drag-and-drop infrastructure is preserved as a generic UI utility but formally decoupled from all inventory logic
+- The new inventory is a tabbed, text-based list UI inspired by the Pokémon Bag layout: right side shows tabs + item list + info panel, left side shows context-sensitive character/item info
+- Inventory is account-scoped, not entity-scoped — `InventorySystem` is a standalone singleton (like `ResourceSystem`), not a component on `PlayerEntity`
+- Items stack by unique integer ID — same ID = same item, quantity tracked alongside. ID ranges are documented per category in comment blocks
+- `InventoryComponent` on `PlayerEntity` is retained but reduced to holding only currently equipped item IDs
+- Left-side context switches automatically when an item action (Equip/Use) is initiated; Q/E manual context switching is deferred to a future feature
 
 ---
 
-## Part 1 — Create `Resources.kt` Data Class
+## Part 1 — Rename Item Config, Create Stat Type Enums, Add Missing Fields
 
-Create `configurations/resources/Resources.kt`:
-- Data class `Resources` with field: `gold: Int = 0`
-- Companion object with pref key constant: `KEY_GOLD`
-- Designed for future expansion — additional resource types (crystals, jewels, quest items) added here as new fields
+Rename `configurations/Items.kt` → `configurations/EquipmentItems.kt`:
+- Rename `ItemData` → `EquipmentItemData`, `StatType` → `EquipmentStatType`
+- Add fields: `id: Int`, `isSellable: Boolean = true`, `goldValue: Int = 10`
+- ID range for equipment: `1000–1999` — document in a comment block at the top of the file:
+  ```
+  // ID Ranges:
+  // Equipment:           1000–1999
+  // Consumables:         2000–2999
+  // Quest Items:         3000–3999
+  // Battle Enchantments: 4000–4999
+  ```
+- Assign IDs to all existing equipment entries
+
+Create `configurations/EquipmentStatType.kt`:
+- Enum `EquipmentStatType` — move existing stat type values here from old `StatType`
+
+Create `configurations/ConsumableStatType.kt`:
+- Enum `ConsumableStatType` with values relevant to consumable effects: `HEALTH`, `MANA` (expand later as needed)
+
+Create `configurations/BattleEnchantmentStatType.kt`:
+- Enum `BattleEnchantmentStatType` with values for passive combat bonuses: `HEALTH`, `ATTACK`, `DEFENSE` (expand later as needed)
+
+Update all existing references to `ItemData` and `StatType` to use the new renamed types — compilation must pass.
 
 ---
 
-## Part 2 — Create `ResourceSystem.kt`
+## Part 2 — Create `ConsumableItems.kt`, `QuestItems.kt`, `BattleEnchantmentItems.kt`
 
-Create `systems/ResourceSystem.kt`:
-- Extend `IntervalSystem()`, implement `EventListener`
-- Hold `var resources = Resources()` as single runtime source of truth
-- No prefs access here — loaded in Part 3, saved on gold change
-- Register in `GameScreen.kt` alongside other systems
-- Expose a `saveResources(preferences)` method for other systems to call after modifying gold
+Create `configurations/ConsumableItems.kt`:
+- Data class `ConsumableItemData`: `id: Int`, `itemName: String`, `uiAtlasKey: String`, `statType: ConsumableStatType`, `statValue: Int`, `goldValue: Int = 10`, `isSellable: Boolean = true`
+- 3 dummy entries (IDs `2001–2003`), all using `"armor"` atlas key
+- Commented add-item template at top of list
+
+Create `configurations/QuestItems.kt`:
+- Data class `QuestItemData`: `id: Int`, `itemName: String`, `uiAtlasKey: String`, `itemDescription: String`, `questId: Int = 0`, `isSellable: Boolean = false`
+- 3 dummy entries (IDs `3001–3003`), all using `"boots"` atlas key
+- Commented add-item template at top of list
+
+Create `configurations/BattleEnchantmentItems.kt`:
+- Data class `BattleEnchantmentItemData`: `id: Int`, `itemName: String`, `uiAtlasKey: String`, `itemDescription: String`, `statType: BattleEnchantmentStatType`, `statValue: Int`, `goldValue: Int = 0`, `isSellable: Boolean = false`
+- 3 dummy entries (IDs `4001–4003`), all using `"sword2"` atlas key
+- Commented add-item template at top of list
 
 ---
 
-## Part 3 — Load Resources from Prefs on Startup
+## Part 3 — Formally Decouple Drag-and-Drop from Inventory
+
+Modify the existing drag-and-drop system:
+- Remove all references to inventory slots, `InventoryComponent`, and item equipping from drag-and-drop classes
+- Preserve all drag-and-drop infrastructure as a generic UI utility — no functional removal, just inventory-specific wiring stripped out
+- Confirm drag-and-drop still compiles and does not throw at runtime after decoupling
+
+---
+
+## Part 4 — Create `InventorySystem.kt` as Singleton
+
+Create `systems/InventorySystem.kt`:
+- Extend `IntervalSystem()`, implement `EventListener`; register in `GameScreen.kt`
+- Internal state — four typed lists, each entry is a data class pairing item data with quantity:
+  - `equipment: MutableList<InventoryEntry<EquipmentItemData>>`
+  - `consumables: MutableList<InventoryEntry<ConsumableItemData>>`
+  - `questItems: MutableList<InventoryEntry<QuestItemData>>`
+  - `enchantments: MutableList<InventoryEntry<BattleEnchantmentItemData>>`
+- `InventoryEntry<T>(val item: T, var quantity: Int)` — defined as a small data class in the same file
+- Stacking logic on `addItem()`: check if an entry with the same `id` exists — if so, increment `quantity`; otherwise add a new entry with `quantity = 1`
+- Expose: `addItem()`, `removeItem()` (decrements quantity, removes entry at 0), `getEquippedIds(): Map<ItemCategory, Int?>` for `InventoryComponent` sync
+
+---
+
+## Part 5 — Rework `InventoryComponent` and Seed Starting Items
+
+Modify `components/ItemComponent.kt` / `InventoryComponent`:
+- Reduce to holding only currently equipped item IDs per slot: `Map<ItemCategory, Int?>` — one nullable ID per category
+- Remove all owned-item list logic — `InventorySystem` is now the source of truth
 
 Modify `systems/InitializeGameSystem.kt`:
-- Inject `ResourceSystem` via world (same pattern as `SettingsSystem`)
-- After existing init logic, check for `KEY_GOLD` in `"rolePlayingGamePrefs"`: if absent, write defaults via `preferences.flush { ... }`; if present, read and assign to `resourceSystem.resources`
-- Use the existing `preferences` instance — do not open a second one
+- After existing init logic, seed starting inventory via `inventorySystem.addItem()`:
+  - 5 equipment items (varied, from existing `EquipmentItems`)
+  - 2 consumables (from dummy `ConsumableItems`)
+  - 2 quest items (from dummy `QuestItems`)
+  - 2 battle enchantments (from dummy `BattleEnchantmentItems`)
 
 ---
 
-## Part 4 — Refactor `ItemComponent.kt` and `ItemModel.kt`
+## Part 6 — Build `InventoryViewModel.kt`
 
-Modify `components/ItemComponent.kt` and `ItemModel.kt`:
-- Remove `ItemType` enum as the source of item data
-- Update `ItemComponent` and `ItemModel` to reference items by `name: String` key
-- Item category, stats, and display data will now live in `Items.kt` (Part 5)
-- Keep compilation passing — existing item references will be updated in Part 5
-
----
-
-## Part 5 — Create `Items.kt` Configuration File
-
-Create `configurations/Items.kt`:
-- Enum class `ItemCategory { HELMET, WEAPON, ARMOR, BOOTS }`
-- Data class `ItemData` with fields: `name: String`, `category: ItemCategory`, `uiAtlasKey: String`, `stats: Map<StatType, Int>` — `Map` enforces no duplicate `StatType` per item
-- Migrate all existing `ItemType` entries into `ItemData` instances, preserving original values exactly
-- Include a commented template block at the top of the item list for adding new items:
-  ```
-  // ItemData(
-  //     name = "Item Name",
-  //     category = ItemCategory.WEAPON,
-  //     uiAtlasKey = "atlas_key",
-  //     stats = mapOf(StatType.ATTACK_DAMAGE to 10, StatType.DEFENSE to 2)
-  // ),
-  ```
-
----
-
-## Part 6 — Create `ItemPools.kt` Configuration File
-
-Create `configurations/ItemPools.kt`:
-- Named pools as `List<String>` of item name keys: `TIER_1_ITEMS`, `TIER_2_ITEMS` (populated from migrated items — assign tiers based on item strength)
-- Utility functions:
-  - `rollForDrop(chance: Int): Boolean` — takes 1–100, returns true if random roll ≤ chance
-  - `rollRandomItem(pool: List<String>): ItemData` — returns a uniformly random `ItemData` from the pool by name lookup against `Items.kt`
-- Include a comment block for adding new pools and assigning items to tiers
-
----
-
-## Part 7 — Add Reward Fields to Enemy Configuration
-
-Modify the existing enemy config file:
-- Add fields per enemy type: `expReward: Int`, `goldReward: Int`, `lootPool: List<String>?` (null = no item drop possible), `lootChance: Int` (1–100)
-- Typical enemy example: `lootChance = 25`, `lootPool = TIER_1_ITEMS`
-- Boss example: `lootChance = 100`, `lootPool = listOf("Specific Item Name")` for a guaranteed named drop
-- Populate all existing enemy types with appropriate values
-
----
-
-## Part 8 — Resolve Rewards in `BattleSystem.kt`
-
-Modify `systems/BattleSystem.kt`:
-- After enemy death, resolve rewards: collect fixed `expReward` and `goldReward` from the enemy config
-- If `lootPool` is non-null: call `rollForDrop(enemy.lootChance)` — if true, call `rollRandomItem(enemy.lootPool)` to select an item
-- Package results into a `BattleRewardData` object: `expGained: Int`, `goldGained: Int`, `itemDropped: ItemData?`
-- Fire `BattleRewardEvent(rewardData)` on `gameStage`
-
----
-
-## Part 9 — Create `RewardViewModel.kt`
-
-Create `ui/viewmodels/RewardViewModel.kt`:
+Create `ui/viewmodels/InventoryViewModel.kt`:
 - Extend `PropertyChangeSource`, implement `EventListener`; register on `uiStage`
-- Observable properties: `expGained by propertyNotify(0)`, `goldGained by propertyNotify(0)`, `itemDropped by propertyNotify<ItemData?>(null)`
-- On `BattleRewardEvent`: populate all properties from `rewardData`, apply `goldGained` delta to `resourceSystem.resources.gold`, call `resourceSystem.saveResources(preferences)`
+- Enums defined here or in a shared file: `InventoryTab { EQUIPMENT, CONSUMABLES, QUEST_ITEMS, ENCHANTMENTS }`, `InventoryContext { LEFT, RIGHT }`
+- Observable properties: `activeTab by propertyNotify(InventoryTab.EQUIPMENT)`, `focusedItemIndex by propertyNotify(0)`, `activeContext by propertyNotify(InventoryContext.RIGHT)`, `focusedCharacterIndex by propertyNotify(0)`, `pendingActionItem by propertyNotify<Any?>(null)` (holds item awaiting character selection)
+- Computed accessors return the current tab's item list from `InventorySystem`
+- On `InventoryOpenEvent`: reset `activeTab`, `focusedItemIndex`, `activeContext` to defaults
 
 ---
 
-## Part 10 — Build `RewardView.kt` Overlay Widget
+## Part 7 — Build Right-Side Panel (`InventoryRightPanel`)
 
-Create `ui/views/RewardView.kt` (or `ui/widgets/RewardView.kt` if treated as a reusable widget):
-- Extend `Table(skin)`, mix `KTable`
-- Layout: EXP gained, gold gained, item drop row (icon from `uiAtlasKey` + item name, or blank if null)
-- Confirm button fires `RewardDismissedEvent` on `uiStage`
-- Bind all fields to `RewardViewModel` properties via `model.onPropertyChange()`
-- Add DSL extension function following existing view patterns
-
----
-
-## Part 11 — Wire RewardView as `BattleView` Overlay
-
-Modify `ui/views/BattleView.kt`:
-- Add `RewardView` as a hidden overlay, shown when `BattleRewardEvent` is received
-- Player input (keyboard confirm or mouse click) fires `RewardDismissedEvent`
-- `RewardDismissedEvent` hides the overlay and triggers the existing battle-end → overworld transition
+Create `ui/widgets/InventoryRightPanel.kt`:
+- **Top section** — tab bar: Equipment / Consumables / Quest Items / Battle Enchantments. Active tab highlighted. Left/Right arrow keys cycle tabs via `model.activeTab`.
+- **Middle section** — scrollable dynamic item list. Each row: `uiAtlasKey` icon + item name + quantity badge if `quantity > 1`. Focused row highlighted. Up/Down arrow keys move `model.focusedItemIndex` (clamped to list size).
+- **Bottom section** — item info display. Updates on focus change (keyboard or mouse hover). Never moves — fixed position, not a tooltip.
+  - Equipment: raw stats list (`EquipmentStatType` → value pairs)
+  - Consumable: stat type + value (e.g. "Restores 20 HP")
+  - Quest item: `itemDescription` + `questId` stub
+  - Enchantment: `itemDescription` + stat type/value
+- Binds all sections to `InventoryViewModel` via `model.onPropertyChange()`
 
 ---
 
-## Part 12 — Display Gold in `CharacterInfoView`
+## Part 8 — Build Left-Side Context Panel (`InventoryLeftPanel`)
 
-Modify `ui/views/CharacterInfoView.kt` (or its ViewModel):
-- Inject `ResourceSystem` via world
-- Add a gold display field bound to `resourceSystem.resources.gold`
-- Updates reactively when gold changes (e.g. after reward is applied in Part 9)
+Create `ui/widgets/InventoryLeftPanel.kt`:
+- Display changes based on `model.activeTab`:
+  - **Equipment / Consumables**: character list. Each row shows character name, portrait placeholder, and HP bar. Focused row highlighted when `model.activeContext == LEFT`. Layout mirrors the left panel in the reference image.
+  - **Quest Items**: stubbed display strings — `Quest ID: ----`, `Quest Name: ----`, `Quest Description: ----`, `Quest Progress: ----`
+  - **Enchantments**: item name, description, stat type, and stat value from the focused enchantment entry
+- Binds to `InventoryViewModel` via `model.onPropertyChange()`
 
 ---
 
-## Part 13 — Verification Pass
+## Part 9 — Assemble `InventoryView.kt`
 
-- Confirm all existing items migrated correctly from `ItemType` — stats and categories match original values
-- Confirm gold persists correctly across game restart via prefs
-- Confirm loot rolls behave correctly: 0% chance never drops, 100% always drops
-- `./gradlew :core:compileKotlin` must pass after each part
+Replace existing `ui/views/InventoryView.kt`:
+- Full-screen `Table`, `setFillParent(true)`
+- Composes `InventoryLeftPanel` (left) and `InventoryRightPanel` (right) side by side
+- Both panels share the same `InventoryViewModel` instance
+- DSL extension function following existing view patterns
+- Rewire `PlayerKeyboardInputProcessor.kt` (`I` key) and `MainGameView.kt` (Inventory button) to open this new view
+
+---
+
+## Part 10 — Keyboard Navigation
+
+Modify `input/PlayerKeyboardInputProcessor.kt`:
+- When `InventoryView` is active and `model.activeContext == RIGHT`:
+  - **Left / Right**: cycle `model.activeTab`, reset `model.focusedItemIndex` to 0
+  - **Up / Down**: move `model.focusedItemIndex` within current list (clamped)
+  - **Enter**: if item focused, trigger item action (see Part 11)
+- When `model.activeContext == LEFT`:
+  - **Up / Down**: move `model.focusedCharacterIndex` (clamped to party size)
+  - **Enter**: confirm action on focused character (see Part 12)
+  - **Esc / B**: cancel — clear `pendingActionItem`, return `activeContext` to `RIGHT`
+- **Esc** when `activeContext == RIGHT`: close inventory, fire `InventoryClosedEvent`
+
+---
+
+## Part 11 — Item Action Context (Equip / Use / Cancel)
+
+Modify `InventoryViewModel` and `InventoryRightPanel`:
+- On Enter with a focused item in the right panel:
+  - Equipment: show inline action options `Equip` / `Cancel` on the focused row
+  - Consumables: show inline action options `Use` / `Cancel` on the focused row
+  - Quest Items / Enchantments: no action options — Enter is a no-op on these tabs
+- On `Equip` or `Use` selected: set `model.pendingActionItem` to the focused item, switch `model.activeContext` to `LEFT` — keyboard focus moves to the character list
+- On `Cancel`: clear `model.pendingActionItem`, return `activeContext` to `RIGHT`
+
+---
+
+## Part 12 — Wire Actions to `StatSystem` and `InventorySystem`
+
+Add event handlers (in `InventoryViewModel` or a dedicated handler):
+
+**`EquipItemEvent(itemId: Int, characterIndex: Int)`**:
+- Update `InventoryComponent` equipped slot for the target character with the new item ID
+- Trigger `StatSystem` stat recalculation (existing pattern) — removes old item's `EquipmentStatType` bonuses, applies new item's bonuses
+- Clear `model.pendingActionItem`, return `activeContext` to `RIGHT`
+
+**`UseConsumableEvent(itemId: Int, characterIndex: Int)`**:
+- Look up `ConsumableItemData` by ID from `ConsumableItems`
+- Apply `statValue` delta to the target character's current stat via `StatSystem` — this requires a pass on `StatSystem` to support direct modification of transient current values (e.g. `currentHealth`, `currentMana`) separately from equipment-derived recalculation
+- Call `inventorySystem.removeItem(itemId)` — decrements quantity, removes entry at 0
+- Clear `model.pendingActionItem`, return `activeContext` to `RIGHT`
+
+Add both events to `events/Events.kt`.
+
+---
+
+## Part 13 — Mouse Interaction
+
+Modify `InventoryRightPanel`:
+- Hovering an item row updates `model.focusedItemIndex` (info panel updates immediately)
+- Clicking a row sets focus; double-clicking triggers the same action as Enter
+- Tab headers are clickable — clicking sets `model.activeTab` and resets `focusedItemIndex`
+
+Modify `InventoryLeftPanel`:
+- Clicking a character row sets `model.focusedCharacterIndex`
+- If `model.pendingActionItem != null`, clicking a character row also confirms the pending action (fires `EquipItemEvent` or `UseConsumableEvent`)
+
+---
+
+## Part 14 — Verification Pass
+
+- Confirm drag-and-drop compiles and functions with no inventory references remaining
+- Confirm stacking: adding two items with the same ID increments quantity, not list size
+- Confirm equipped items are reflected correctly in `StatSystem` after equip action
+- Confirm consumable use modifies `currentHealth`/`currentMana` and removes from inventory at quantity 0
+- Confirm all 4 item type lists populate correctly from seeded starting items
+- `./gradlew :core:compileKotlin` — must pass after each part
 
 ---
 
 ## Implementation Order
 
-1. **Part 1** — Create `Resources.kt` data class with `gold: Int = 0` and pref key constants in `configurations/resources/`
-2. **Part 2** — Create `ResourceSystem` holding the active `Resources` instance; register in `GameScreen`
-3. **Part 3** — Update `InitializeGameSystem` to load gold from prefs on startup — write defaults if absent, populate system if present
-4. **Part 4** — Refactor `ItemComponent` and `ItemModel` to reference items by string name key, removing `ItemType` enum dependency
-5. **Part 5** — Create `Items.kt` with `ItemData` data class and `ItemCategory` enum; migrate all existing items; include commented add-item template
-6. **Part 6** — Create `ItemPools.kt` with `TIER_1_ITEMS` / `TIER_2_ITEMS` pools and `rollForDrop()` / `rollRandomItem()` utility functions
-7. **Part 7** — Add `expReward`, `goldReward`, `lootPool`, and `lootChance` fields to all existing enemy config entries
-8. **Part 8** — Resolve rewards in `BattleSystem` after enemy death — roll drop chance, select item if applicable, fire `BattleRewardEvent`
-9. **Part 9** — Create `RewardViewModel` to handle `BattleRewardEvent`, populate observable properties, and apply gold delta to `ResourceSystem`
-10. **Part 10** — Build `RewardView` overlay widget — displays EXP, gold, and optional item drop with confirm button firing `RewardDismissedEvent`
-11. **Part 11** — Wire `RewardView` into `BattleView` as a hidden overlay; show on reward event, dismiss on player input, then trigger existing battle-end transition
-12. **Part 12** — Add gold display field to `CharacterInfoView`, bound reactively to `ResourceSystem`
-13. **Part 13** — Verification pass: item migration, gold prefs persistence, loot roll correctness, compilation after each part
+1. **Part 1** — Rename `Items.kt` → `EquipmentItems.kt`, rename types, add `id`/`isSellable`/`goldValue` fields, create `EquipmentStatType`, `ConsumableStatType`, `BattleEnchantmentStatType` enums in separate files
+2. **Part 2** — Create `ConsumableItems.kt`, `QuestItems.kt`, `BattleEnchantmentItems.kt` with data classes and dummy entries per spec
+3. **Part 3** — Formally decouple drag-and-drop from inventory — strip inventory-specific wiring, preserve generic infrastructure
+4. **Part 4** — Create `InventorySystem` singleton with typed item lists, stacking logic, and `addItem`/`removeItem` methods; register in `GameScreen`
+5. **Part 5** — Reduce `InventoryComponent` to equipped item IDs only; seed 11 starting items in `InitializeGameSystem` for testing
+6. **Part 6** — Create `InventoryViewModel` with tab, focus, context, and pending action observable properties
+7. **Part 7** — Build `InventoryRightPanel` widget — tab bar, dynamic item list with quantity badges, fixed item info panel at bottom
+8. **Part 8** — Build `InventoryLeftPanel` widget — character list for equipment/consumable tabs, stubbed displays for quest/enchantment tabs
+9. **Part 9** — Assemble new `InventoryView` from both panels; rewire `PlayerKeyboardInputProcessor` and `MainGameView` to use it
+10. **Part 10** — Implement keyboard navigation — tab cycling, item focus, context switching, escape handling
+11. **Part 11** — Implement item action context — inline Equip/Use/Cancel options on focused item, context switch to left panel on confirm
+12. **Part 12** — Wire `EquipItemEvent` to `StatSystem` for equipment recalc; wire `UseConsumableEvent` to `StatSystem` for transient current-value modification; extend `StatSystem` to support `currentHealth`/`currentMana` deltas
+13. **Part 13** — Implement mouse interaction — hover updates info panel, click sets focus, double-click triggers action, character row click confirms pending action
+14. **Part 14** — Verification pass: drag-and-drop decoupling, stacking, stat recalc, consumable use, list population, compilation after each part
 
 ---
 
@@ -217,19 +291,24 @@ Modify `ui/views/CharacterInfoView.kt` (or its ViewModel):
 | File | Path |
 |------|------|
 | GameScreen | `core/src/main/kotlin/.../screens/GameScreen.kt` |
-| BattleSystem | `core/src/main/kotlin/.../systems/BattleSystem.kt` |
 | InitializeGameSystem | `core/src/main/kotlin/.../systems/InitializeGameSystem.kt` |
-| BattleView | `core/src/main/kotlin/.../ui/views/BattleView.kt` |
-| CharacterInfoView | `core/src/main/kotlin/.../ui/views/CharacterInfoView.kt` |
-| ItemComponent | `core/src/main/kotlin/.../components/ItemComponent.kt` |
-| ItemModel | `core/src/main/kotlin/.../components/ItemModel.kt` |
+| StatSystem | `core/src/main/kotlin/.../systems/StatSystem.kt` |
+| ItemComponent / InventoryComponent | `core/src/main/kotlin/.../components/ItemComponent.kt` |
+| PlayerKeyboardInputProcessor | `core/src/main/kotlin/.../input/PlayerKeyboardInputProcessor.kt` |
+| MainGameView | `core/src/main/kotlin/.../ui/views/MainGameView.kt` |
 | Events | `core/src/main/kotlin/.../events/Events.kt` |
-| **[NEW] Resources** | `core/src/main/kotlin/.../configurations/resources/Resources.kt` |
-| **[NEW] ResourceSystem** | `core/src/main/kotlin/.../systems/ResourceSystem.kt` |
-| **[NEW] Items** | `core/src/main/kotlin/.../configurations/Items.kt` |
-| **[NEW] ItemPools** | `core/src/main/kotlin/.../configurations/ItemPools.kt` |
-| **[NEW] RewardViewModel** | `core/src/main/kotlin/.../ui/viewmodels/RewardViewModel.kt` |
-| **[NEW] RewardView** | `core/src/main/kotlin/.../ui/views/RewardView.kt` |
+| **[RENAMED] EquipmentItems** | `core/src/main/kotlin/.../configurations/EquipmentItems.kt` |
+| **[NEW] EquipmentStatType** | `core/src/main/kotlin/.../configurations/EquipmentStatType.kt` |
+| **[NEW] ConsumableStatType** | `core/src/main/kotlin/.../configurations/ConsumableStatType.kt` |
+| **[NEW] BattleEnchantmentStatType** | `core/src/main/kotlin/.../configurations/BattleEnchantmentStatType.kt` |
+| **[NEW] ConsumableItems** | `core/src/main/kotlin/.../configurations/ConsumableItems.kt` |
+| **[NEW] QuestItems** | `core/src/main/kotlin/.../configurations/QuestItems.kt` |
+| **[NEW] BattleEnchantmentItems** | `core/src/main/kotlin/.../configurations/BattleEnchantmentItems.kt` |
+| **[NEW] InventorySystem** | `core/src/main/kotlin/.../systems/InventorySystem.kt` |
+| **[NEW] InventoryViewModel** | `core/src/main/kotlin/.../ui/viewmodels/InventoryViewModel.kt` |
+| **[NEW] InventoryRightPanel** | `core/src/main/kotlin/.../ui/widgets/InventoryRightPanel.kt` |
+| **[NEW] InventoryLeftPanel** | `core/src/main/kotlin/.../ui/widgets/InventoryLeftPanel.kt` |
+| **[REPLACED] InventoryView** | `core/src/main/kotlin/.../ui/views/InventoryView.kt` |
 
 ## Verification
 

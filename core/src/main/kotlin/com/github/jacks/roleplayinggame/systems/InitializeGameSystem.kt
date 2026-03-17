@@ -7,6 +7,10 @@ import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.github.jacks.roleplayinggame.components.InitializeGameComponent
 import com.github.jacks.roleplayinggame.configurations.CombatAnimationSpeed
 import com.github.jacks.roleplayinggame.configurations.Settings
+import com.github.jacks.roleplayinggame.configurations.battleEnchantmentItemById
+import com.github.jacks.roleplayinggame.configurations.consumableItemById
+import com.github.jacks.roleplayinggame.configurations.equipmentItemById
+import com.github.jacks.roleplayinggame.configurations.questItemById
 import com.github.jacks.roleplayinggame.configurations.resources.Resources
 import com.github.jacks.roleplayinggame.events.InitializeGameEvent
 import com.github.quillraven.fleks.AllOf
@@ -44,6 +48,7 @@ class InitializeGameSystem(
                 }
                 loadSettings()
                 loadResources()
+                seedStartingInventory()
                 world.entity {
                     // eventually there may be a step before this that just loads the main menu and this doesn't
                     // trigger until game start or game loaded
@@ -53,6 +58,25 @@ class InitializeGameSystem(
             }
             else -> return false
         }
+    }
+
+    private fun seedStartingInventory() {
+        val inv = world.system<InventorySystem>()
+        // 5 equipment items
+        inv.addItem(equipmentItemById(1001)!!) // Helmet
+        inv.addItem(equipmentItemById(1002)!!) // Sword
+        inv.addItem(equipmentItemById(1003)!!) // Big Sword
+        inv.addItem(equipmentItemById(1004)!!) // Boots
+        inv.addItem(equipmentItemById(1005)!!) // Armor
+        // 2 consumables
+        inv.addItem(consumableItemById(2001)!!) // Health Potion
+        inv.addItem(consumableItemById(2002)!!) // Mega Potion
+        // 2 quest items
+        inv.addItem(questItemById(3001)!!) // Ancient Scroll
+        inv.addItem(questItemById(3002)!!) // Broken Amulet
+        // 2 battle enchantments
+        inv.addItem(battleEnchantmentItemById(4001)!!) // War Sigil
+        inv.addItem(battleEnchantmentItemById(4002)!!) // Iron Ward
     }
 
     private fun setupPreferences() {

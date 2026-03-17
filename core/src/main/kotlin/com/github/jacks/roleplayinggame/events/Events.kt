@@ -8,7 +8,7 @@ import com.github.jacks.roleplayinggame.components.AnimationModel
 import com.github.jacks.roleplayinggame.components.BattleAction
 import com.github.jacks.roleplayinggame.components.BattleEndReason
 import com.github.jacks.roleplayinggame.components.BattlePhase
-import com.github.jacks.roleplayinggame.configurations.ItemData
+import com.github.jacks.roleplayinggame.configurations.EquipmentItemData
 import com.github.jacks.roleplayinggame.dialog.Dialog
 import com.github.quillraven.fleks.Entity
 
@@ -36,7 +36,7 @@ data class BattleLogEvent(val message: String) : Event()
 class BattleLogDismissedEvent : Event()
 data class BattleTargetSelectedEvent(val target: Entity) : Event()
 
-data class BattleRewardData(val expGained: Int, val goldGained: Int, val itemDropped: ItemData?)
+data class BattleRewardData(val expGained: Int, val goldGained: Int, val itemDropped: EquipmentItemData?)
 class BattleRewardEvent(val rewardData: BattleRewardData) : Event()
 class RewardDismissedEvent : Event()
 
@@ -52,3 +52,9 @@ class InteractionEvent : Event()
 
 class SettingsOpenEvent : Event()
 class SettingsClosedEvent : Event()
+
+class InventoryOpenEvent : Event()
+class InventoryClosedEvent : Event()
+
+data class EquipItemEvent(val itemId: Int, val characterIndex: Int) : Event()
+data class UseConsumableEvent(val itemId: Int, val characterIndex: Int) : Event()

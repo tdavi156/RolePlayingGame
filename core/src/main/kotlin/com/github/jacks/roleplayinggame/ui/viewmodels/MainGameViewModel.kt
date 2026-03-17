@@ -4,7 +4,6 @@ import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.AnimationComponent
-import com.github.jacks.roleplayinggame.components.ItemComponent
 import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
@@ -22,7 +21,6 @@ class MainGameViewModel(
     private val playerComponents : ComponentMapper<PlayerComponent> = world.mapper()
     private val lifeComponents : ComponentMapper<LifeComponent> = world.mapper()
     private val statComponents : ComponentMapper<StatComponent> = world.mapper()
-    private val itemComponents : ComponentMapper<ItemComponent> = world.mapper()
     private val animationComponents : ComponentMapper<AnimationComponent> = world.mapper()
 
     var playerLife by propertyNotify(1f)

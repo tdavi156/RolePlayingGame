@@ -43,6 +43,7 @@ import com.github.jacks.roleplayinggame.systems.EntityCreationSystem
 import com.github.jacks.roleplayinggame.systems.FloatingTextSystem
 import com.github.jacks.roleplayinggame.systems.InitializeGameSystem
 import com.github.jacks.roleplayinggame.systems.InventorySystem
+import com.github.jacks.roleplayinggame.systems.StatSystem
 import com.github.jacks.roleplayinggame.systems.LifeSystem
 import com.github.jacks.roleplayinggame.systems.LootSystem
 import com.github.jacks.roleplayinggame.systems.MapSystem
@@ -128,6 +129,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
             add<CollisionSpawnSystem>()
             add<CollisionDespawnSystem>()
             add<InventorySystem>()
+            add<StatSystem>()
             add<PortalSystem>()
             add<MoveSystem>()
             add<AttackSystem>()

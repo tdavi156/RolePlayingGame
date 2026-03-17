@@ -6,7 +6,6 @@ import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.AnimationComponent
 import com.github.jacks.roleplayinggame.components.BattleAction
 import com.github.jacks.roleplayinggame.components.BattlePhase
-import com.github.jacks.roleplayinggame.components.ItemComponent
 import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
@@ -30,7 +29,6 @@ class BattleViewModel(
     private val playerComponents: ComponentMapper<PlayerComponent> = world.mapper()
     private val lifeComponents: ComponentMapper<LifeComponent>     = world.mapper()
     private val statComponents: ComponentMapper<StatComponent>     = world.mapper()
-    private val itemComponents: ComponentMapper<ItemComponent>     = world.mapper()
     private val animationComponents: ComponentMapper<AnimationComponent> = world.mapper()
 
     // Observable UI state

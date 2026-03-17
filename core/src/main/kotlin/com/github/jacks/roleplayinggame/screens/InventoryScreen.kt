@@ -5,11 +5,9 @@ import com.badlogic.gdx.Input
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.utils.viewport.ExtendViewport
 import com.github.jacks.roleplayinggame.components.InventoryComponent
-import com.github.jacks.roleplayinggame.configurations.ItemCategory
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.input.gdxInputProcessor
 import com.github.jacks.roleplayinggame.ui.viewmodels.InventoryViewModel
-import com.github.jacks.roleplayinggame.ui.viewmodels.ItemModel
 import com.github.jacks.roleplayinggame.ui.views.InventoryView
 import com.github.jacks.roleplayinggame.ui.views.inventoryView
 import com.github.quillraven.fleks.Entity
@@ -45,13 +43,6 @@ class InventoryScreen : KtxScreen {
         if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             hide()
             show()
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) {
-            inventoryView.item(ItemModel("Boots", ItemCategory.BOOTS, "boots", 1, false))
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_2)) {
-            inventoryView.item(ItemModel("Sword", ItemCategory.WEAPON, "sword", 3, false))
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_3)) {
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_4)) {
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_5)) {
         }
 
         stage.act()
@@ -66,4 +57,3 @@ class InventoryScreen : KtxScreen {
         stage.dispose()
     }
 }
-

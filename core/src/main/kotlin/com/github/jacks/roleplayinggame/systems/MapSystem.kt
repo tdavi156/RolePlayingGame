@@ -15,7 +15,6 @@ import com.badlogic.gdx.scenes.scene2d.actions.SequenceAction
 import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
 import com.github.jacks.roleplayinggame.components.BattleComponent
 import com.github.jacks.roleplayinggame.components.ImageComponent
-import com.github.jacks.roleplayinggame.components.ItemComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.bodyFromImageAndConfiguration
 import com.github.jacks.roleplayinggame.components.PlayerComponent
@@ -93,7 +92,7 @@ class MapSystem(
         val newMap = TmxMapLoader().load("maps/$mapName.tmx")
         currentMap?.disposeSafely()
         currentMap = newMap
-        world.family(noneOf = arrayOf(PlayerComponent::class, ItemComponent::class)).forEach { world.remove(it) }
+        world.family(noneOf = arrayOf(PlayerComponent::class)).forEach { world.remove(it) }
         preferences.flush { this["current_map"] = mapName }
 
         val mapObject = if (targetPortalId != -1) {
@@ -126,7 +125,7 @@ class MapSystem(
     fun setBattleMap(mapName : String) {
         if (currentMap != null) { saveCurrentMapData() }
         currentMap?.disposeSafely()
-        world.family(noneOf = arrayOf(PlayerComponent::class, ItemComponent::class)).forEach { world.remove(it) }
+        world.family(noneOf = arrayOf(PlayerComponent::class)).forEach { world.remove(it) }
         val newMap = TmxMapLoader().load("maps/$mapName.tmx")
         currentMap = newMap
         preferences.flush {
@@ -159,7 +158,7 @@ class MapSystem(
     private fun returnToOverworld() {
         val mapName = preBattleMapName ?: preferences["previous_map", "map_1"]
         currentMap?.disposeSafely()
-        world.family(noneOf = arrayOf(PlayerComponent::class, ItemComponent::class)).forEach { world.remove(it) }
+        world.family(noneOf = arrayOf(PlayerComponent::class)).forEach { world.remove(it) }
         val newMap = TmxMapLoader().load("maps/$mapName.tmx")
         currentMap = newMap
         preferences.flush { this["current_map"] = mapName }
