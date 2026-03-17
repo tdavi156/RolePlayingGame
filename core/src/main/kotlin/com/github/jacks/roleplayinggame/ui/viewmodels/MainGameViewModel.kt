@@ -51,7 +51,7 @@ class MainGameViewModel(
                 playerLife = statComponent.maxHealth
             }
             is EntityAddItemEvent -> {
-                lootText = "New Item found: [#4e557d]${event.itemType.itemName}[]"
+                lootText = "New Item found: [#4e557d]${event.itemName}[]"
             }
             else -> return false
         }

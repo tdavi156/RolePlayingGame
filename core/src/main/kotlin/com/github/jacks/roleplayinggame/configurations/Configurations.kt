@@ -6,6 +6,8 @@ import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
 import com.github.jacks.roleplayinggame.components.AnimationModel
 import com.github.jacks.roleplayinggame.components.NonPlayerConfiguration
 import com.github.jacks.roleplayinggame.components.PlayerConfiguration
+import com.github.jacks.roleplayinggame.configurations.TIER_1_ITEMS
+import com.github.jacks.roleplayinggame.configurations.TIER_2_ITEMS
 import com.github.jacks.roleplayinggame.components.StatComponent
 import ktx.math.vec2
 
@@ -24,6 +26,13 @@ class Configurations {
                 "slimeRed" -> { ConfigurationType.NON_PLAYER }
                 else -> { return ConfigurationType.UNDEFINED }
             }
+        }
+
+        fun getNonPlayerConfig(model: AnimationModel): NonPlayerConfiguration? = when (model) {
+            AnimationModel.SLIME_GREEN -> SLIME_GREEN_CONFIGURATION
+            AnimationModel.SLIME_BLUE  -> SLIME_BLUE_CONFIGURATION
+            AnimationModel.SLIME_RED   -> SLIME_RED_CONFIGURATION
+            else -> null
         }
 
         fun getConfiguration(entityName : String) : Any? {
@@ -89,6 +98,9 @@ class Configurations {
             attackScaling = 1f,
             battleMap = "map_1_battle_1",
             xpReward = 10,
+            goldReward = 5,
+            lootPool = TIER_1_ITEMS,
+            lootChance = 25,
             physicsScaling = vec2(0.3f, 0.3f),
             physicsOffset = vec2(0f, -2f * UNIT_SCALE),
             aiTreePath = "slimeBehavior.tree",
@@ -110,6 +122,9 @@ class Configurations {
             attackScaling = 1f,
             battleMap = "map_1_battle_1",
             xpReward = 25,
+            goldReward = 10,
+            lootPool = TIER_1_ITEMS,
+            lootChance = 25,
             physicsScaling = vec2(0.3f, 0.3f),
             physicsOffset = vec2(0f, -2f * UNIT_SCALE),
             aiTreePath = "slimeBehavior.tree",
@@ -131,6 +146,9 @@ class Configurations {
             attackScaling = 1f,
             battleMap = "map_1_battle_1",
             xpReward = 50,
+            goldReward = 20,
+            lootPool = TIER_2_ITEMS,
+            lootChance = 50,
             physicsScaling = vec2(0.3f, 0.3f),
             physicsOffset = vec2(0f, -2f * UNIT_SCALE),
             aiTreePath = "slimeBehavior.tree",

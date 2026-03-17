@@ -5,7 +5,7 @@ import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.ui.Image
 import com.badlogic.gdx.scenes.scene2d.utils.DragAndDrop
 import com.badlogic.gdx.scenes.scene2d.utils.DragAndDrop.*
-import com.github.jacks.roleplayinggame.components.ItemCategory
+import com.github.jacks.roleplayinggame.configurations.ItemCategory
 import com.github.jacks.roleplayinggame.ui.viewmodels.ItemModel
 
 class InventoryDragSource(

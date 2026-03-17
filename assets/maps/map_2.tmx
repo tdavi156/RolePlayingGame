@@ -1,16 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="52" height="36" tilewidth="16" tileheight="16" infinite="0" nextlayerid="9" nextobjectid="22">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="52" height="36" tilewidth="16" tileheight="16" infinite="0" nextlayerid="10" nextobjectid="48">
+ <properties>
+  <property name="background_music" type="file" value="../audio/field_theme_1.wav"/>
+  <property name="mapId" type="int" value="1"/>
+ </properties>
  <tileset firstgid="1" source="tiles/outdoor_map_tiles.tsx"/>
  <tileset firstgid="5330" source="tiles/decorations_A_map_tiles.tsx"/>
- <tileset firstgid="10659" name="entities" tilewidth="32" tileheight="32" tilecount="2" columns="0">
-  <grid orientation="orthogonal" width="1" height="1"/>
-  <tile id="0">
-   <image source="../../assets_raw/packable/chest/idleto_00.png" width="16" height="16"/>
-  </tile>
-  <tile id="1">
-   <image source="../../assets_raw/packable/slime/idleto_00.png" width="32" height="32"/>
-  </tile>
- </tileset>
+ <tileset firstgid="10659" source="tiles/entities.tsx"/>
  <layer id="1" name="background_1" width="52" height="36">
   <data encoding="base64" compression="zlib">
    eJztwzENAAAMBKHbavb9zzUCCbuaqqqqqqqqqj0DHEke
@@ -18,111 +14,38 @@
  </layer>
  <layer id="3" name="background_2" width="52" height="36">
   <data encoding="base64" compression="zlib">
-   eJzdWVtuwzAMy6d7jHzsLF1yui05XZscpjMaYQQnx7bsZo0FCFiBjdaDpuSu68ptcF03b351FQD/2SbI56uhfMbG8mmpP74364/fGslnBs75nO7gZ7Np680c8DNyUDR7pV7NJ+bgp/v1oYEeoTEHz56PtwE4d1Q+r9Qi1L2j7tAr765w7sgeoSbVzmki7Jx87kbeXDctYp29ZeKEDLFT80GeSr1zeyvn8lws5chkiMn/zcelnKs8E2vsy5ZdVfbB/vLMq6SuMgtzORKLzcK30dn5puGV4nBsOVg137w13zOTsdeo9dYYvjdNWwCrdN5KXKuCtedLhZoyb3nWWmrFmIit7eI8C0s4r+m+tj9o9dzD5BkQ+sx1LNUk1AF/B3n35zjw/NCZ2B/EjDnustZ9JaSt/J7mXPZ4aNUW5oolp719OFbDvXzkuxKLvpXslYiRcj7yM3SvSnRqcH85oZ0Tiy91nvNdH51+t0WvrTuYpkupcWJNYlqG/QnpcE59YjGtCj5yY1HwNX318cheyHGl6FSN3VbD1WaVlg/PBPm5N+y61n0nBZc5MQbwuQ799haRN4lFd2vstlqcfL9S47HOa8t7Idew9jm/L55j1vnzrtba/1IW4OkR38E9AO9jRLQ=
+   eJzdWVFugzAMzV9Dewo27ShTB1fZdgdOMG30JpO6q0wrucm2dkYQ4RonBKcCOkuWCgXHjl+e7VapeMm0UrtWt/oCBmeWEsXz+o/iya8onp9EqUfQJ9BnULXuvruW/Ow3Sn1sms/368bX46rxPyPx1LkxoF/tM3PL96Z/7wj3Tu39l3Xj6wG0Ai0d+cl195zVJcon+J9CbDegt6AVicegmKjOhUHAVgEYK96ZXHlFd5xtSK52bb7mEMBWARgrpO8/6E6zheSoFud5HuETxeCSec8neC8yhLmp4ulxEbPu76p/bfnZx82Y96Y6Q9zZPREf96vzmKtAHFnMTZkjzEk4Jpf/g1yMrktie0w8By2rYduWizieDdEhH7Ht0HhKsoYR5Nau66uLW33OybXuCTbpeSoFPtXv3CXxWKU1MScxSETSq9p+ME2auGLOnq2FPYxExDN2j/H8IcUbZ4/akfTN0tnokjPvJeeZksv1iPdiZsQ3xM/WFuVuWltD/TKMLZ+G1rihtTm+zrUMM5xNbJurEbQWxpwdjve5/oHbT59NWgNc13QfJTjl4jH6nKe52Yau71oT54erXy7Fvay093NxK52naSw+HEq5hWJFEpOvHx7aQ188theX8FvMnItthKyP8ek6VzE8lek+Jrh1hvwLref0rOeaP9uWr6U9mKtXDvET78kQl+H8uHh4zP4M+WQY+xgbFWOf49faH9sXUr9CeEpau7BwdrlaxcVDa4L9nAp6XWm/E2KXYiJ32Kf7kLaziJ1JJLwb2yO7/KTnK9Qfab2WzAtjBe/9mOclc520/ixVruW/lFCpEE6n+A3uD1pGfS8=
   </data>
  </layer>
  <layer id="7" name="background_3" width="52" height="36">
   <data encoding="base64" compression="zlib">
-   eJzbyMXAsAmIfwPxTyD+RQZ7DRDDwCoyzaAWG8Z34WZgcAJiZ27S2V+R/POZizwzqMWG8e2A2AaIbclkwwAlZlCDje4eSsFSIeqZNQpGwSgYBcQCbOUrNdWPAtxgKIclrdw+WhfSF8jIMzDIytPeHlqm9R45BoZeOeqbS2vwRxJCo8fBVaBfriH5568kfd1FKaBXmgKBgS5DU0nwJz3dis+uP1jS02i5OwoGCgx0Hh4FgwuMpgf6gsEe3oPBfYPBDYMZoLcfBkt4DRZ3DFUA61sNl3BE71sNZzBY+hvU1EMuGKj0OxTyDQB9UXKG
+   eJzbyMXAsAmIfwPxTyD+RQZ7DRDDwCoyzaAWG8Z34WZgcAJiZ27S2V+R/POZizwzqMWG8e2A2AaIbclkwwAlZlCDje6eUTAKRsEoGIoAW/lKqvrjggwMJ4DYlgcozgNhnxSkjXvpAQSEILgN6Jd2HgSf2oDUsB9MgFZuX0qDcB4FuIGMPAODrDzt7aFlWu+RY2DolaO+ubQGfyQhNHocXAX65RqSf/5K0tddlAJ6pSkQGOgyNJUEf5LjVljdig3jq2Px2fUHS3qiV7krJoTAsPYCsthQA7C2Abb2Ai3aDMMRDHQeHgWDC4ymB/qCwR7eg8F9g8ENgxmgtx8GS3gNFncMVQDrWw2XcETvWw1nQM84I8euwe6+oWwvKQAAB9qBrw==
   </data>
  </layer>
  <layer id="4" name="foreground_1" width="52" height="36">
   <data encoding="base64" compression="zlib">
-   eJztlFEOgCAMQ/fN/U+h3k79lwMQg7KVTvuS/UFo2g4zIYQQbCzFbK2zlZjzaPaq66hzdup7et4Tdi/vaGmf6eUombVnIHPXW6gvHGTqVY9Wr14hfEHugPbtu2Ta4R7U1THUByzsfj/VF+G3p0cMfYjWwNIpLx0Mmc3UwZKnFyx5RoLM7M1byH8d8VbrTlQGs/r7h71h4wKXGGsO
+   eJztlckNwjAURH1GERBfKIalFpYu2E/QBA2wdMF+oQsaYLkzUSxhLCM5EDs/4JGegrPg8f/jhDEvr/9Us8xYS6KtjDviHBV1Q8b6oCeOEYPweX0OrwuJpTJeCahoDe9bsBHHiJ20ngu8XiVuyvgUxlBRwBkrgrM4RpT483oVXmsSM/46Xir9WRRwDqwKZvMnvd+2ot7cpfVc4esG7ob+dPcP8Z8jhbGFDOhqWUG/GoTy9q4WOu9Ja5+F9vB+APUAdQ7i38cwH951KvOYCdYyBZzHUBO198a3ymtefk15ypWJ17Ry5aIun3jVfU9MvrF+v/2u8rSHTeSz+p18HtyKer2T+rNR7zRrRCEPtj1QyVRaPij0LEsfVPqZlqj006Zc9uyTuVy+113MpXvGVg+yyu8/7BtqegDcVqIA
   </data>
  </layer>
- <objectgroup id="5" name="entities">
-  <object id="3" name="chest" gid="10659" x="368" y="480" width="16" height="16"/>
-  <object id="4" name="chest" gid="10659" x="464" y="464" width="16" height="16"/>
-  <object id="5" name="chest" gid="10659" x="320" y="560" width="16" height="16">
-   <properties>
-    <property name="background_music" type="file" value="../audio/field_theme_1.wav"/>
-   </properties>
-  </object>
-  <object id="6" name="chest" gid="10659" x="368" y="384" width="16" height="16"/>
-  <object id="7" name="slimeDialog" gid="10660" x="432" y="400" width="32" height="32">
-   <properties>
-    <property name="color" type="color" value="#ff646464"/>
-   </properties>
-  </object>
-  <object id="8" name="slime" gid="10660" x="288" y="480" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="map2_slime8"/>
-   </properties>
-  </object>
-  <object id="9" name="slime" gid="10660" x="320" y="448" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="map2_slime9"/>
-   </properties>
-  </object>
-  <object id="10" name="slime" gid="10660" x="384" y="432" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="map2_slime10"/>
-   </properties>
-  </object>
-  <object id="11" name="slime" gid="10660" x="432" y="496" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="map2_slime11"/>
-   </properties>
-  </object>
-  <object id="12" name="slime" gid="10660" x="480" y="496" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="map2_slime12"/>
-   </properties>
-  </object>
-  <object id="13" name="slime" gid="10660" x="464" y="528" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="map2_slime13"/>
-   </properties>
-  </object>
-  <object id="14" name="slime" gid="10660" x="336" y="512" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="map2_slime14"/>
-   </properties>
-  </object>
-  <object id="15" name="slime" gid="10660" x="416" y="464" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="map2_slime15"/>
-   </properties>
-  </object>
-  <object id="16" name="slime" gid="10660" x="336" y="560" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="map2_slime16"/>
-   </properties>
-  </object>
-  <object id="17" name="slime" gid="10660" x="464" y="560" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="map2_slime17"/>
-   </properties>
-  </object>
-  <object id="18" name="slime" gid="10660" x="400" y="512" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="map2_slime18"/>
-   </properties>
-  </object>
-  <object id="19" name="slime" gid="10660" x="512" y="464" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="map2_slime19"/>
-   </properties>
-  </object>
-  <object id="20" name="slime" gid="10660" x="512" y="528" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="map2_slime20"/>
-   </properties>
-  </object>
-  <object id="21" name="slime" gid="10660" x="272" y="448" width="32" height="32">
-   <properties>
-    <property name="preferencesName" value="map2_slime21"/>
-   </properties>
-  </object>
- </objectgroup>
- <objectgroup color="#221aff" id="6" name="portals">
-  <object id="1" name="toMap_1" x="384.182" y="567.273" width="63.6364" height="8.36364">
+ <objectgroup color="#ff0000" id="5" name="entities"/>
+ <objectgroup color="#2411f9" id="6" name="portals">
+  <object id="44" name="fromMap1" x="411.029" y="547.134" width="10.1818" height="9.81818"/>
+  <object id="45" name="toMap1" x="384.182" y="566.795" width="63.6364" height="8.90909">
    <properties>
     <property name="toMap" value="map_1"/>
     <property name="toPortal" type="int" value="26"/>
    </properties>
   </object>
-  <object id="2" name="fromMap_1" x="409.455" y="540.909" width="12.7273" height="12.3636"/>
+ </objectgroup>
+ <objectgroup color="#00aa00" id="9" name="spawners">
+  <object id="33" name="player_spawner" x="403.917" y="481.167" width="26" height="26">
+   <properties>
+    <property name="entityToSpawn" value="player"/>
+    <property name="id" type="int" value="1"/>
+    <property name="mapId" type="int" value="1"/>
+    <property name="spawnTimer" type="float" value="0"/>
+   </properties>
+   <ellipse/>
+  </object>
  </objectgroup>
 </map>

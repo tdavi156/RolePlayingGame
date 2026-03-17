@@ -32,6 +32,7 @@ class CharacterInfoView(
     private lateinit var attackLabel: Label
     private lateinit var defenseLabel: Label
     private lateinit var speedLabel: Label
+    private lateinit var goldLabel: Label
 
     init {
         setFillParent(true)
@@ -101,9 +102,17 @@ class CharacterInfoView(
             row()
 
             label("Speed:", Labels.SMALL.skinKey) { cell ->
-                cell.left().padRight(10f)
+                cell.left().padRight(10f).padBottom(4f)
             }
             this@CharacterInfoView.speedLabel = label("0.0", Labels.SMALL.skinKey) { cell ->
+                cell.left().padBottom(4f)
+            }
+            row()
+
+            label("Gold:", Labels.SMALL.skinKey) { cell ->
+                cell.left().padRight(10f)
+            }
+            this@CharacterInfoView.goldLabel = label("0", Labels.YELLOW.skinKey) { cell ->
                 cell.left()
             }
 
@@ -140,6 +149,9 @@ class CharacterInfoView(
         }
         model.onPropertyChange(CharacterInfoViewModel::playerSpeed) { speed ->
             speedLabel.txt = speed.toString()
+        }
+        model.onPropertyChange(CharacterInfoViewModel::playerGold) { gold ->
+            goldLabel.txt = gold.toString()
         }
     }
 

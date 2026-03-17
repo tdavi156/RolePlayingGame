@@ -25,6 +25,10 @@ import com.github.jacks.roleplayinggame.components.ImageComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.physicsComponentFromShape2D
 import com.github.jacks.roleplayinggame.components.PortalComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
+import com.github.jacks.roleplayinggame.components.NonPlayerConfiguration
+import com.github.jacks.roleplayinggame.configurations.Configurations
+import com.github.jacks.roleplayinggame.configurations.rollForDrop
+import com.github.jacks.roleplayinggame.configurations.rollRandomItem
 import com.github.jacks.roleplayinggame.events.BattleActionSelectedEvent
 import com.github.jacks.roleplayinggame.events.BattleEndEvent
 import com.github.jacks.roleplayinggame.events.BattleLogDismissedEvent
@@ -34,6 +38,8 @@ import com.github.jacks.roleplayinggame.events.BattleHealthUpdateEvent
 import com.github.jacks.roleplayinggame.events.BattleLogEvent
 import com.github.jacks.roleplayinggame.events.BattleMapChangeEvent
 import com.github.jacks.roleplayinggame.events.BattlePhaseChangedEvent
+import com.github.jacks.roleplayinggame.events.BattleRewardData
+import com.github.jacks.roleplayinggame.events.BattleRewardEvent
 import com.github.jacks.roleplayinggame.events.BattleTransitionStartEvent
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
 import com.github.jacks.roleplayinggame.events.fire
@@ -75,6 +81,8 @@ class BattleSystem(
     private var savedEnemyImageHeight: Float = 0f
     private var savedSpawnerId: Int = -1
     private var savedSpawnerMapId: Int = -1
+    private var savedNonPlayerConfig: NonPlayerConfiguration? = null
+    private var pendingRewardData: BattleRewardData? = null
 
     // Home positions — both entities return here after attacking
     private var playerOriginX = 0f
@@ -104,8 +112,9 @@ class BattleSystem(
             val img = imageComponents.getOrNull(entity)?.image
             savedEnemyImageWidth  = img?.width  ?: 1f
             savedEnemyImageHeight = img?.height ?: 1f
-            savedSpawnerId    = battleComponent.spawnerId
-            savedSpawnerMapId = battleComponent.spawnerMapId
+            savedSpawnerId        = battleComponent.spawnerId
+            savedSpawnerMapId     = battleComponent.spawnerMapId
+            savedNonPlayerConfig  = Configurations.getNonPlayerConfig(savedEnemyModel)
 
             gameStage.fire(BattleTransitionStartEvent(entity))
             return
@@ -178,13 +187,14 @@ class BattleSystem(
             val playerEntity = currentPlayerEntity
             when (battleComponent.endReason) {
                 BattleEndReason.WIN -> {
+                    var xpGained = 0
                     val message = buildString {
                         append("Victory!")
                         if (playerEntity != null) {
                             val playerStat = statComponents.getOrNull(playerEntity)
                             val enemyStat = statComponents.getOrNull(entity)
                             if (playerStat != null && enemyStat != null) {
-                                val xpGained = enemyStat.xpReward
+                                xpGained = enemyStat.xpReward
                                 if (xpGained > 0) {
                                     append("\nGained $xpGained XP!")
                                     val levelsGained = playerStat.gainExperience(xpGained)
@@ -195,6 +205,12 @@ class BattleSystem(
                             }
                         }
                     }
+                    val config = savedNonPlayerConfig
+                    val goldGained = config?.goldReward ?: 0
+                    val itemDropped = config?.lootPool?.let { pool ->
+                        if (rollForDrop(config.lootChance)) rollRandomItem(pool) else null
+                    }
+                    pendingRewardData = BattleRewardData(xpGained, goldGained, itemDropped)
                     gameStage.fire(BattleLogEvent(message))
                 }
                 BattleEndReason.LOSE -> {
@@ -232,7 +248,15 @@ class BattleSystem(
         currentPlayerEntity                  = null
         savedSpawnerId                       = -1
         savedSpawnerMapId                    = -1
-        gameStage.fire(BattleEndTransitionStartEvent(reason))
+        savedNonPlayerConfig                 = null
+        if (reason == BattleEndReason.WIN) {
+            val rewardData = pendingRewardData ?: BattleRewardData(0, 0, null)
+            pendingRewardData = null
+            gameStage.fire(BattleRewardEvent(rewardData))
+        } else {
+            pendingRewardData = null
+            gameStage.fire(BattleEndTransitionStartEvent(reason))
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -579,8 +603,10 @@ class BattleSystem(
                         it.waitingForActionDismiss  = false
                     }
                 }
-                currentBattleEntity = null
-                currentPlayerEntity = null
+                currentBattleEntity  = null
+                currentPlayerEntity  = null
+                savedNonPlayerConfig = null
+                pendingRewardData    = null
                 return true
             }
 

@@ -5,7 +5,6 @@ import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.InventoryComponent
 import com.github.jacks.roleplayinggame.components.ItemComponent
-import com.github.jacks.roleplayinggame.components.ItemType
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.events.EntityAddItemEvent
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
@@ -28,15 +27,15 @@ class InventorySystem(
             return
         }
 
-        inventory.itemsToAdd.forEach { itemType ->
+        inventory.itemsToAdd.forEach { itemName ->
             val slotIndex : Int = getNextEmptySlotIndex(inventory)
             if (slotIndex == -1) {
                 return
             }
 
-            val newItem = createItem(itemType, slotIndex)
+            val newItem = createItem(itemName, slotIndex)
             inventory.items += newItem
-            gameStage.fire(EntityAddItemEvent(entity, itemType))
+            gameStage.fire(EntityAddItemEvent(entity, itemName))
         }
         inventory.itemsToAdd.clear()
     }
@@ -52,10 +51,10 @@ class InventorySystem(
         return -1
     }
 
-    private fun createItem(itemType : ItemType, slotIndex : Int) : Entity {
+    private fun createItem(itemName : String, slotIndex : Int) : Entity {
         return world.entity {
             add<ItemComponent> {
-                this.itemType = itemType
+                this.name = itemName
                 this.slotIndex = slotIndex
             }
         }

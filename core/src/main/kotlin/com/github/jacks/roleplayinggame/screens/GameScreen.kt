@@ -19,7 +19,9 @@ import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.events.BattleEndEvent
 import com.github.jacks.roleplayinggame.events.BattleEndTransitionStartEvent
 import com.github.jacks.roleplayinggame.events.BattleEvent
+import com.github.jacks.roleplayinggame.events.BattleRewardEvent
 import com.github.jacks.roleplayinggame.events.BattleTransitionStartEvent
+import com.github.jacks.roleplayinggame.events.RewardDismissedEvent
 import com.github.jacks.roleplayinggame.events.InitializeGameEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.input.PlayerKeyboardInputProcessor
@@ -28,6 +30,8 @@ import com.github.jacks.roleplayinggame.systems.AiSystem
 import com.github.jacks.roleplayinggame.systems.AnimationSystem
 import com.github.jacks.roleplayinggame.systems.AttackSystem
 import com.github.jacks.roleplayinggame.systems.BattleSystem
+import com.github.jacks.roleplayinggame.systems.ResourceSystem
+import com.github.jacks.roleplayinggame.systems.SettingsSystem
 import com.github.jacks.roleplayinggame.systems.CameraSystem
 import com.github.jacks.roleplayinggame.systems.CollisionDespawnSystem
 import com.github.jacks.roleplayinggame.systems.CollisionSpawnSystem
@@ -49,7 +53,10 @@ import com.github.jacks.roleplayinggame.systems.RenderSystem
 import com.github.jacks.roleplayinggame.systems.SpawnerSystem
 import com.github.jacks.roleplayinggame.systems.StateSystem
 import com.github.jacks.roleplayinggame.ui.viewmodels.BattleViewModel
+import com.github.jacks.roleplayinggame.ui.viewmodels.RewardViewModel
 import com.github.jacks.roleplayinggame.ui.views.BattleView
+import com.github.jacks.roleplayinggame.ui.views.RewardView
+import com.github.jacks.roleplayinggame.ui.views.rewardView
 import com.github.jacks.roleplayinggame.ui.views.FadeInOutView
 import com.github.jacks.roleplayinggame.ui.views.MainGameView
 import com.github.jacks.roleplayinggame.ui.viewmodels.CharacterInfoViewModel
@@ -59,6 +66,7 @@ import com.github.jacks.roleplayinggame.ui.viewmodels.InventoryViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.MapViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.MenuViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.QuestViewModel
+import com.github.jacks.roleplayinggame.ui.viewmodels.SettingsViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.SkillViewModel
 import com.github.jacks.roleplayinggame.ui.views.PauseView
 import com.github.jacks.roleplayinggame.ui.views.backgroundView
@@ -72,6 +80,7 @@ import com.github.jacks.roleplayinggame.ui.views.mapView
 import com.github.jacks.roleplayinggame.ui.views.menuView
 import com.github.jacks.roleplayinggame.ui.views.pauseView
 import com.github.jacks.roleplayinggame.ui.views.questView
+import com.github.jacks.roleplayinggame.ui.views.settingsView
 import com.github.jacks.roleplayinggame.ui.views.skillView
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.World
@@ -93,10 +102,6 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
     private lateinit var fadeView: FadeInOutView
     private var currentBattleEnemy: Entity? = null
 
-    // Step 11: used to clear queued real-time attack state when exiting battle
-    private val playerFamily by lazy { entityWorld.family(allOf = arrayOf(PlayerComponent::class)) }
-    private val attackMapper by lazy { entityWorld.mapper<AttackComponent>() }
-
     private val entityWorld : World = world {
         injectables {
             add(gameStage)
@@ -114,6 +119,8 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
         }
 
         systems {
+            add<SettingsSystem>()
+            add<ResourceSystem>()
             add<InitializeGameSystem>()
             add<MapSystem>()
             add<EntityCreationSystem>()
@@ -142,6 +149,11 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
         }
     }
 
+    private val playerFamily by lazy { entityWorld.family(allOf = arrayOf(PlayerComponent::class)) }
+    private val attackMapper by lazy { entityWorld.mapper<AttackComponent>() }
+    private val settingsViewModel = SettingsViewModel(uiStage, entityWorld.system<SettingsSystem>())
+    private val rewardViewModel   = RewardViewModel(entityWorld, gameStage)
+
     init {
         uiStage.actors {
             log.debug { "UI Stage is initialized" }
@@ -155,34 +167,40 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
             // battle UI, actor.get(1)
             battleView(BattleViewModel(entityWorld, gameStage)) { isVisible = false }
 
-            // pauseView, actor.get(2)
+            // reward overlay, actor.get(2)
+            rewardView(rewardViewModel) { isVisible = false }
+
+            // pauseView, actor.get(3)
             pauseView { isVisible = false }
 
-            // dialog UI, actor.get(3)
+            // dialog UI, actor.get(4)
             dialogView(DialogViewModel(gameStage))
 
-            // background, actor.get(4)
+            // background, actor.get(5)
             backgroundView() { isVisible = false }
 
-            // characterInfo UI, actor.get(5)
+            // characterInfo UI, actor.get(6)
             characterInfoView(CharacterInfoViewModel(entityWorld, gameStage)) { isVisible = false }
 
-            // inventory UI, actor.get(6)
+            // inventory UI, actor.get(7)
             inventoryView(InventoryViewModel(entityWorld, gameStage)) { isVisible = false }
 
-            // skills UI, actor.get(7)
+            // skills UI, actor.get(8)
             skillView(SkillViewModel(entityWorld, gameStage)) { isVisible = false }
 
-            // quests UI, actor.get(8)
+            // quests UI, actor.get(9)
             questView(QuestViewModel(entityWorld, gameStage)) { isVisible = false }
 
-            // map UI, actor.get(9)
+            // map UI, actor.get(10)
             mapView(MapViewModel(entityWorld, gameStage)) { isVisible = false }
 
-            // menu UI, actor.get(10)
+            // menu UI, actor.get(11)
             menuView(MenuViewModel(stage)) { isVisible = false }
 
-            // fade overlay, actor.get(11) — drawn on top for screen transitions
+            // settings UI, actor.get(12)
+            settingsView(settingsViewModel) { isVisible = false }
+
+            // fade overlay, actor.get(12) — drawn on top for screen transitions
             fadeView = fadeInOutView { isVisible = false }
         }
     }
@@ -198,7 +216,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
         gameStage.addListener(this)
 
         gameStage.fire(InitializeGameEvent())
-        PlayerKeyboardInputProcessor(entityWorld, gameStage, uiStage)
+        PlayerKeyboardInputProcessor(entityWorld, gameStage, uiStage, settingsViewModel)
         gdxInputProcessor(uiStage)
         disableOverworldSystems()
     }
@@ -235,6 +253,15 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
             }
             is BattleEndTransitionStartEvent -> {
                 exitBattleMode(event.reason)
+                return true
+            }
+            is BattleRewardEvent -> {
+                uiStage.actors.filterIsInstance<RewardView>().first().isVisible = true
+                return true
+            }
+            is RewardDismissedEvent -> {
+                uiStage.actors.filterIsInstance<RewardView>().first().isVisible = false
+                exitBattleMode(BattleEndReason.WIN)
                 return true
             }
             else -> return false

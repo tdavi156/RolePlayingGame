@@ -42,7 +42,6 @@ class BattleViewModel(
     var enemyName   by propertyNotify("Enemy")
     var playerLevel by propertyNotify(1)
     var enemyLevel  by propertyNotify(1)
-    var lootText    by propertyNotify("")
     var battlePhase by propertyNotify(BattlePhase.PLAYER_TURN)
     var battleLog   by propertyNotify("")
 

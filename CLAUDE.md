@@ -34,111 +34,181 @@
 
 ---
 
-## Key Overworld Files
+## Key Files
 
 | File | Purpose |
 |------|---------|
 | `screens/GameScreen.kt` | Main screen. Owns `gameStage`, `uiStage`, `entityWorld`. Manages system enable/disable, UI layer transitions (fade in/out), input processors. `render()` drives the ECS tick. |
-| `ui/views/MainGameView.kt` | Overworld HUD overlay. Player info, experience bar, menu buttons (inventory, skills, quests, map, menu). Built with Scene2D DSL. |
-| `ui/viewmodels/MainGameViewModel.kt` | Bridges ECS events to HUD properties. Listens for `EntityTakeDamageEvent`, `EntityRespawnEvent`, `EntityAddItemEvent`. Exposes `playerLife`, `expAmount`, `lootText`. |
-| `systems/MapSystem.kt` | Loads Tiled maps, places player at spawners/portals, persists map state to preferences. Responds to `PortalEvent`. `setMap(mapName, targetPortalId)` handles overworld transitions. |
-| `systems/MoveSystem.kt` | Converts movement input (`MoveComponent.cos`/`sin` + speed) into Box2D impulses. Handles image flip for facing direction. Operates on entities with `MoveComponent`, `PhysicsComponent`, `StatComponent`. |
+| `systems/BattleSystem.kt` | Contains events for battle actions and animations. Drives battle flow and enemy death logic. |
+| `systems/InitializeGameSystem.kt` | Handles game startup — loads prefs, initializes systems. Pattern for loading/writing defaults. |
+| `ui/views/BattleView.kt` | Battle UI layer. Reward overlay will be shown here at end of battle. |
+| `ui/views/CharacterInfoView.kt` | Displays character stats. Will be extended to show gold. |
+| `components/ItemComponent.kt` | Holds item data per entity. To be refactored to reference items by name key. |
 
 ---
 
 ## Next Feature
 
-# Overworld Mechanics Update
+# Items, Loot, and Gold Reward System
 
 ## Context
-The overworld currently allows NPC entities to move freely via AI behavior trees, and the player can attack with spacebar. This feature removes those real-time combat mechanics from the overworld (preserving them for battle), adds a dedicated E key interaction system for NPCs/signs/items, and builds out the CharacterInfoView with full player stats.
+- `Resources` is account-scoped (not character-scoped) — gold must persist independently of the active character, as multiple characters will be supported in future
+- Items are currently defined via `ItemType` enum in `ItemComponent.kt` — this will be migrated to a named data class config in `Items.kt`
+- Loot drops are intentionally rare: typical enemies roll a drop chance first (e.g. 25%), then select randomly from an equal-weight item pool
+- The reward screen is an overlay inside `BattleView` — battle does not conclude until the player dismisses it
 
 ---
 
-## Part 1: Disable NPC Overworld Movement & Player Overworld Attack
+## Part 1 — Create `Resources.kt` Data Class
 
-**Why combined:** Both changes use the same mechanism — a set of systems to disable in overworld mode.
-
-### Files to modify:
-
-**`screens/GameScreen.kt`**
-- Add a new `overworldDisabledSystems` set containing `AiSystem::class` and `AttackSystem::class`
-- Add a `disableOverworldSystems()` helper that disables all systems in that set
-- Call `disableOverworldSystems()` at the end of `show()` (after systems are registered as listeners)
-- Call `disableOverworldSystems()` in `exitBattleMode()` after line 271 (`entityWorld.systems.forEach { it.enabled = true }`) — since that blanket re-enables everything
-- Call `disableOverworldSystems()` in `pauseWorld(false)` path (resume) — since that also re-enables systems
-
-**`input/PlayerKeyboardInputProcessor.kt`**
-- Remove the SPACE key handler (lines 162-168) that sets `doAttack = true`
-- The `attackComponents` constructor parameter and import can be removed since nothing else uses it
+Create `configurations/resources/Resources.kt`:
+- Data class `Resources` with field: `gold: Int = 0`
+- Companion object with pref key constant: `KEY_GOLD`
+- Designed for future expansion — additional resource types (crystals, jewels, quest items) added here as new fields
 
 ---
 
-## Part 2: Add E Key Interaction System
+## Part 2 — Create `ResourceSystem.kt`
 
-### Files to modify:
-
-**`events/Events.kt`**
-- Add `class InteractionEvent : Event()`
-
-**New file: `systems/InteractionSystem.kt`**
-- `@AllOf([PlayerComponent::class, PhysicsComponent::class, MoveComponent::class])` — iterates over player entity
-- Listens for `InteractionEvent` via `EventListener` interface, sets `interactionRequested = true` flag
-- On `onTickEntity`: if `interactionRequested` is false, early return. Otherwise:
-  - Get player position, size, offset from `PhysicsComponent`
-  - Get facing direction from `MoveComponent`
-  - Build a directional AABB rectangle in front of the player (reuse the same hitbox logic from `AttackSystem` lines 83-116 but with a slightly wider/more forgiving range)
-  - Query `physicsWorld` for entities in the AABB
-  - For each found entity: set `dialogComponent.interactingEntity` or `lootComponent.interactingEntity` to the player entity (same as AttackSystem lines 153-160 does currently)
-  - Skip self, skip non-hitbox-sensor fixtures (same filters as AttackSystem)
-  - Reset `interactionRequested = false`
-
-**`input/PlayerKeyboardInputProcessor.kt`**
-- Replace E key placeholder (lines 169-174) with: `gameStage.fire(InteractionEvent())`
-- Add import for `InteractionEvent`
-
-**`screens/GameScreen.kt`**
-- Register `InteractionSystem` in the ECS world systems block (add `add<InteractionSystem>()` after `DialogSystem`)
+Create `systems/ResourceSystem.kt`:
+- Extend `IntervalSystem()`, implement `EventListener`
+- Hold `var resources = Resources()` as single runtime source of truth
+- No prefs access here — loaded in Part 3, saved on gold change
+- Register in `GameScreen.kt` alongside other systems
+- Expose a `saveResources(preferences)` method for other systems to call after modifying gold
 
 ---
 
-## Part 3: Build Out CharacterInfoView
+## Part 3 — Load Resources from Prefs on Startup
 
-### Files to modify:
+Modify `systems/InitializeGameSystem.kt`:
+- Inject `ResourceSystem` via world (same pattern as `SettingsSystem`)
+- After existing init logic, check for `KEY_GOLD` in `"rolePlayingGamePrefs"`: if absent, write defaults via `preferences.flush { ... }`; if present, read and assign to `resourceSystem.resources`
+- Use the existing `preferences` instance — do not open a second one
 
-**`ui/viewmodels/CharacterInfoViewModel.kt`** (rewrite from skeleton)
-- Store `world` and `gameStage` as properties (currently constructor params are unused)
-- Create player family: `world.family(allOf = arrayOf(PlayerComponent::class))`
-- Create stat mapper: `world.mapper<StatComponent>()`
-- Add observable properties via `propertyNotify`:
-  - `playerLevel: Int`, `playerExperience: Int`, `playerExperienceToNext: Int`
-  - `playerCurrentHealth: Float`, `playerMaxHealth: Float`
-  - `playerCurrentMana: Float`, `playerMaxMana: Float`
-  - `playerAttack: Float`, `playerDefense: Float`, `playerSpeed: Float`
-- Add `refreshStats()` method that reads all stats from the player entity's `StatComponent` and updates all properties
-- Listen for `EntityTakeDamageEvent` (update HP) and `EntityRespawnEvent` (full refresh)
+---
 
-**`ui/views/CharacterInfoView.kt`** (rewrite from placeholder)
-- Store `model` as a property (currently shadowed)
-- Layout using Scene2D DSL inside a `FRAME_BGD` background table:
-  - Title label: "Character"
-  - Level row
-  - XP bar (grey background + green fill, like the existing exp bar pattern in MainGameView)
-  - HP row: label + value
-  - Mana row: label + value
-  - Attack row: label + value
-  - Defense row: label + value
-  - Speed row: label + value
-- Bind each label to the corresponding ViewModel property via `model.onPropertyChange(...)`
-- Override `setVisible()` to call `model.refreshStats()` when becoming visible — ensures stats are fresh every time the C key opens the panel
+## Part 4 — Refactor `ItemComponent.kt` and `ItemModel.kt`
+
+Modify `components/ItemComponent.kt` and `ItemModel.kt`:
+- Remove `ItemType` enum as the source of item data
+- Update `ItemComponent` and `ItemModel` to reference items by `name: String` key
+- Item category, stats, and display data will now live in `Items.kt` (Part 5)
+- Keep compilation passing — existing item references will be updated in Part 5
+
+---
+
+## Part 5 — Create `Items.kt` Configuration File
+
+Create `configurations/Items.kt`:
+- Enum class `ItemCategory { HELMET, WEAPON, ARMOR, BOOTS }`
+- Data class `ItemData` with fields: `name: String`, `category: ItemCategory`, `uiAtlasKey: String`, `stats: Map<StatType, Int>` — `Map` enforces no duplicate `StatType` per item
+- Migrate all existing `ItemType` entries into `ItemData` instances, preserving original values exactly
+- Include a commented template block at the top of the item list for adding new items:
+  ```
+  // ItemData(
+  //     name = "Item Name",
+  //     category = ItemCategory.WEAPON,
+  //     uiAtlasKey = "atlas_key",
+  //     stats = mapOf(StatType.ATTACK_DAMAGE to 10, StatType.DEFENSE to 2)
+  // ),
+  ```
+
+---
+
+## Part 6 — Create `ItemPools.kt` Configuration File
+
+Create `configurations/ItemPools.kt`:
+- Named pools as `List<String>` of item name keys: `TIER_1_ITEMS`, `TIER_2_ITEMS` (populated from migrated items — assign tiers based on item strength)
+- Utility functions:
+  - `rollForDrop(chance: Int): Boolean` — takes 1–100, returns true if random roll ≤ chance
+  - `rollRandomItem(pool: List<String>): ItemData` — returns a uniformly random `ItemData` from the pool by name lookup against `Items.kt`
+- Include a comment block for adding new pools and assigning items to tiers
+
+---
+
+## Part 7 — Add Reward Fields to Enemy Configuration
+
+Modify the existing enemy config file:
+- Add fields per enemy type: `expReward: Int`, `goldReward: Int`, `lootPool: List<String>?` (null = no item drop possible), `lootChance: Int` (1–100)
+- Typical enemy example: `lootChance = 25`, `lootPool = TIER_1_ITEMS`
+- Boss example: `lootChance = 100`, `lootPool = listOf("Specific Item Name")` for a guaranteed named drop
+- Populate all existing enemy types with appropriate values
+
+---
+
+## Part 8 — Resolve Rewards in `BattleSystem.kt`
+
+Modify `systems/BattleSystem.kt`:
+- After enemy death, resolve rewards: collect fixed `expReward` and `goldReward` from the enemy config
+- If `lootPool` is non-null: call `rollForDrop(enemy.lootChance)` — if true, call `rollRandomItem(enemy.lootPool)` to select an item
+- Package results into a `BattleRewardData` object: `expGained: Int`, `goldGained: Int`, `itemDropped: ItemData?`
+- Fire `BattleRewardEvent(rewardData)` on `gameStage`
+
+---
+
+## Part 9 — Create `RewardViewModel.kt`
+
+Create `ui/viewmodels/RewardViewModel.kt`:
+- Extend `PropertyChangeSource`, implement `EventListener`; register on `uiStage`
+- Observable properties: `expGained by propertyNotify(0)`, `goldGained by propertyNotify(0)`, `itemDropped by propertyNotify<ItemData?>(null)`
+- On `BattleRewardEvent`: populate all properties from `rewardData`, apply `goldGained` delta to `resourceSystem.resources.gold`, call `resourceSystem.saveResources(preferences)`
+
+---
+
+## Part 10 — Build `RewardView.kt` Overlay Widget
+
+Create `ui/views/RewardView.kt` (or `ui/widgets/RewardView.kt` if treated as a reusable widget):
+- Extend `Table(skin)`, mix `KTable`
+- Layout: EXP gained, gold gained, item drop row (icon from `uiAtlasKey` + item name, or blank if null)
+- Confirm button fires `RewardDismissedEvent` on `uiStage`
+- Bind all fields to `RewardViewModel` properties via `model.onPropertyChange()`
+- Add DSL extension function following existing view patterns
+
+---
+
+## Part 11 — Wire RewardView as `BattleView` Overlay
+
+Modify `ui/views/BattleView.kt`:
+- Add `RewardView` as a hidden overlay, shown when `BattleRewardEvent` is received
+- Player input (keyboard confirm or mouse click) fires `RewardDismissedEvent`
+- `RewardDismissedEvent` hides the overlay and triggers the existing battle-end → overworld transition
+
+---
+
+## Part 12 — Display Gold in `CharacterInfoView`
+
+Modify `ui/views/CharacterInfoView.kt` (or its ViewModel):
+- Inject `ResourceSystem` via world
+- Add a gold display field bound to `resourceSystem.resources.gold`
+- Updates reactively when gold changes (e.g. after reward is applied in Part 9)
+
+---
+
+## Part 13 — Verification Pass
+
+- Confirm all existing items migrated correctly from `ItemType` — stats and categories match original values
+- Confirm gold persists correctly across game restart via prefs
+- Confirm loot rolls behave correctly: 0% chance never drops, 100% always drops
+- `./gradlew :core:compileKotlin` must pass after each part
 
 ---
 
 ## Implementation Order
 
-1. **Part 1** — Disable AiSystem + AttackSystem, remove SPACE handler (quick, low risk)
-2. **Part 2** — InteractionSystem + E key wiring (medium complexity, new file)
-3. **Part 3** — CharacterInfoView + ViewModel (self-contained UI work)
+1. **Part 1** — Create `Resources.kt` data class with `gold: Int = 0` and pref key constants in `configurations/resources/`
+2. **Part 2** — Create `ResourceSystem` holding the active `Resources` instance; register in `GameScreen`
+3. **Part 3** — Update `InitializeGameSystem` to load gold from prefs on startup — write defaults if absent, populate system if present
+4. **Part 4** — Refactor `ItemComponent` and `ItemModel` to reference items by string name key, removing `ItemType` enum dependency
+5. **Part 5** — Create `Items.kt` with `ItemData` data class and `ItemCategory` enum; migrate all existing items; include commented add-item template
+6. **Part 6** — Create `ItemPools.kt` with `TIER_1_ITEMS` / `TIER_2_ITEMS` pools and `rollForDrop()` / `rollRandomItem()` utility functions
+7. **Part 7** — Add `expReward`, `goldReward`, `lootPool`, and `lootChance` fields to all existing enemy config entries
+8. **Part 8** — Resolve rewards in `BattleSystem` after enemy death — roll drop chance, select item if applicable, fire `BattleRewardEvent`
+9. **Part 9** — Create `RewardViewModel` to handle `BattleRewardEvent`, populate observable properties, and apply gold delta to `ResourceSystem`
+10. **Part 10** — Build `RewardView` overlay widget — displays EXP, gold, and optional item drop with confirm button firing `RewardDismissedEvent`
+11. **Part 11** — Wire `RewardView` into `BattleView` as a hidden overlay; show on reward event, dismiss on player input, then trigger existing battle-end transition
+12. **Part 12** — Add gold display field to `CharacterInfoView`, bound reactively to `ResourceSystem`
+13. **Part 13** — Verification pass: item migration, gold prefs persistence, loot roll correctness, compilation after each part
 
 ---
 
@@ -147,22 +217,20 @@ The overworld currently allows NPC entities to move freely via AI behavior trees
 | File | Path |
 |------|------|
 | GameScreen | `core/src/main/kotlin/.../screens/GameScreen.kt` |
-| PlayerKeyboardInputProcessor | `core/src/main/kotlin/.../input/PlayerKeyboardInputProcessor.kt` |
-| Events | `core/src/main/kotlin/.../events/Events.kt` |
-| AttackSystem (reference for AABB) | `core/src/main/kotlin/.../systems/AttackSystem.kt` |
-| AiSystem | `core/src/main/kotlin/.../systems/AiSystem.kt` |
-| DialogSystem | `core/src/main/kotlin/.../systems/DialogSystem.kt` |
-| CharacterInfoViewModel | `core/src/main/kotlin/.../ui/viewmodels/CharacterInfoViewModel.kt` |
+| BattleSystem | `core/src/main/kotlin/.../systems/BattleSystem.kt` |
+| InitializeGameSystem | `core/src/main/kotlin/.../systems/InitializeGameSystem.kt` |
+| BattleView | `core/src/main/kotlin/.../ui/views/BattleView.kt` |
 | CharacterInfoView | `core/src/main/kotlin/.../ui/views/CharacterInfoView.kt` |
-| StatComponent | `core/src/main/kotlin/.../components/StatComponent.kt` |
+| ItemComponent | `core/src/main/kotlin/.../components/ItemComponent.kt` |
+| ItemModel | `core/src/main/kotlin/.../components/ItemModel.kt` |
+| Events | `core/src/main/kotlin/.../events/Events.kt` |
+| **[NEW] Resources** | `core/src/main/kotlin/.../configurations/resources/Resources.kt` |
+| **[NEW] ResourceSystem** | `core/src/main/kotlin/.../systems/ResourceSystem.kt` |
+| **[NEW] Items** | `core/src/main/kotlin/.../configurations/Items.kt` |
+| **[NEW] ItemPools** | `core/src/main/kotlin/.../configurations/ItemPools.kt` |
+| **[NEW] RewardViewModel** | `core/src/main/kotlin/.../ui/viewmodels/RewardViewModel.kt` |
+| **[NEW] RewardView** | `core/src/main/kotlin/.../ui/views/RewardView.kt` |
 
 ## Verification
 
 1. `./gradlew :core:compileKotlin` — must pass after each part
-2. Run the game:
-   - NPC entities (slimes, old man) should stand still in the overworld
-   - Spacebar should do nothing
-   - Walk up to a sign/NPC, press E — dialog should appear
-   - Press C — CharacterInfoView should show level, HP, mana, attack, defense, speed
-   - Enter battle — battle should work exactly as before (attacks, AI unaffected)
-   - Exit battle — overworld systems should remain disabled (NPCs still, no attack)

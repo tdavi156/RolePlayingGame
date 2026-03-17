@@ -153,9 +153,6 @@ class BattleView(
         model.onPropertyChange(BattleViewModel::battleLog) { log ->
             if (log.isNotBlank()) messageLabel.txt = log
         }
-        model.onPropertyChange(BattleViewModel::lootText) { loot ->
-            if (loot.isNotBlank()) messageLabel.txt = loot
-        }
         model.onPropertyChange(BattleViewModel::battlePhase) { phase ->
             if (phase == BattlePhase.PLAYER_TURN) {
                 actionTable.isVisible = true

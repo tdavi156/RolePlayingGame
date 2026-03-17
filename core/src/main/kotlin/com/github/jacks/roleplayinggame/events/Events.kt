@@ -8,7 +8,7 @@ import com.github.jacks.roleplayinggame.components.AnimationModel
 import com.github.jacks.roleplayinggame.components.BattleAction
 import com.github.jacks.roleplayinggame.components.BattleEndReason
 import com.github.jacks.roleplayinggame.components.BattlePhase
-import com.github.jacks.roleplayinggame.components.ItemType
+import com.github.jacks.roleplayinggame.configurations.ItemData
 import com.github.jacks.roleplayinggame.dialog.Dialog
 import com.github.quillraven.fleks.Entity
 
@@ -36,12 +36,19 @@ data class BattleLogEvent(val message: String) : Event()
 class BattleLogDismissedEvent : Event()
 data class BattleTargetSelectedEvent(val target: Entity) : Event()
 
+data class BattleRewardData(val expGained: Int, val goldGained: Int, val itemDropped: ItemData?)
+class BattleRewardEvent(val rewardData: BattleRewardData) : Event()
+class RewardDismissedEvent : Event()
+
 class CollisionDespawnEvent(val cell : Cell) : Event()
 class EntityAttackEvent(val model : AnimationModel) : Event()
 class EntityDeathEvent(val model : AnimationModel) : Event()
 class EntityRespawnEvent(val entity : Entity) : Event()
 class EntityLootEvent(val entity : Entity, val model : AnimationModel) : Event()
 class EntityTakeDamageEvent(val entity : Entity) : Event()
-class EntityAddItemEvent(val entity : Entity, val itemType : ItemType) : Event()
+class EntityAddItemEvent(val entity : Entity, val itemName : String) : Event()
 class EntityDialogEvent(val dialog : Dialog) : Event()
 class InteractionEvent : Event()
+
+class SettingsOpenEvent : Event()
+class SettingsClosedEvent : Event()

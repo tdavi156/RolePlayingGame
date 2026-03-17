@@ -5,7 +5,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Skin
 import com.badlogic.gdx.scenes.scene2d.ui.WidgetGroup
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.utils.Scaling
-import com.github.jacks.roleplayinggame.components.ItemCategory
+import com.github.jacks.roleplayinggame.configurations.ItemCategory
 import com.github.jacks.roleplayinggame.ui.Drawables
 import com.github.jacks.roleplayinggame.ui.get
 import com.github.jacks.roleplayinggame.ui.viewmodels.ItemModel

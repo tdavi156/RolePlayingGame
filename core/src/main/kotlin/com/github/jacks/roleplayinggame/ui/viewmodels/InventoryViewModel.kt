@@ -5,9 +5,11 @@ import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.InventoryComponent
 import com.github.jacks.roleplayinggame.components.ItemComponent
-import com.github.jacks.roleplayinggame.components.ItemType
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
+import com.github.jacks.roleplayinggame.configurations.ItemCategory
+import com.github.jacks.roleplayinggame.configurations.Items
+import com.github.jacks.roleplayinggame.configurations.itemByName
 import com.github.jacks.roleplayinggame.events.EntityAddItemEvent
 import com.github.jacks.roleplayinggame.events.EntityLootEvent
 import com.github.quillraven.fleks.World
@@ -40,10 +42,11 @@ class InventoryViewModel(
                 if (event.entity in playerComponents) {
                     playerItems = inventoryComponents[event.entity].items.map {
                         val itemComponent = itemComponents[it]
+                        val itemData = itemByName(itemComponent.name)
                         ItemModel(
-                            it.id,
-                            itemComponent.itemType.category,
-                            itemComponent.itemType.uiAtlasKey,
+                            itemComponent.name,
+                            itemData?.category ?: ItemCategory.UNDEFINED,
+                            itemData?.uiAtlasKey ?: "",
                             itemComponent.slotIndex,
                             itemComponent.equipped
                         )
@@ -52,7 +55,7 @@ class InventoryViewModel(
             }
             is EntityLootEvent -> {
                 if (event.entity in playerComponents) {
-                    inventoryComponents[event.entity].itemsToAdd += ItemType.entries.filterNot { it == ItemType.UNDEFINED }.random()
+                    inventoryComponents[event.entity].itemsToAdd += Items.random().name
                 }
             }
             else -> return false
@@ -62,18 +65,22 @@ class InventoryViewModel(
 
     fun equip(itemModel : ItemModel) {
         val item = playerItemByModel(itemModel)
-        val itemType = item.itemType
+        val itemData = itemByName(item.name) ?: return
         item.equipped = true
         itemModel.isEquipped = true
-        playerStatComponent.increaseStat(itemType.statType, itemType.statValue)
+        itemData.stats.forEach { (statType, value) ->
+            playerStatComponent.increaseStat(statType, value.toFloat())
+        }
     }
 
     fun unequip(itemModel : ItemModel) {
         val item = playerItemByModel(itemModel)
-        val itemType = item.itemType
+        val itemData = itemByName(item.name) ?: return
         item.equipped = false
         itemModel.isEquipped = false
-        playerStatComponent.decreaseStat(itemType.statType, itemType.statValue)
+        itemData.stats.forEach { (statType, value) ->
+            playerStatComponent.decreaseStat(statType, value.toFloat())
+        }
     }
 
     fun inventoryItem(slotIndex : Int, itemModel : ItemModel) {
@@ -82,7 +89,6 @@ class InventoryViewModel(
     }
 
     private fun playerItemByModel(itemModel : ItemModel) : ItemComponent {
-        return itemComponents[playerInventoryComponent.items.first { it.id == itemModel.itemEntityId }]
+        return itemComponents[playerInventoryComponent.items.first { itemComponents[it].name == itemModel.name }]
     }
 }
-

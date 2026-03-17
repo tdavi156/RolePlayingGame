@@ -6,7 +6,9 @@ import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.events.EntityRespawnEvent
+import com.github.jacks.roleplayinggame.events.RewardDismissedEvent
 import com.github.jacks.roleplayinggame.events.EntityTakeDamageEvent
+import com.github.jacks.roleplayinggame.systems.ResourceSystem
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.World
 
@@ -17,6 +19,7 @@ class CharacterInfoViewModel(
 
     private val playerFamily = world.family(allOf = arrayOf(PlayerComponent::class))
     private val statMapper: ComponentMapper<StatComponent> = world.mapper()
+    private val resourceSystem: ResourceSystem = world.system()
 
     var playerLevel by propertyNotify(1)
     var playerExperience by propertyNotify(0)
@@ -28,6 +31,7 @@ class CharacterInfoViewModel(
     var playerAttack by propertyNotify(0f)
     var playerDefense by propertyNotify(0f)
     var playerSpeed by propertyNotify(0f)
+    var playerGold by propertyNotify(0)
 
     init {
         stage.addListener(this)
@@ -47,6 +51,7 @@ class CharacterInfoViewModel(
             playerDefense = stat.defense
             playerSpeed = stat.moveSpeed
         }
+        playerGold = resourceSystem.resources.gold
     }
 
     override fun handle(event: Event): Boolean {
@@ -60,6 +65,7 @@ class CharacterInfoViewModel(
                 }
             }
             is EntityRespawnEvent -> refreshStats()
+            is RewardDismissedEvent -> playerGold = resourceSystem.resources.gold
             else -> return false
         }
         return true
