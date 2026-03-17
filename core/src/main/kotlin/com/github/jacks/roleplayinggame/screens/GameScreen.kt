@@ -26,12 +26,15 @@ import com.github.jacks.roleplayinggame.events.InitializeGameEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.input.PlayerKeyboardInputProcessor
 import com.github.jacks.roleplayinggame.input.gdxInputProcessor
+import com.github.jacks.roleplayinggame.events.ShopClosedEvent
+import com.github.jacks.roleplayinggame.events.ShopOpenEvent
 import com.github.jacks.roleplayinggame.systems.AiSystem
 import com.github.jacks.roleplayinggame.systems.AnimationSystem
 import com.github.jacks.roleplayinggame.systems.AttackSystem
 import com.github.jacks.roleplayinggame.systems.BattleSystem
 import com.github.jacks.roleplayinggame.systems.ResourceSystem
 import com.github.jacks.roleplayinggame.systems.SettingsSystem
+import com.github.jacks.roleplayinggame.systems.ShopSystem
 import com.github.jacks.roleplayinggame.systems.CameraSystem
 import com.github.jacks.roleplayinggame.systems.CollisionDespawnSystem
 import com.github.jacks.roleplayinggame.systems.CollisionSpawnSystem
@@ -55,9 +58,12 @@ import com.github.jacks.roleplayinggame.systems.SpawnerSystem
 import com.github.jacks.roleplayinggame.systems.StateSystem
 import com.github.jacks.roleplayinggame.ui.viewmodels.BattleViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.RewardViewModel
+import com.github.jacks.roleplayinggame.ui.viewmodels.ShopViewModel
 import com.github.jacks.roleplayinggame.ui.views.BattleView
 import com.github.jacks.roleplayinggame.ui.views.RewardView
+import com.github.jacks.roleplayinggame.ui.views.ShopView
 import com.github.jacks.roleplayinggame.ui.views.rewardView
+import com.github.jacks.roleplayinggame.ui.views.shopView
 import com.github.jacks.roleplayinggame.ui.views.FadeInOutView
 import com.github.jacks.roleplayinggame.ui.views.MainGameView
 import com.github.jacks.roleplayinggame.ui.viewmodels.CharacterInfoViewModel
@@ -137,6 +143,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
             add<LootSystem>()
             add<DialogSystem>()
             add<InteractionSystem>()
+            add<ShopSystem>()
             add<DeathSystem>()
             add<LifeSystem>()
             add<PhysicsSystem>()
@@ -155,6 +162,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
     private val attackMapper by lazy { entityWorld.mapper<AttackComponent>() }
     private val settingsViewModel = SettingsViewModel(uiStage, entityWorld.system<SettingsSystem>())
     private val rewardViewModel   = RewardViewModel(entityWorld, gameStage)
+    private val shopViewModel     = ShopViewModel(entityWorld, gameStage)
 
     init {
         uiStage.actors {
@@ -202,7 +210,10 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
             // settings UI, actor.get(12)
             settingsView(settingsViewModel) { isVisible = false }
 
-            // fade overlay, actor.get(12) — drawn on top for screen transitions
+            // shop UI, actor.get(13)
+            shopView(shopViewModel) { isVisible = false }
+
+            // fade overlay, actor.get(14) — drawn on top for screen transitions
             fadeView = fadeInOutView { isVisible = false }
         }
     }
@@ -264,6 +275,19 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
             is RewardDismissedEvent -> {
                 uiStage.actors.filterIsInstance<RewardView>().first().isVisible = false
                 exitBattleMode(BattleEndReason.WIN)
+                return true
+            }
+            is ShopOpenEvent -> {
+                entityWorld.systems
+                    .filter { it::class !in shopMandatorySystems }
+                    .forEach { it.enabled = false }
+                uiStage.actors.filterIsInstance<ShopView>().first().isVisible = true
+                return true
+            }
+            is ShopClosedEvent -> {
+                entityWorld.systems.forEach { it.enabled = true }
+                disableOverworldSystems()
+                uiStage.actors.filterIsInstance<ShopView>().first().isVisible = false
                 return true
             }
             else -> return false
@@ -354,6 +378,19 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
         private val overworldDisabledSystems = setOf(
             AiSystem::class,
             AttackSystem::class,
+        )
+
+        // Systems that must stay active while a shop is open (all others are paused)
+        private val shopMandatorySystems = setOf(
+            AnimationSystem::class,
+            CameraSystem::class,
+            RenderSystem::class,
+            DebugSystem::class,
+            InventorySystem::class,
+            ResourceSystem::class,
+            StatSystem::class,
+            SettingsSystem::class,
+            ShopSystem::class,
         )
     }
 }

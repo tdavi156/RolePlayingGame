@@ -34,4 +34,6 @@ data class EntityCreationComponent(
     // Spawner identity — passed through so battle-capable entities can link back to their spawner
     var spawnerId: Int = -1,
     var spawnerMapId: Int = -1,
+    // Shop identity — non-zero if this entity is a shop NPC
+    var shopId: Int = 0,
 )

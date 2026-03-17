@@ -58,3 +58,10 @@ class InventoryClosedEvent : Event()
 
 data class EquipItemEvent(val itemId: Int, val characterIndex: Int) : Event()
 data class UseConsumableEvent(val itemId: Int, val characterIndex: Int) : Event()
+
+// Shop events
+class ShopInteractionEvent(val shopId: Int) : Event()
+class ShopOpenEvent(val shopConfig: com.github.jacks.roleplayinggame.configurations.ShopConfig) : Event()
+class ShopClosedEvent : Event()
+class ShopBuyConfirmedEvent(val itemId: Int, val quantity: Int) : Event()
+class ShopSellConfirmedEvent(val itemId: Int, val quantity: Int) : Event()

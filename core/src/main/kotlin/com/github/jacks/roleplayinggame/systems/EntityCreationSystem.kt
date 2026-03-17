@@ -48,6 +48,7 @@ import com.github.jacks.roleplayinggame.components.NonPlayerConfiguration
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.PlayerConfiguration
+import com.github.jacks.roleplayinggame.components.ShopComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.components.StateComponent
 import com.github.jacks.roleplayinggame.configurations.ConfigurationType
@@ -192,6 +193,9 @@ class EntityCreationSystem(
                             spawnerId = this@with.spawnerId
                             spawnerMapId = this@with.spawnerMapId
                         } }
+                        if (this@with.shopId > 0) {
+                            add<ShopComponent> { shopId = this@with.shopId }
+                        }
                     }
                 }
                 else -> { gdxError("Entity has no configuration.") }
@@ -222,6 +226,7 @@ class EntityCreationSystem(
                             this.configuration = getConfiguration(entity.name)
                             this.entityName = entity.name
                             this.location.set(entity.x * UNIT_SCALE, entity.y * UNIT_SCALE)
+                            this.shopId = entity.properties.get("shopId", 0, Int::class.java)
                         }
                     }
                 }

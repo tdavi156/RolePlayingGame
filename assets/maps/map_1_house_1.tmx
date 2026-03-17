@@ -28,7 +28,11 @@
   </data>
  </layer>
  <objectgroup color="#ff0000" id="5" name="entities">
-  <object id="3" name="oldman" gid="10664" x="160" y="160" width="48" height="48"/>
+  <object id="3" name="oldman" gid="10664" x="160" y="160" width="48" height="48">
+   <properties>
+    <property name="shopId" type="int" value="1"/>
+   </properties>
+  </object>
  </objectgroup>
  <objectgroup color="#2411f9" id="6" name="portals">
   <object id="1" name="to_map_1" x="222.972" y="279.202" width="34" height="8.90909">

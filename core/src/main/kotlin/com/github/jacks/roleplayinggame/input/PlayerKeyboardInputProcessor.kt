@@ -20,6 +20,12 @@ import com.github.jacks.roleplayinggame.configurations.EquipmentItemData
 import com.github.jacks.roleplayinggame.ui.viewmodels.InventoryContext
 import com.github.jacks.roleplayinggame.ui.viewmodels.InventoryTab
 import com.github.jacks.roleplayinggame.ui.viewmodels.PendingAction
+import com.github.jacks.roleplayinggame.events.ShopBuyConfirmedEvent
+import com.github.jacks.roleplayinggame.events.ShopClosedEvent
+import com.github.jacks.roleplayinggame.events.ShopSellConfirmedEvent
+import com.github.jacks.roleplayinggame.ui.viewmodels.ShopMode
+import com.github.jacks.roleplayinggame.ui.viewmodels.ShopTab
+import com.github.jacks.roleplayinggame.ui.viewmodels.ShopViewModel
 import com.github.jacks.roleplayinggame.ui.views.BackgroundView
 import com.github.jacks.roleplayinggame.ui.views.CharacterInfoView
 import com.github.jacks.roleplayinggame.ui.views.InventoryView
@@ -27,6 +33,7 @@ import com.github.jacks.roleplayinggame.ui.views.MapView
 import com.github.jacks.roleplayinggame.ui.views.MenuView
 import com.github.jacks.roleplayinggame.ui.views.QuestView
 import com.github.jacks.roleplayinggame.ui.views.SettingsView
+import com.github.jacks.roleplayinggame.ui.views.ShopView
 import com.github.jacks.roleplayinggame.ui.views.SkillView
 import com.github.jacks.roleplayinggame.input.ViewType.*
 import com.github.jacks.roleplayinggame.ui.viewmodels.SettingsViewModel
@@ -37,7 +44,7 @@ import ktx.log.logger
 import ktx.math.vec2
 
 enum class ViewType {
-    NO_VIEW, CHARACTER, INVENTORY, SKILL, QUEST, MAP, MAIN_MENU, SETTINGS
+    NO_VIEW, CHARACTER, INVENTORY, SKILL, QUEST, MAP, MAIN_MENU, SETTINGS, SHOP
 }
 
 fun gdxInputProcessor(processor : InputProcessor) {
@@ -105,6 +112,12 @@ class PlayerKeyboardInputProcessor(
 //    }
 
     override fun keyDown(keycode: Int): Boolean {
+        // Shop navigation takes priority when shop is open
+        if (getActiveView() == SHOP) {
+            handleShopKeyDown(keycode)
+            return true
+        }
+
         // Settings navigation takes priority over all other key handling
         if (getActiveView() == SETTINGS) {
             val model = settingsViewModel ?: return false
@@ -344,6 +357,96 @@ class PlayerKeyboardInputProcessor(
         return false
     }
 
+    private fun handleShopKeyDown(keycode: Int) {
+        val shopView = uiStage.actors.filterIsInstance<ShopView>().firstOrNull() ?: return
+        val model    = shopView.model
+        val tabs     = ShopTab.entries
+
+        if (model.pendingItemId != ShopViewModel.NO_PENDING) {
+            // ── Quantity selector is active ──
+            when (keycode) {
+                LEFT, A -> {
+                    val newQty = (model.pendingQuantity - 1).coerceAtLeast(1)
+                    model.pendingQuantity = newQty
+                }
+                RIGHT, D -> {
+                    val newQty = (model.pendingQuantity + 1).coerceAtMost(model.maxQuantity)
+                    model.pendingQuantity = newQty
+                }
+                ENTER -> {
+                    shopView.confirmPending()
+                }
+                ESCAPE -> {
+                    // Cancel quantity selector — return to item list
+                    model.pendingItemId   = ShopViewModel.NO_PENDING
+                    model.pendingQuantity = 1
+                }
+            }
+            return
+        }
+
+        // ── Item list is active ──
+        val list = if (model.shopMode == ShopMode.BUY) model.buyItemList else model.sellItemList
+        val maxIndex = (list.size - 1).coerceAtLeast(0)
+
+        when (keycode) {
+            LEFT, A -> {
+                val newIdx = (model.activeTab.ordinal - 1 + tabs.size) % tabs.size
+                model.activeTab       = tabs[newIdx]
+                model.focusedItemIndex = 0
+                model.pendingItemId   = ShopViewModel.NO_PENDING
+            }
+            RIGHT, D -> {
+                val newIdx = (model.activeTab.ordinal + 1) % tabs.size
+                model.activeTab       = tabs[newIdx]
+                model.focusedItemIndex = 0
+                model.pendingItemId   = ShopViewModel.NO_PENDING
+            }
+            UP, W -> {
+                model.focusedItemIndex = (model.focusedItemIndex - 1).coerceAtLeast(0)
+            }
+            DOWN, S -> {
+                model.focusedItemIndex = (model.focusedItemIndex + 1).coerceAtMost(maxIndex)
+            }
+            TAB -> {
+                // Toggle BUY / SELL mode
+                model.shopMode        = if (model.shopMode == ShopMode.BUY) ShopMode.SELL else ShopMode.BUY
+                model.focusedItemIndex = 0
+                model.pendingItemId   = ShopViewModel.NO_PENDING
+            }
+            ENTER -> {
+                val safeIdx = model.focusedItemIndex.coerceIn(0, maxIndex)
+                when (model.shopMode) {
+                    ShopMode.BUY -> {
+                        val row = model.buyItemList.getOrNull(safeIdx) ?: return
+                        when {
+                            row.id == ShopViewModel.NO_PENDING -> gameStage.fire(ShopClosedEvent())
+                            !row.canAfford -> model.insufficientGoldVisible = true
+                            else -> {
+                                model.pendingItemId   = row.id
+                                model.pendingQuantity = 1
+                            }
+                        }
+                    }
+                    ShopMode.SELL -> {
+                        val row = model.sellItemList.getOrNull(safeIdx) ?: return
+                        when {
+                            row.id == ShopViewModel.NO_PENDING -> gameStage.fire(ShopClosedEvent())
+                            !row.sellable -> { /* no-op */ }
+                            else -> {
+                                model.pendingItemId   = row.id
+                                model.pendingQuantity = 1
+                            }
+                        }
+                    }
+                }
+            }
+            ESCAPE -> {
+                gameStage.fire(ShopClosedEvent())
+            }
+        }
+    }
+
     private fun getActiveView(): ViewType {
         val settingsView = uiStage.actors.filterIsInstance<SettingsView>().firstOrNull()
         val characterInfoView = uiStage.actors.filterIsInstance<CharacterInfoView>().first()
@@ -352,7 +455,9 @@ class PlayerKeyboardInputProcessor(
         val questView = uiStage.actors.filterIsInstance<QuestView>().first()
         val mapView = uiStage.actors.filterIsInstance<MapView>().first()
         val menuView = uiStage.actors.filterIsInstance<MenuView>().first()
+        val shopView = uiStage.actors.filterIsInstance<ShopView>().firstOrNull()
 
+        if (shopView?.isVisible == true) { return SHOP }
         if (settingsView?.isVisible == true) { return SETTINGS }
         if (characterInfoView.isVisible) { return CHARACTER }
         if (inventoryView.isVisible) { return INVENTORY }
@@ -372,6 +477,7 @@ class PlayerKeyboardInputProcessor(
         uiStage.actors.filterIsInstance<QuestView>().first().isVisible = false
         uiStage.actors.filterIsInstance<MapView>().first().isVisible = false
         uiStage.actors.filterIsInstance<MenuView>().first().isVisible = false
+        uiStage.actors.filterIsInstance<ShopView>().firstOrNull()?.isVisible = false
     }
 
     private fun handleInventoryKeyDown(keycode: Int) {

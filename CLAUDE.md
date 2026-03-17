@@ -39,250 +39,220 @@
 | File | Purpose |
 |------|---------|
 | `screens/GameScreen.kt` | Main screen. Owns `gameStage`, `uiStage`, `entityWorld`. Manages system enable/disable, UI layer transitions (fade in/out), input processors. `render()` drives the ECS tick. |
-| `systems/InitializeGameSystem.kt` | Handles game startup — loads prefs, initializes systems. Pattern for loading/writing defaults. |
-| `systems/StatSystem.kt` | Handles stat recalculation for player entities. Currently recalculates equipment-derived stats. Will be extended to support current HP/MP modification from consumables. |
-| `components/ItemComponent.kt` | Currently holds equipped item data per entity. To be reworked — will only hold equipped item references by ID. |
-| `ui/views/InventoryView.kt` | Existing inventory UI using drag-and-drop. Will be fully replaced by the new tabbed inventory view. |
-| `input/PlayerKeyboardInputProcessor.kt` | Handles all keyboard input routing. Inventory open (`I` key) and in-inventory navigation handled here. |
-| `ui/views/MainGameView.kt` | Contains the Inventory button that opens `InventoryView`. Will be rewired to new view. |
-| `events/Events.kt` | Central event definitions. New inventory events added here. |
+| `systems/InteractionSystem.kt` | Handles entity interaction detection and routing. To be fully reworked — directional hitbox → circular radius, clean player/NPC separation, typed component dispatch. |
+| `systems/InitializeGameSystem.kt` | Handles game startup — loads prefs, initializes systems. |
+| `systems/InventorySystem.kt` | Singleton inventory source of truth. `addItem()` and `removeItem()` used by shop buy/sell. |
+| `systems/ResourceSystem.kt` | Holds `Resources` (gold). Gold debited/credited on buy/sell; `saveResources()` called after each transaction. |
+| `components/ItemComponent.kt` | `InventoryComponent` on PlayerEntity holds equipped item IDs per slot — used by sell guard to count equipped copies. |
+| `input/PlayerKeyboardInputProcessor.kt` | All keyboard input routing. Shop navigation and ESC rollback handled here when `ShopView` is active. |
+| `events/Events.kt` | Central event definitions. All new shop events added here. |
+| `maps/map_1_house_1.tmx` | Map containing the oldman NPC entity. `ShopComponent` (shopId) added to this entity. |
 
 ---
 
 ## Next Feature
 
-# Inventory Rework — UI, Item Types, and Functionality
+# Shops — Buying and Selling Items
 
 ## Context
-- The existing inventory is a drag-and-drop grid system — it has bugs, is hard to extend, and will be fully replaced
-- Drag-and-drop infrastructure is preserved as a generic UI utility but formally decoupled from all inventory logic
-- The new inventory is a tabbed, text-based list UI inspired by the Pokémon Bag layout: right side shows tabs + item list + info panel, left side shows context-sensitive character/item info
-- Inventory is account-scoped, not entity-scoped — `InventorySystem` is a standalone singleton (like `ResourceSystem`), not a component on `PlayerEntity`
-- Items stack by unique integer ID — same ID = same item, quantity tracked alongside. ID ranges are documented per category in comment blocks
-- `InventoryComponent` on `PlayerEntity` is retained but reduced to holding only currently equipped item IDs
-- Left-side context switches automatically when an item action (Equip/Use) is initiated; Q/E manual context switching is deferred to a future feature
+- Shop inventory is infinite — purchasing never reduces stock
+- Shop opens directly into BUY mode — no prior Buy/Sell/Leave selection screen
+- BUY and SELL share a single `ShopViewModel` and `ShopView`, toggled via a mode flag
+- `ShopComponent` holds only a `shopId` — full item lists are defined in `ShopConfigs.kt` and looked up at runtime
+- Sell price is always `ceil(goldValue / 2f)` — half the buy price, rounded up
+- Items currently equipped across any party member cannot be sold — available sell quantity = `ownedQuantity - equippedCount`
+- ESC always rolls back one context level: quantity selector → item list → close shop
+- Leave option is always present as the last row in every tab in both BUY and SELL modes — no state where the player is trapped
 
 ---
 
-## Part 1 — Rename Item Config, Create Stat Type Enums, Add Missing Fields
+## Part 1 — Create `ShopConfigs.kt` and `ShopComponent`
 
-Rename `configurations/Items.kt` → `configurations/EquipmentItems.kt`:
-- Rename `ItemData` → `EquipmentItemData`, `StatType` → `EquipmentStatType`
-- Add fields: `id: Int`, `isSellable: Boolean = true`, `goldValue: Int = 10`
-- ID range for equipment: `1000–1999` — document in a comment block at the top of the file:
+Create `configurations/ShopConfigs.kt`:
+- Data class `ShopConfig`: `shopId: Int`, `shopName: String`, typed item ID lists per tab: `equipmentIds: List<Int>`, `consumableIds: List<Int>`, `questIds: List<Int>`, `enchantmentIds: List<Int>`
+- Define `OLDMAN_SHOP` as the first entry — populate with a reasonable spread of existing item IDs from each config for testing
+- Include a commented template block for adding new shops:
   ```
-  // ID Ranges:
-  // Equipment:           1000–1999
-  // Consumables:         2000–2999
-  // Quest Items:         3000–3999
-  // Battle Enchantments: 4000–4999
+  // ShopConfig(
+  //     shopId = 1,
+  //     shopName = "Shop Name",
+  //     equipmentIds = listOf(1001, 1002),
+  //     consumableIds = listOf(2001),
+  //     questIds = emptyList(),
+  //     enchantmentIds = emptyList()
+  // ),
   ```
-- Assign IDs to all existing equipment entries
 
-Create `configurations/EquipmentStatType.kt`:
-- Enum `EquipmentStatType` — move existing stat type values here from old `StatType`
-
-Create `configurations/ConsumableStatType.kt`:
-- Enum `ConsumableStatType` with values relevant to consumable effects: `HEALTH`, `MANA` (expand later as needed)
-
-Create `configurations/BattleEnchantmentStatType.kt`:
-- Enum `BattleEnchantmentStatType` with values for passive combat bonuses: `HEALTH`, `ATTACK`, `DEFENSE` (expand later as needed)
-
-Update all existing references to `ItemData` and `StatType` to use the new renamed types — compilation must pass.
+Create `components/ShopComponent.kt`:
+- Data class / component holding only `shopId: Int`
+- Add `ShopComponent` with the appropriate `shopId` to the oldman entity in `map_1_house_1.tmx`
 
 ---
 
-## Part 2 — Create `ConsumableItems.kt`, `QuestItems.kt`, `BattleEnchantmentItems.kt`
+## Part 2 — Full Rework of `InteractionSystem.kt`
 
-Create `configurations/ConsumableItems.kt`:
-- Data class `ConsumableItemData`: `id: Int`, `itemName: String`, `uiAtlasKey: String`, `statType: ConsumableStatType`, `statValue: Int`, `goldValue: Int = 10`, `isSellable: Boolean = true`
-- 3 dummy entries (IDs `2001–2003`), all using `"armor"` atlas key
-- Commented add-item template at top of list
-
-Create `configurations/QuestItems.kt`:
-- Data class `QuestItemData`: `id: Int`, `itemName: String`, `uiAtlasKey: String`, `itemDescription: String`, `questId: Int = 0`, `isSellable: Boolean = false`
-- 3 dummy entries (IDs `3001–3003`), all using `"boots"` atlas key
-- Commented add-item template at top of list
-
-Create `configurations/BattleEnchantmentItems.kt`:
-- Data class `BattleEnchantmentItemData`: `id: Int`, `itemName: String`, `uiAtlasKey: String`, `itemDescription: String`, `statType: BattleEnchantmentStatType`, `statValue: Int`, `goldValue: Int = 0`, `isSellable: Boolean = false`
-- 3 dummy entries (IDs `4001–4003`), all using `"sword2"` atlas key
-- Commented add-item template at top of list
+Rework `systems/InteractionSystem.kt`:
+- **Detection**: replace directional hitbox check with circular radius check around both the player entity and the NPC entity — interaction triggers if the two radii overlap
+- **Player/NPC identification**: unambiguously determine which entity is the player and which is the NPC on every `InteractionEvent` — no directional assumptions
+- **Typed dispatch**: after contact confirmed, inspect the NPC entity for component presence and route accordingly:
+  - `LootComponent` → existing loot handling (behavior unchanged)
+  - `DialogComponent` → existing `DialogSystem` (behavior unchanged)
+  - `ShopComponent` → fire `ShopInteractionEvent(shopId)` to new `ShopSystem`
+- Pause overworld mechanics (player movement, game tick systems) on interaction start; resume on `ShopClosedEvent`, `DialogClosedEvent`, or equivalent
+- All existing interaction types (Loot, Dialog) must continue to function correctly after rework
 
 ---
 
-## Part 3 — Formally Decouple Drag-and-Drop from Inventory
+## Part 3 — Create `ShopSystem.kt`
 
-Modify the existing drag-and-drop system:
-- Remove all references to inventory slots, `InventoryComponent`, and item equipping from drag-and-drop classes
-- Preserve all drag-and-drop infrastructure as a generic UI utility — no functional removal, just inventory-specific wiring stripped out
-- Confirm drag-and-drop still compiles and does not throw at runtime after decoupling
-
----
-
-## Part 4 — Create `InventorySystem.kt` as Singleton
-
-Create `systems/InventorySystem.kt`:
+Create `systems/ShopSystem.kt`:
 - Extend `IntervalSystem()`, implement `EventListener`; register in `GameScreen.kt`
-- Internal state — four typed lists, each entry is a data class pairing item data with quantity:
-  - `equipment: MutableList<InventoryEntry<EquipmentItemData>>`
-  - `consumables: MutableList<InventoryEntry<ConsumableItemData>>`
-  - `questItems: MutableList<InventoryEntry<QuestItemData>>`
-  - `enchantments: MutableList<InventoryEntry<BattleEnchantmentItemData>>`
-- `InventoryEntry<T>(val item: T, var quantity: Int)` — defined as a small data class in the same file
-- Stacking logic on `addItem()`: check if an entry with the same `id` exists — if so, increment `quantity`; otherwise add a new entry with `quantity = 1`
-- Expose: `addItem()`, `removeItem()` (decrements quantity, removes entry at 0), `getEquippedIds(): Map<ItemCategory, Int?>` for `InventoryComponent` sync
+- Enum `ShopMode { BUY, SELL }` defined here or in a shared enums file
+- Handles `ShopInteractionEvent(shopId: Int)`: looks up `ShopConfig` from `ShopConfigs.kt`, stores as `activeShopConfig`, fires `ShopOpenEvent(shopConfig)`
+- Transient session state: `activeShopConfig`, `shopMode`, `pendingItemId`, `pendingQuantity` — all cleared on shop close
+- Handles `ShopBuyConfirmedEvent(itemId: Int, quantity: Int)`:
+  - Deduct `goldValue * quantity` from `ResourceSystem.resources.gold`; call `resourceSystem.saveResources()`
+  - Call `inventorySystem.addItem(itemId, quantity)` — stacking handled automatically
+- Handles `ShopSellConfirmedEvent(itemId: Int, quantity: Int)`:
+  - Calculate sell price: `ceil(goldValue / 2f) * quantity`
+  - Add result to `ResourceSystem.resources.gold`; call `resourceSystem.saveResources()`
+  - Call `inventorySystem.removeItem(itemId, quantity)`
+- Handles `ShopClosedEvent`: clears all session state, fires event to resume overworld mechanics
 
 ---
 
-## Part 5 — Rework `InventoryComponent` and Seed Starting Items
+## Part 4 — Build `ShopViewModel.kt`
 
-Modify `components/ItemComponent.kt` / `InventoryComponent`:
-- Reduce to holding only currently equipped item IDs per slot: `Map<ItemCategory, Int?>` — one nullable ID per category
-- Remove all owned-item list logic — `InventorySystem` is now the source of truth
-
-Modify `systems/InitializeGameSystem.kt`:
-- After existing init logic, seed starting inventory via `inventorySystem.addItem()`:
-  - 5 equipment items (varied, from existing `EquipmentItems`)
-  - 2 consumables (from dummy `ConsumableItems`)
-  - 2 quest items (from dummy `QuestItems`)
-  - 2 battle enchantments (from dummy `BattleEnchantmentItems`)
-
----
-
-## Part 6 — Build `InventoryViewModel.kt`
-
-Create `ui/viewmodels/InventoryViewModel.kt`:
+Create `ui/viewmodels/ShopViewModel.kt`:
 - Extend `PropertyChangeSource`, implement `EventListener`; register on `uiStage`
-- Enums defined here or in a shared file: `InventoryTab { EQUIPMENT, CONSUMABLES, QUEST_ITEMS, ENCHANTMENTS }`, `InventoryContext { LEFT, RIGHT }`
-- Observable properties: `activeTab by propertyNotify(InventoryTab.EQUIPMENT)`, `focusedItemIndex by propertyNotify(0)`, `activeContext by propertyNotify(InventoryContext.RIGHT)`, `focusedCharacterIndex by propertyNotify(0)`, `pendingActionItem by propertyNotify<Any?>(null)` (holds item awaiting character selection)
-- Computed accessors return the current tab's item list from `InventorySystem`
-- On `InventoryOpenEvent`: reset `activeTab`, `focusedItemIndex`, `activeContext` to defaults
+- Enum `ShopTab { EQUIPMENT, CONSUMABLES, QUEST_ITEMS, ENCHANTMENTS }`
+- Observable properties: `shopMode by propertyNotify(ShopMode.BUY)`, `activeTab by propertyNotify(ShopTab.EQUIPMENT)`, `focusedItemIndex by propertyNotify(0)`, `pendingItemId by propertyNotify<Int?>(null)`, `pendingQuantity by propertyNotify(1)`, `insufficientGoldVisible by propertyNotify(false)`
+- On `ShopOpenEvent`: store config, reset all properties to defaults (mode = BUY, tab = EQUIPMENT, focus = 0)
+- **Buy mode computed accessors**: return items from `activeShopConfig` filtered by `activeTab`; annotate each with affordability flag (`goldValue <= ResourceSystem.resources.gold`)
+- **Sell mode computed accessors**: return items from `InventorySystem` filtered by `activeTab`; for each item compute:
+  - `availableQty = ownedQuantity - equippedCountAcrossAllCharacters` (via `InventoryComponent` equipped map)
+  - `sellable = isSellable && availableQty > 0`
+  - Items with `availableQty == 0` due to all copies being equipped are treated as unsellable (faded, unselectable) even if `isSellable = true`
+- Quantity selector ceiling: BUY mode → clamped by `floor(playerGold / goldValue)`; SELL mode → clamped by `availableQty`
 
 ---
 
-## Part 7 — Build Right-Side Panel (`InventoryRightPanel`)
+## Part 5 — Build `ShopView.kt`
 
-Create `ui/widgets/InventoryRightPanel.kt`:
-- **Top section** — tab bar: Equipment / Consumables / Quest Items / Battle Enchantments. Active tab highlighted. Left/Right arrow keys cycle tabs via `model.activeTab`.
-- **Middle section** — scrollable dynamic item list. Each row: `uiAtlasKey` icon + item name + quantity badge if `quantity > 1`. Focused row highlighted. Up/Down arrow keys move `model.focusedItemIndex` (clamped to list size).
-- **Bottom section** — item info display. Updates on focus change (keyboard or mouse hover). Never moves — fixed position, not a tooltip.
-  - Equipment: raw stats list (`EquipmentStatType` → value pairs)
-  - Consumable: stat type + value (e.g. "Restores 20 HP")
-  - Quest item: `itemDescription` + `questId` stub
-  - Enchantment: `itemDescription` + stat type/value
-- Binds all sections to `InventoryViewModel` via `model.onPropertyChange()`
-
----
-
-## Part 8 — Build Left-Side Context Panel (`InventoryLeftPanel`)
-
-Create `ui/widgets/InventoryLeftPanel.kt`:
-- Display changes based on `model.activeTab`:
-  - **Equipment / Consumables**: character list. Each row shows character name, portrait placeholder, and HP bar. Focused row highlighted when `model.activeContext == LEFT`. Layout mirrors the left panel in the reference image.
-  - **Quest Items**: stubbed display strings — `Quest ID: ----`, `Quest Name: ----`, `Quest Description: ----`, `Quest Progress: ----`
-  - **Enchantments**: item name, description, stat type, and stat value from the focused enchantment entry
-- Binds to `InventoryViewModel` via `model.onPropertyChange()`
-
----
-
-## Part 9 — Assemble `InventoryView.kt`
-
-Replace existing `ui/views/InventoryView.kt`:
-- Full-screen `Table`, `setFillParent(true)`
-- Composes `InventoryLeftPanel` (left) and `InventoryRightPanel` (right) side by side
-- Both panels share the same `InventoryViewModel` instance
+Create `ui/views/ShopView.kt` as a non-fullscreen right-side overlay (overworld remains visible behind it):
+- **Top bar**: BUY / SELL toggle (highlighted based on `shopMode`) + current gold display (e.g. `Gold: 500g`) — mirrors "Money" box in reference image
+- **Tab bar**: Equipment / Consumables / Quest Items / Enchantments — same style as inventory right panel; Left/Right cycles tabs
+- **Item list**: scrollable rows, Up/Down moves focus
+  - Buy mode row: `[icon] Item Name -------- 50g` — unaffordable items rendered faded; selectable for description only
+  - Sell mode row: `[icon] Item Name --- x2 --- 25g` — unsellable or fully-equipped items faded, no price shown, unselectable
+  - Last entry in every tab, every mode: **Leave** — always selectable, always present
+- **Description panel**: fixed at bottom of panel, updates on focus change or mouse hover — never moves, not a floating tooltip
+- **Quantity selector**: appears inline on the focused row after item is selected (Enter/double-click); Left/Right adjusts `pendingQuantity` within computed ceiling; Enter confirms; ESC cancels back to item list
+- **Insufficient gold popup**: small transient overlay message shown when player attempts to select an unaffordable item — auto-dismisses after ~1.5s, interaction continues
+- Binds all elements to `ShopViewModel` via `model.onPropertyChange()`
 - DSL extension function following existing view patterns
-- Rewire `PlayerKeyboardInputProcessor.kt` (`I` key) and `MainGameView.kt` (Inventory button) to open this new view
 
 ---
 
-## Part 10 — Keyboard Navigation
+## Part 6 — Keyboard Navigation
 
 Modify `input/PlayerKeyboardInputProcessor.kt`:
-- When `InventoryView` is active and `model.activeContext == RIGHT`:
-  - **Left / Right**: cycle `model.activeTab`, reset `model.focusedItemIndex` to 0
-  - **Up / Down**: move `model.focusedItemIndex` within current list (clamped)
-  - **Enter**: if item focused, trigger item action (see Part 11)
-- When `model.activeContext == LEFT`:
-  - **Up / Down**: move `model.focusedCharacterIndex` (clamped to party size)
-  - **Enter**: confirm action on focused character (see Part 12)
-  - **Esc / B**: cancel — clear `pendingActionItem`, return `activeContext` to `RIGHT`
-- **Esc** when `activeContext == RIGHT`: close inventory, fire `InventoryClosedEvent`
+
+When `ShopView` is active and **no item pending**:
+- **Left / Right**: cycle `model.activeTab`; reset `focusedItemIndex` to 0
+- **Up / Down**: move `model.focusedItemIndex` (clamped; Leave is always last)
+- **Tab** (or designated key): toggle `model.shopMode` between BUY and SELL; reset focus to 0
+- **Enter**:
+  - Leave row → fire `ShopClosedEvent`
+  - Unaffordable item (buy) → set `insufficientGoldVisible = true`
+  - Unsellable / fully-equipped item (sell) → no-op
+  - Valid item → set `model.pendingItemId`, `model.pendingQuantity = 1`, show quantity selector
+- **Esc**: fire `ShopClosedEvent`
+
+When **quantity selector is active**:
+- **Left / Right**: adjust `model.pendingQuantity` (clamped by ceiling)
+- **Enter**: fire `ShopBuyConfirmedEvent` or `ShopSellConfirmedEvent`; clear pending state; return to item list
+- **Esc**: clear `model.pendingItemId`; return to item list (no purchase/sale made)
 
 ---
 
-## Part 11 — Item Action Context (Equip / Use / Cancel)
+## Part 7 — Mouse Interaction
 
-Modify `InventoryViewModel` and `InventoryRightPanel`:
-- On Enter with a focused item in the right panel:
-  - Equipment: show inline action options `Equip` / `Cancel` on the focused row
-  - Consumables: show inline action options `Use` / `Cancel` on the focused row
-  - Quest Items / Enchantments: no action options — Enter is a no-op on these tabs
-- On `Equip` or `Use` selected: set `model.pendingActionItem` to the focused item, switch `model.activeContext` to `LEFT` — keyboard focus moves to the character list
-- On `Cancel`: clear `model.pendingActionItem`, return `activeContext` to `RIGHT`
-
----
-
-## Part 12 — Wire Actions to `StatSystem` and `InventorySystem`
-
-Add event handlers (in `InventoryViewModel` or a dedicated handler):
-
-**`EquipItemEvent(itemId: Int, characterIndex: Int)`**:
-- Update `InventoryComponent` equipped slot for the target character with the new item ID
-- Trigger `StatSystem` stat recalculation (existing pattern) — removes old item's `EquipmentStatType` bonuses, applies new item's bonuses
-- Clear `model.pendingActionItem`, return `activeContext` to `RIGHT`
-
-**`UseConsumableEvent(itemId: Int, characterIndex: Int)`**:
-- Look up `ConsumableItemData` by ID from `ConsumableItems`
-- Apply `statValue` delta to the target character's current stat via `StatSystem` — this requires a pass on `StatSystem` to support direct modification of transient current values (e.g. `currentHealth`, `currentMana`) separately from equipment-derived recalculation
-- Call `inventorySystem.removeItem(itemId)` — decrements quantity, removes entry at 0
-- Clear `model.pendingActionItem`, return `activeContext` to `RIGHT`
-
-Add both events to `events/Events.kt`.
+Modify `ShopView.kt`:
+- Hovering a row updates `model.focusedItemIndex` and refreshes description panel immediately
+- Clicking a row sets focus
+- Clicking an unaffordable item (buy) sets `insufficientGoldVisible = true`
+- Clicking an unsellable / fully-equipped item (sell) → no-op
+- Double-clicking a valid item sets `model.pendingItemId` and shows quantity selector (same as Enter)
+- BUY / SELL toggle buttons clickable — sets `model.shopMode`, resets focus
+- Tab headers clickable — sets `model.activeTab`, resets focus
+- Clicking Leave row fires `ShopClosedEvent`
 
 ---
 
-## Part 13 — Mouse Interaction
+## Part 8 — Equipped Item Sell Guard
 
-Modify `InventoryRightPanel`:
-- Hovering an item row updates `model.focusedItemIndex` (info panel updates immediately)
-- Clicking a row sets focus; double-clicking triggers the same action as Enter
-- Tab headers are clickable — clicking sets `model.activeTab` and resets `focusedItemIndex`
-
-Modify `InventoryLeftPanel`:
-- Clicking a character row sets `model.focusedCharacterIndex`
-- If `model.pendingActionItem != null`, clicking a character row also confirms the pending action (fires `EquipItemEvent` or `UseConsumableEvent`)
+Extend sell-side computed accessors in `ShopViewModel`:
+- For each equipment item in `InventorySystem`, count how many copies are currently equipped across all characters by inspecting the `InventoryComponent` equipped ID map per party member
+- `availableQty = ownedQuantity - equippedCount`
+- If `availableQty == 0`: render faded and unselectable — treated identically to `isSellable = false` in the UI, even though the item data itself is sellable
+- Quantity selector ceiling in sell mode = `availableQty` (never allows selling equipped copies)
+- Edge case — all copies equipped across multiple characters (e.g. 3x boots, 3 characters each wearing one): `availableQty = 0`, item shown faded and unselectable
 
 ---
 
-## Part 14 — Verification Pass
+## Part 9 — Session Cleanup and Leave Handling
 
-- Confirm drag-and-drop compiles and functions with no inventory references remaining
-- Confirm stacking: adding two items with the same ID increments quantity, not list size
-- Confirm equipped items are reflected correctly in `StatSystem` after equip action
-- Confirm consumable use modifies `currentHealth`/`currentMana` and removes from inventory at quantity 0
-- Confirm all 4 item type lists populate correctly from seeded starting items
+In `ShopSystem.kt`:
+- On `ShopClosedEvent`: clear `activeShopConfig`, `pendingItemId`, `pendingQuantity`, reset `shopMode` to BUY
+- Fire event to `GameScreen` (or appropriate system) to re-enable player movement and overworld input processors
+- Ensure ESC rollback is consistent at every depth:
+  - Quantity selector active → clear pending, return to item list
+  - Item list active → fire `ShopClosedEvent`, close shop, resume overworld
+- Leave row always fires `ShopClosedEvent` regardless of current mode or tab
+
+---
+
+## Part 10 — Wire New Shop Events to `Events.kt`
+
+Add to `events/Events.kt`:
+- `class ShopInteractionEvent(val shopId: Int) : Event()`
+- `class ShopOpenEvent(val shopConfig: ShopConfig) : Event()`
+- `class ShopClosedEvent : Event()`
+- `class ShopBuyConfirmedEvent(val itemId: Int, val quantity: Int) : Event()`
+- `class ShopSellConfirmedEvent(val itemId: Int, val quantity: Int) : Event()`
+
+---
+
+## Part 11 — Verification Pass
+
+- Confirm circular radius interaction detection fires correctly for oldman in `map_1_house_1.tmx`
+- Confirm existing Dialog and Loot interactions still work correctly after `InteractionSystem` rework
+- Confirm BUY: gold deducted at full `goldValue * quantity`; item added to inventory with correct stacking
+- Confirm SELL: gold added at `ceil(goldValue / 2f) * quantity`; item quantity decremented correctly; entry removed at 0
+- Confirm unaffordable items: faded in list, insufficient gold popup shown, no purchase made
+- Confirm unsellable items: faded in list, unselectable, no price displayed
+- Confirm equipped item sell guard: available sell quantity correctly excludes equipped copies across all party members
+- Confirm ESC rollback at each depth: quantity selector → item list → shop closed
+- Confirm Leave option present in every tab, every mode, always selectable
+- Confirm gold persists correctly across shop close via `ResourceSystem.saveResources()`
 - `./gradlew :core:compileKotlin` — must pass after each part
 
 ---
 
 ## Implementation Order
 
-1. **Part 1** — Rename `Items.kt` → `EquipmentItems.kt`, rename types, add `id`/`isSellable`/`goldValue` fields, create `EquipmentStatType`, `ConsumableStatType`, `BattleEnchantmentStatType` enums in separate files
-2. **Part 2** — Create `ConsumableItems.kt`, `QuestItems.kt`, `BattleEnchantmentItems.kt` with data classes and dummy entries per spec
-3. **Part 3** — Formally decouple drag-and-drop from inventory — strip inventory-specific wiring, preserve generic infrastructure
-4. **Part 4** — Create `InventorySystem` singleton with typed item lists, stacking logic, and `addItem`/`removeItem` methods; register in `GameScreen`
-5. **Part 5** — Reduce `InventoryComponent` to equipped item IDs only; seed 11 starting items in `InitializeGameSystem` for testing
-6. **Part 6** — Create `InventoryViewModel` with tab, focus, context, and pending action observable properties
-7. **Part 7** — Build `InventoryRightPanel` widget — tab bar, dynamic item list with quantity badges, fixed item info panel at bottom
-8. **Part 8** — Build `InventoryLeftPanel` widget — character list for equipment/consumable tabs, stubbed displays for quest/enchantment tabs
-9. **Part 9** — Assemble new `InventoryView` from both panels; rewire `PlayerKeyboardInputProcessor` and `MainGameView` to use it
-10. **Part 10** — Implement keyboard navigation — tab cycling, item focus, context switching, escape handling
-11. **Part 11** — Implement item action context — inline Equip/Use/Cancel options on focused item, context switch to left panel on confirm
-12. **Part 12** — Wire `EquipItemEvent` to `StatSystem` for equipment recalc; wire `UseConsumableEvent` to `StatSystem` for transient current-value modification; extend `StatSystem` to support `currentHealth`/`currentMana` deltas
-13. **Part 13** — Implement mouse interaction — hover updates info panel, click sets focus, double-click triggers action, character row click confirms pending action
-14. **Part 14** — Verification pass: drag-and-drop decoupling, stacking, stat recalc, consumable use, list population, compilation after each part
+1. **Part 1** — Create `ShopConfigs.kt` with `OLDMAN_SHOP` config and commented template; create `ShopComponent`; add to oldman entity in `map_1_house_1.tmx`
+2. **Part 2** — Full rework of `InteractionSystem` — circular radius detection, clean player/NPC identification, typed component dispatch for Loot/Dialog/Shop
+3. **Part 3** — Create `ShopSystem` — handles `ShopInteractionEvent`, session state, `ShopBuyConfirmedEvent`, `ShopSellConfirmedEvent`, `ShopClosedEvent`
+4. **Part 4** — Create `ShopViewModel` — mode flag, tab, focus, pending item/quantity, buy/sell computed accessors with affordability and sell guard logic
+5. **Part 5** — Build `ShopView` — right-side overlay, top bar (mode toggle + gold), tab bar, item list with pricing/fading rules, description panel, quantity selector, insufficient gold popup
+6. **Part 6** — Implement keyboard navigation — tab cycling, item focus, mode toggle, Enter/ESC context rollback at each depth
+7. **Part 7** — Implement mouse interaction — hover, click, double-click, mode toggle, tab click, Leave click
+8. **Part 8** — Implement equipped item sell guard in `ShopViewModel` computed accessors — subtract equipped count per party member, clamp sell quantity ceiling
+9. **Part 9** — Wire session cleanup and Leave handling — `ShopClosedEvent` clears state, resumes overworld, ESC rollback consistent at all depths
+10. **Part 10** — Add all new shop events to `Events.kt`
+11. **Part 11** — Verification pass: interaction detection, existing interaction types, buy/sell correctness, all edge cases, ESC rollback, Leave presence, gold persistence
 
 ---
 
@@ -291,24 +261,19 @@ Modify `InventoryLeftPanel`:
 | File | Path |
 |------|------|
 | GameScreen | `core/src/main/kotlin/.../screens/GameScreen.kt` |
+| InteractionSystem | `core/src/main/kotlin/.../systems/InteractionSystem.kt` |
 | InitializeGameSystem | `core/src/main/kotlin/.../systems/InitializeGameSystem.kt` |
-| StatSystem | `core/src/main/kotlin/.../systems/StatSystem.kt` |
+| InventorySystem | `core/src/main/kotlin/.../systems/InventorySystem.kt` |
+| ResourceSystem | `core/src/main/kotlin/.../systems/ResourceSystem.kt` |
 | ItemComponent / InventoryComponent | `core/src/main/kotlin/.../components/ItemComponent.kt` |
 | PlayerKeyboardInputProcessor | `core/src/main/kotlin/.../input/PlayerKeyboardInputProcessor.kt` |
-| MainGameView | `core/src/main/kotlin/.../ui/views/MainGameView.kt` |
 | Events | `core/src/main/kotlin/.../events/Events.kt` |
-| **[RENAMED] EquipmentItems** | `core/src/main/kotlin/.../configurations/EquipmentItems.kt` |
-| **[NEW] EquipmentStatType** | `core/src/main/kotlin/.../configurations/EquipmentStatType.kt` |
-| **[NEW] ConsumableStatType** | `core/src/main/kotlin/.../configurations/ConsumableStatType.kt` |
-| **[NEW] BattleEnchantmentStatType** | `core/src/main/kotlin/.../configurations/BattleEnchantmentStatType.kt` |
-| **[NEW] ConsumableItems** | `core/src/main/kotlin/.../configurations/ConsumableItems.kt` |
-| **[NEW] QuestItems** | `core/src/main/kotlin/.../configurations/QuestItems.kt` |
-| **[NEW] BattleEnchantmentItems** | `core/src/main/kotlin/.../configurations/BattleEnchantmentItems.kt` |
-| **[NEW] InventorySystem** | `core/src/main/kotlin/.../systems/InventorySystem.kt` |
-| **[NEW] InventoryViewModel** | `core/src/main/kotlin/.../ui/viewmodels/InventoryViewModel.kt` |
-| **[NEW] InventoryRightPanel** | `core/src/main/kotlin/.../ui/widgets/InventoryRightPanel.kt` |
-| **[NEW] InventoryLeftPanel** | `core/src/main/kotlin/.../ui/widgets/InventoryLeftPanel.kt` |
-| **[REPLACED] InventoryView** | `core/src/main/kotlin/.../ui/views/InventoryView.kt` |
+| map_1_house_1.tmx | `assets/maps/map_1_house_1.tmx` |
+| **[NEW] ShopConfigs** | `core/src/main/kotlin/.../configurations/ShopConfigs.kt` |
+| **[NEW] ShopComponent** | `core/src/main/kotlin/.../components/ShopComponent.kt` |
+| **[NEW] ShopSystem** | `core/src/main/kotlin/.../systems/ShopSystem.kt` |
+| **[NEW] ShopViewModel** | `core/src/main/kotlin/.../ui/viewmodels/ShopViewModel.kt` |
+| **[NEW] ShopView** | `core/src/main/kotlin/.../ui/views/ShopView.kt` |
 
 ## Verification
 

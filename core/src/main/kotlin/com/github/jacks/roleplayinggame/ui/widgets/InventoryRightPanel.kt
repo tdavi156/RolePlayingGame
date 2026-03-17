@@ -31,16 +31,18 @@ class InventoryRightPanel(
     private val skin: Skin,
 ) : Table(skin), KTable {
 
-    private val tabLabels = mutableMapOf<InventoryTab, Label>()
-    private val itemListTable = Table(skin)
-    private val scrollPane = ScrollPane(itemListTable).apply {
+    private val tabLabels    = mutableMapOf<InventoryTab, Label>()
+    private val itemListTable = Table(skin).apply { defaults().minSize(0f) }
+    private val scrollPane    = ScrollPane(itemListTable).apply {
         setScrollingDisabled(true, false)
         setOverscroll(false, false)
         setFadeScrollBars(false)
     }
-    private val infoTable = Table(skin)
+    private val infoTable = Table(skin).apply { defaults().minSize(0f) }
 
     init {
+        defaults().minSize(0f)
+
         buildTabBar()
         add(scrollPane).expand().fill().row()
         add(infoTable).expandX().fillX().height(INFO_HEIGHT).row()
@@ -64,7 +66,7 @@ class InventoryRightPanel(
     // --- Tab bar ---
 
     private fun buildTabBar() {
-        val tabRow = Table(skin)
+        val tabRow = Table(skin).apply { defaults().minSize(0f) }
         InventoryTab.entries.forEach { tab ->
             val lbl = Label(tab.displayName, skin, Labels.SMALL.skinKey)
             tabLabels[tab] = lbl
@@ -98,7 +100,7 @@ class InventoryRightPanel(
             return
         }
         items.forEachIndexed { index, entry ->
-            val row = Table(skin)
+            val row = Table(skin).apply { defaults().minSize(0f) }
             val isFocused = index == model.focusedItemIndex
             if (isFocused) row.background = skin[Drawables.BACKGROUND_GREY]
 
@@ -117,7 +119,7 @@ class InventoryRightPanel(
                     val actionStyle = if (model.actionMenuFocusIndex == 0) Labels.SMALL_WHITE_BGD.skinKey else Labels.SMALL.skinKey
                     val cancelStyle = if (model.actionMenuFocusIndex == 1) Labels.SMALL_WHITE_BGD.skinKey else Labels.SMALL.skinKey
                     row.add(Label(actionLabel, skin, actionStyle)).right().padRight(2f)
-                    row.add(Label("Cancel", skin, cancelStyle)).right().padRight(3f)
+                    row.add(Label("Cancel",    skin, cancelStyle)).right().padRight(3f)
                 }
             } else {
                 row.add(Label(item.displayName(), skin, Labels.SMALL.skinKey)).expandX().left()
@@ -204,17 +206,17 @@ class InventoryRightPanel(
     // --- Helpers ---
 
     private fun Any.displayName(): String = when (this) {
-        is EquipmentItemData        -> name
-        is ConsumableItemData       -> itemName
-        is QuestItemData            -> itemName
+        is EquipmentItemData         -> name
+        is ConsumableItemData        -> itemName
+        is QuestItemData             -> itemName
         is BattleEnchantmentItemData -> itemName
         else -> "Unknown"
     }
 
     private fun Any.uiAtlasKey(): String = when (this) {
-        is EquipmentItemData        -> uiAtlasKey
-        is ConsumableItemData       -> uiAtlasKey
-        is QuestItemData            -> uiAtlasKey
+        is EquipmentItemData         -> uiAtlasKey
+        is ConsumableItemData        -> uiAtlasKey
+        is QuestItemData             -> uiAtlasKey
         is BattleEnchantmentItemData -> uiAtlasKey
         else -> ""
     }
@@ -228,7 +230,7 @@ class InventoryRightPanel(
         }
 
     companion object {
-        private const val ICON_SIZE = 10f
+        private const val ICON_SIZE   = 10f
         private const val INFO_HEIGHT = 40f
     }
 }
