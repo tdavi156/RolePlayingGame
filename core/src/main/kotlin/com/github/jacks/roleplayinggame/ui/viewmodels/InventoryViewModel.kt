@@ -3,8 +3,6 @@ package com.github.jacks.roleplayinggame.ui.viewmodels
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
-import com.github.jacks.roleplayinggame.components.PlayerComponent
-import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.configurations.ConsumableItemData
 import com.github.jacks.roleplayinggame.configurations.ConsumableStatType
 import com.github.jacks.roleplayinggame.configurations.EquipmentItemData
@@ -17,8 +15,8 @@ import com.github.jacks.roleplayinggame.events.ItemUseFlashEvent
 import com.github.jacks.roleplayinggame.events.UseConsumableEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.systems.InventorySystem
+import com.github.jacks.roleplayinggame.systems.PartySystem
 import com.github.jacks.roleplayinggame.systems.StatSystem
-import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.World
 
 enum class InventoryTab { EQUIPMENT, CONSUMABLES, QUEST_ITEMS, ENCHANTMENTS }
@@ -39,15 +37,13 @@ class InventoryViewModel(
     private val gameStage: Stage,
 ) : PropertyChangeSource(), EventListener {
 
-    private val playerFamily by lazy { world.family(allOf = arrayOf(PlayerComponent::class)) }
-    private val statMapper: ComponentMapper<StatComponent> by lazy { world.mapper() }
-
     val partyCharacters: List<CharacterDisplayInfo>
         get() {
-            val entity = playerFamily.firstOrNull() ?: return emptyList()
-            val stat = statMapper[entity]
-            val hpPct = if (stat.maxHealth > 0f) stat.currentHealth / stat.maxHealth else 0f
-            return listOf(CharacterDisplayInfo("Player", hpPct))
+            val partySystem = world.system<PartySystem>()
+            return partySystem.getUnlockedCharacters().map { char ->
+                val hpPct = if (char.maxHp > 0f) char.currentHp / char.maxHp else 0f
+                CharacterDisplayInfo(char.characterName, hpPct)
+            }
         }
 
     var activeTab by propertyNotify(InventoryTab.EQUIPMENT)

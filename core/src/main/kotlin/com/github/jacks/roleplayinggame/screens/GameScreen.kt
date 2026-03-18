@@ -15,6 +15,7 @@ import com.github.jacks.roleplayinggame.components.StateComponent.Companion.Stat
 import com.github.jacks.roleplayinggame.components.AttackComponent
 import com.github.jacks.roleplayinggame.components.AttackState
 import com.github.jacks.roleplayinggame.components.BattleEndReason
+import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.events.BattleEndEvent
 import com.github.jacks.roleplayinggame.events.BattleEndTransitionStartEvent
@@ -29,6 +30,7 @@ import com.github.jacks.roleplayinggame.events.GameResumeEvent
 import com.github.jacks.roleplayinggame.events.RewardDismissedEvent
 import com.github.jacks.roleplayinggame.events.InitializeGameEvent
 import com.github.jacks.roleplayinggame.events.SkillViewClosedEvent
+import com.github.jacks.roleplayinggame.events.SwitchActiveCharacterEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.input.PlayerKeyboardInputProcessor
 import com.github.jacks.roleplayinggame.input.gdxInputProcessor
@@ -36,6 +38,7 @@ import com.github.jacks.roleplayinggame.events.ShopClosedEvent
 import com.github.jacks.roleplayinggame.events.ShopOpenEvent
 import com.github.jacks.roleplayinggame.systems.AbilitySystem
 import com.github.jacks.roleplayinggame.systems.AiSystem
+import com.github.jacks.roleplayinggame.systems.PartySystem
 import com.github.jacks.roleplayinggame.systems.AnimationSystem
 import com.github.jacks.roleplayinggame.systems.AttackSystem
 import com.github.jacks.roleplayinggame.systems.BattleSystem
@@ -141,6 +144,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
         systems {
             add<SettingsSystem>()
             add<ResourceSystem>()
+            add<PartySystem>()
             add<InitializeGameSystem>()
             add<MapSystem>()
             add<EntityCreationSystem>()
@@ -173,12 +177,15 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
         }
     }
 
-    private val playerFamily by lazy { entityWorld.family(allOf = arrayOf(PlayerComponent::class)) }
-    private val attackMapper by lazy { entityWorld.mapper<AttackComponent>() }
-    private val settingsViewModel = SettingsViewModel(uiStage, entityWorld.system<SettingsSystem>())
-    private val rewardViewModel   = RewardViewModel(gameStage)
-    private val shopViewModel     = ShopViewModel(entityWorld, gameStage)
-    private val abilityViewModel  = AbilityViewModel(entityWorld, gameStage)
+    private val playerFamily   by lazy { entityWorld.family(allOf = arrayOf(PlayerComponent::class)) }
+    private val attackMapper   by lazy { entityWorld.mapper<AttackComponent>() }
+    private val physicsMapper  by lazy { entityWorld.mapper<PhysicsComponent>() }
+    private val playerMapper   by lazy { entityWorld.mapper<PlayerComponent>() }
+    private val settingsViewModel      = SettingsViewModel(uiStage, entityWorld.system<SettingsSystem>())
+    private val characterInfoViewModel = com.github.jacks.roleplayinggame.ui.viewmodels.CharacterInfoViewModel(entityWorld, gameStage)
+    private val rewardViewModel        = RewardViewModel(gameStage)
+    private val shopViewModel          = ShopViewModel(entityWorld, gameStage)
+    private val abilityViewModel       = AbilityViewModel(entityWorld, gameStage)
 
     init {
         uiStage.actors {
@@ -206,7 +213,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
             backgroundView() { isVisible = false }
 
             // characterInfo UI, actor.get(6)
-            characterInfoView(CharacterInfoViewModel(entityWorld, gameStage)) { isVisible = false }
+            characterInfoView(characterInfoViewModel) { isVisible = false }
 
             // inventory UI, actor.get(7)
             inventoryView(InventoryViewModel(entityWorld, gameStage)) { isVisible = false }
@@ -248,7 +255,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
         gameStage.addListener(this)
 
         gameStage.fire(InitializeGameEvent())
-        PlayerKeyboardInputProcessor(entityWorld, gameStage, uiStage, settingsViewModel)
+        PlayerKeyboardInputProcessor(entityWorld, gameStage, uiStage, settingsViewModel, characterInfoViewModel)
         gdxInputProcessor(uiStage)
         disableOverworldSystems()
     }
@@ -279,6 +286,16 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
 
     override fun handle(event: Event): Boolean {
         when (event) {
+            is SwitchActiveCharacterEvent -> {
+                val partySystem = entityWorld.system<com.github.jacks.roleplayinggame.systems.PartySystem>()
+                val newId = event.newCharacterId
+                // Guard: same character, not unlocked, or out of range
+                if (newId == partySystem.activeOverworldCharacterId) return true
+                val charData = partySystem.characterDataMap[newId] ?: return true
+                if (!charData.isUnlocked) return true
+                switchActiveCharacter(newId)
+                return true
+            }
             is BattleTransitionStartEvent -> {
                 enterBattleMode(event.enemy)
                 return true
@@ -335,6 +352,36 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
             }
             else -> return false
         }
+    }
+
+    private fun switchActiveCharacter(newCharacterId: Int) {
+        // Capture the current player's world position before removing them
+        val currentPos = playerFamily.firstOrNull()
+            ?.let { physicsMapper.getOrNull(it)?.body?.position?.cpy() }
+            ?: com.badlogic.gdx.math.Vector2(0f, 0f)
+
+        fadeView.color.a = 0f
+        fadeView.isVisible = true
+        fadeView.clearActions()
+        fadeView.addAction(Actions.sequence(
+            Actions.fadeIn(FADE_DURATION),
+            Actions.run {
+                // Remove all current overworld player entities
+                playerFamily.forEach { entityWorld.remove(it) }
+
+                // Update party state
+                val partySystem = entityWorld.system<com.github.jacks.roleplayinggame.systems.PartySystem>()
+                partySystem.activeOverworldCharacterId = newCharacterId
+                partySystem.saveActiveCharacter()
+
+                // Spawn the new character at the old position
+                entityWorld.system<com.github.jacks.roleplayinggame.systems.EntityCreationSystem>()
+                    .spawnPlayerCharacter(newCharacterId, currentPos)
+            },
+            Actions.delay(FADE_HOLD_DURATION),
+            Actions.fadeOut(FADE_DURATION),
+            Actions.run { fadeView.isVisible = false }
+        ))
     }
 
     private fun enterBattleMode(enemy: Entity) {

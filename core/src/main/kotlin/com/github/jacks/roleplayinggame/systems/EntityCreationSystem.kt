@@ -76,71 +76,7 @@ class EntityCreationSystem(
             when(configurationType) {
                 ConfigurationType.PLAYER -> {
                     val config = configuration as PlayerConfiguration
-                    world.entity {
-                        val imageComponent = add<ImageComponent> {
-                            image = FlipImage().apply {
-                                setPosition(location.x, location.y)
-                                setSize(size(config.model).x, size(config.model).y)
-                                setScaling(Scaling.fill)
-                                color = config.color
-                                alpha = 0f
-                                addAction(Actions.fadeIn(0.5f))
-                            }
-                        }
-                        val animationComponent = add<AnimationComponent> {
-                            nextAnimation(config.model, AnimationType.IDLE)
-                        }
-                        val physicsComponent = add<PhysicsComponent> {
-                            body = bodyFromImageAndConfiguration(physicsWorld, imageComponent.image, config.bodyType, config.physicsScaling, config.physicsOffset)
-                        }
-                        val moveComponent = add<MoveComponent> {
-                            speed = DEFAULT_SPEED * config.speedScaling
-                        }
-                        // remove when the battle system is redone
-                        val attackComponent = add<AttackComponent> {
-                            maxDelay = config.attackDelay
-                            damage = (DEFAULT_ATTACK_DAMAGE * config.attackScaling).roundToInt()
-                            extraRange = config.attackRange
-                        }
-                        // refactor to be a part of the stats?
-                        val lifeComponent = add<LifeComponent> {
-                            maxHealth = DEFAULT_LIFE * config.lifeScaling
-                            health = maxHealth
-                        }
-                        val statComponent = add<StatComponent> {
-                            currentHealth = config.stats.currentHealth
-                            maxHealth = config.stats.maxHealth
-                            currentMana = config.stats.currentMana
-                            maxMana = config.stats.maxMana
-                            attackDamage = config.stats.attackDamage
-                            attackPercent = config.stats.attackPercent
-                            attackSpeed = config.stats.attackSpeed
-                            defense = config.stats.defense
-                            defensePercent = config.stats.defensePercent
-                            moveSpeed = config.stats.moveSpeed
-                            level = preferences.getInteger("player_level", 1)
-                            experience = preferences.getInteger("player_experience", 0)
-                            skillPoints = preferences.getInteger("player_skill_points", 0)
-                            // TODO: Remove default of 3 after abilities testing is complete (was 0)
-                            abilityPoints = preferences.getInteger("player_ability_points", 3)
-                            skillPointsInvestedAttack = preferences.getInteger("player_invested_attack", 0)
-                            skillPointsInvestedDefense = preferences.getInteger("player_invested_defense", 0)
-                            // Apply effective stat bonuses from invested skill points
-                            attackDamage += skillPointsInvestedAttack * 2f
-                            defense += skillPointsInvestedDefense * 1f
-                        }
-                        add<PlayerComponent>()
-                        add<StateComponent>()
-                        add<InventoryComponent>()
-                        add<CollisionComponent>()
-                        add<AbilityComponent> {
-                            val savedIds = preferences.getString(AbilityComponent.KEY_UNLOCKED_ABILITY_IDS, "")
-                            if (savedIds.isNotBlank()) {
-                                savedIds.split(",").mapNotNull { it.trim().toIntOrNull() }
-                                    .forEach { unlockedAbilityIds.add(it) }
-                            }
-                        }
-                    }
+                    createPlayerEntity(config, location, this.characterId)
                 }
                 ConfigurationType.NON_PLAYER -> {
                     val config = configuration as NonPlayerConfiguration
@@ -224,6 +160,77 @@ class EntityCreationSystem(
         world.remove(entity)
     }
 
+    /** Spawn a player entity directly at [location] for [charId]. */
+    fun spawnPlayerCharacter(charId: Int, location: Vector2) {
+        val config = com.github.jacks.roleplayinggame.configurations.Configurations.PLAYER_CONFIGURATION
+        createPlayerEntity(config, location, charId)
+    }
+
+    private fun createPlayerEntity(
+        config: PlayerConfiguration,
+        location: Vector2,
+        charId: Int,
+    ) {
+        val charData = world.system<PartySystem>().getCharacterData(charId)
+        world.entity {
+            val imageComponent = add<ImageComponent> {
+                image = FlipImage().apply {
+                    setPosition(location.x, location.y)
+                    setSize(size(config.model).x, size(config.model).y)
+                    setScaling(Scaling.fill)
+                    color = config.color
+                    alpha = 0f
+                    addAction(Actions.fadeIn(0.5f))
+                }
+            }
+            add<AnimationComponent> {
+                nextAnimation(config.model, AnimationType.IDLE)
+            }
+            add<PhysicsComponent> {
+                body = bodyFromImageAndConfiguration(physicsWorld, imageComponent.image, config.bodyType, config.physicsScaling, config.physicsOffset)
+            }
+            add<MoveComponent> {
+                speed = DEFAULT_SPEED * config.speedScaling
+            }
+            add<AttackComponent> {
+                maxDelay = config.attackDelay
+                damage = (DEFAULT_ATTACK_DAMAGE * config.attackScaling).roundToInt()
+                extraRange = config.attackRange
+            }
+            add<LifeComponent> {
+                maxHealth = DEFAULT_LIFE * config.lifeScaling
+                health = maxHealth
+            }
+            add<StatComponent> {
+                currentHealth              = charData.currentHp
+                maxHealth                  = charData.maxHp
+                currentMana                = charData.currentMana
+                maxMana                    = charData.maxMana
+                attackDamage               = charData.attack
+                attackSpeed                = charData.attackSpeed
+                defense                    = charData.defense
+                moveSpeed                  = charData.moveSpeed
+                level                      = charData.level
+                experience                 = charData.exp
+                skillPoints                = charData.skillPoints
+                abilityPoints              = charData.abilityPoints
+                skillPointsInvestedAttack  = charData.skillPointsInvestedAttack
+                skillPointsInvestedDefense = charData.skillPointsInvestedDefense
+            }
+            add<PlayerComponent> { characterId = charId }
+            add<StateComponent>()
+            add<InventoryComponent> {
+                charData.equippedItems.forEach { (category, itemId) ->
+                    equippedItems[category] = itemId
+                }
+            }
+            add<CollisionComponent>()
+            add<AbilityComponent> {
+                charData.unlockedAbilityIds.forEach { unlockedAbilityIds.add(it) }
+            }
+        }
+    }
+
     private fun size(model : AnimationModel) = cachedSizes.getOrPut(model) {
         val regions: Array<TextureAtlas.AtlasRegion> = if (model.hasDirection) {
             atlas.findRegions("${model.atlasKey}/${AnimationType.IDLE.atlasKey}${AnimationDirection.TO.atlasKey}")
@@ -239,6 +246,7 @@ class EntityCreationSystem(
         when (event) {
             is MapChangeEvent -> {
                 val entityLayer = event.map.layer("entities")
+                val activeCharId = world.system<PartySystem>().activeOverworldCharacterId
                 entityLayer.objects.forEach { entity ->
                     world.entity {
                         add<EntityCreationComponent> {
@@ -247,6 +255,10 @@ class EntityCreationSystem(
                             this.entityName = entity.name
                             this.location.set(entity.x * UNIT_SCALE, entity.y * UNIT_SCALE)
                             this.shopId = entity.properties.get("shopId", 0, Int::class.java)
+                            // Pass the active character ID so the player entity loads the correct CharacterData
+                            if (this.configurationType == ConfigurationType.PLAYER) {
+                                this.characterId = activeCharId
+                            }
                         }
                     }
                 }

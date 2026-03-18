@@ -1,38 +1,52 @@
 package com.github.jacks.roleplayinggame.systems
 
-import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.AbilityComponent
+import com.github.jacks.roleplayinggame.components.PlayerComponent
+import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.events.AbilityPointsSaveEvent
 import com.github.jacks.roleplayinggame.events.AbilitySkillChangedEvent
 import com.github.jacks.roleplayinggame.events.AbilityViewClosedEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.quillraven.fleks.IntervalSystem
-import ktx.preferences.flush
-import ktx.preferences.set
 
 class AbilitySystem(
     private val gameStage: Stage,
 ) : IntervalSystem(), EventListener {
 
     private val abilityMapper by lazy { world.mapper<AbilityComponent>() }
-    private val preferences: Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
+    private val statMapper by lazy { world.mapper<StatComponent>() }
+    private val playerMapper by lazy { world.mapper<PlayerComponent>() }
+    private val playerFamily by lazy { world.family(allOf = arrayOf(PlayerComponent::class)) }
+
+    private fun partySystem() = world.system<PartySystem>()
 
     override fun onTick() = Unit
 
     override fun handle(event: Event): Boolean {
         when (event) {
             is AbilityPointsSaveEvent -> {
-                val abilityComp = abilityMapper.getOrNull(event.entity) ?: return false
-                abilityComp.unlockedAbilityIds.addAll(event.pendingIds)
-                preferences.flush {
-                    this[AbilityComponent.KEY_UNLOCKED_ABILITY_IDS] =
-                        abilityComp.unlockedAbilityIds.joinToString(",")
+                val charId = event.characterId
+
+                // 1. Update CharacterData via PartySystem (source of truth)
+                partySystem().updateCharacterData(charId) {
+                    unlockedAbilityIds.addAll(event.pendingIds)
+                    abilityPoints -= event.pendingIds.size
                 }
-                gameStage.fire(AbilitySkillChangedEvent(event.entity))
+
+                // 2. If a live entity exists for this character, sync their components
+                var liveEntity: com.github.quillraven.fleks.Entity? = null
+                playerFamily.forEach { e -> if (playerMapper[e].characterId == charId) liveEntity = e }
+                liveEntity?.let { e ->
+                    abilityMapper.getOrNull(e)?.unlockedAbilityIds?.addAll(event.pendingIds)
+                    statMapper.getOrNull(e)?.let { stat ->
+                        stat.abilityPoints -= event.pendingIds.size
+                    }
+                    gameStage.fire(AbilitySkillChangedEvent(e))
+                }
+
                 gameStage.fire(AbilityViewClosedEvent())
                 return true
             }

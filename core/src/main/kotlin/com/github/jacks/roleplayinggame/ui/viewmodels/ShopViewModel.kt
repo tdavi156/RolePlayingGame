@@ -18,6 +18,7 @@ import com.github.jacks.roleplayinggame.events.ShopClosedEvent
 import com.github.jacks.roleplayinggame.events.ShopOpenEvent
 import com.github.jacks.roleplayinggame.events.ShopSellConfirmedEvent
 import com.github.jacks.roleplayinggame.systems.InventorySystem
+import com.github.jacks.roleplayinggame.systems.PartySystem
 import com.github.jacks.roleplayinggame.systems.ResourceSystem
 import com.github.quillraven.fleks.World
 import kotlin.math.ceil
@@ -58,6 +59,14 @@ class ShopViewModel(
 
     private val inventorySystem get() = world.system<InventorySystem>()
     private val resourceSystem  get() = world.system<ResourceSystem>()
+    private val partySystem     get() = world.system<PartySystem>()
+
+    /** Count of how many times itemId is equipped across ALL unlocked characters. */
+    private fun equippedCountAcrossParty(itemId: Int): Int {
+        return partySystem.getUnlockedCharacters().count { charData ->
+            charData.equippedItems.values.any { it == itemId }
+        }
+    }
 
     private var activeShopConfig: ShopConfig? = null
 
@@ -109,11 +118,10 @@ class ShopViewModel(
 
     val sellItemList: List<ShopSellRow>
         get() {
-            val equippedValues = inventorySystem.getEquippedIds().values.filterNotNull().toSet()
             val rows = when (activeTab) {
                 ShopTab.EQUIPMENT -> inventorySystem.equipment.map { entry ->
                     val item = entry.item as EquipmentItemData
-                    val equippedCount = equippedValues.count { it == item.id }
+                    val equippedCount = equippedCountAcrossParty(item.id)
                     val available = (entry.quantity - equippedCount).coerceAtLeast(0)
                     ShopSellRow(
                         id = item.id,
@@ -173,12 +181,11 @@ class ShopViewModel(
                     if (price <= 0) MAX_STACK else floor(gold.toFloat() / price).toInt().coerceAtLeast(1)
                 }
                 ShopMode.SELL -> {
-                    val equippedValues = inventorySystem.getEquippedIds().values.filterNotNull().toSet()
                     when (itemId) {
                         in 1000..1999 -> {
                             val entry = inventorySystem.equipment.find { it.item.id == itemId }
                             val qty = entry?.quantity ?: 0
-                            val equipped = equippedValues.count { it == itemId }
+                            val equipped = equippedCountAcrossParty(itemId)
                             (qty - equipped).coerceAtLeast(0)
                         }
                         in 2000..2999 -> inventorySystem.consumables.find { it.item.id == itemId }?.quantity ?: 0

@@ -5,6 +5,7 @@ import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.github.jacks.roleplayinggame.components.InitializeGameComponent
+import com.github.jacks.roleplayinggame.configurations.CHARACTER_CONFIGS
 import com.github.jacks.roleplayinggame.configurations.CombatAnimationSpeed
 import com.github.jacks.roleplayinggame.configurations.Settings
 import com.github.jacks.roleplayinggame.configurations.battleEnchantmentItemById
@@ -46,6 +47,7 @@ class InitializeGameSystem(
                     preferences.clear()
                     setupPreferences()
                 }
+                loadCharacterData()
                 loadSettings()
                 loadResources()
                 loadQuestState()
@@ -59,6 +61,56 @@ class InitializeGameSystem(
             }
             else -> return false
         }
+    }
+
+    private fun loadCharacterData() {
+        val partySystem = world.system<PartySystem>()
+
+        // Seed character names from configs so loadCharacterData can read them back
+        CHARACTER_CONFIGS.forEach { (id, config) ->
+            partySystem.characterDataMap[id] = CharacterData(
+                characterId = id,
+                characterName = config.characterName,
+                currentHp = config.baseStats.maxHp.toFloat(),
+                maxHp = config.baseStats.maxHp.toFloat(),
+                currentMana = config.baseStats.maxMana.toFloat(),
+                maxMana = config.baseStats.maxMana.toFloat(),
+                attack = config.baseStats.attack.toFloat(),
+                defense = config.baseStats.defense.toFloat(),
+                attackSpeed = config.baseStats.attackSpeed,
+                moveSpeed = config.baseStats.moveSpeed,
+                level = 1,
+                exp = 0,
+                skillPoints = 0,
+                abilityPoints = 3,
+                skillPointsInvestedAttack = 0,
+                skillPointsInvestedDefense = 0,
+                isUnlocked = (id == 1),
+            )
+        }
+
+        // Try to load saved data for each character; fall back to the default just seeded
+        CHARACTER_CONFIGS.keys.forEach { id ->
+            val saved = partySystem.loadCharacterData(id)
+            if (saved != null) {
+                partySystem.characterDataMap[id] = saved
+            } else {
+                // First launch: persist defaults
+                partySystem.saveCharacterData(id)
+            }
+        }
+
+        // Load active overworld character
+        val rawActive = preferences.getInteger(PartySystem.KEY_ACTIVE_CHARACTER, 1)
+        partySystem.activeOverworldCharacterId = rawActive
+
+        // Load combat slots
+        val rawSlots = preferences.getString(PartySystem.KEY_COMBAT_SLOTS, "1")
+        partySystem.combatSlots.clear()
+        rawSlots.split(",").mapNotNull { it.trim().toIntOrNull() }.forEach {
+            partySystem.combatSlots.add(it)
+        }
+        if (partySystem.combatSlots.isEmpty()) partySystem.combatSlots.add(1)
     }
 
     private fun seedStartingInventory() {

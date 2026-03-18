@@ -38,6 +38,7 @@ class AbilityView(
 ) : Table(skin), KTable {
 
     private lateinit var pointsLabel: Label
+    private lateinit var characterLabel: Label
     private lateinit var treeContainer: Table
     private lateinit var normalFooter: Table
     private lateinit var saveConfirmFooter: Table
@@ -71,15 +72,23 @@ class AbilityView(
             // Header: points + character switcher
             this@AbilityView.pointsLabel =
                 label("Ability Points: 0", Labels.SMALL.skinKey) { it.left().expandX() }
-            // Character switcher: no-op with one character
             textButton("<", Buttons.GREY_BUTTON_SMALL.skinKey) { cell ->
                 cell.width(30f).height(30f)
-                isDisabled = true
+                addListener(object : ChangeListener() {
+                    override fun changed(event: ChangeEvent, actor: Actor) {
+                        this@AbilityView.model.switchCharacter(-1)
+                    }
+                })
             }
-            label("Character 1", Labels.SMALL.skinKey) { it.padLeft(4f).padRight(4f) }
+            this@AbilityView.characterLabel =
+                label("Character 1", Labels.SMALL.skinKey) { it.padLeft(4f).padRight(4f) }
             textButton(">", Buttons.GREY_BUTTON_SMALL.skinKey) { cell ->
                 cell.width(30f).height(30f)
-                isDisabled = true
+                addListener(object : ChangeListener() {
+                    override fun changed(event: ChangeEvent, actor: Actor) {
+                        this@AbilityView.model.switchCharacter(1)
+                    }
+                })
             }
             row()
 
@@ -159,6 +168,10 @@ class AbilityView(
 
         model.onPropertyChange(AbilityViewModel::abilityPoints) { pts ->
             pointsLabel.txt = "Ability Points: $pts"
+        }
+
+        model.onPropertyChange(AbilityViewModel::characterName) { name ->
+            characterLabel.txt = name
         }
 
         model.onPropertyChange(AbilityViewModel::nodes) { nodeStates ->

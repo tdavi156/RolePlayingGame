@@ -23,6 +23,7 @@ import com.github.jacks.roleplayinggame.events.CombatInventoryClosedEvent
 import com.github.jacks.roleplayinggame.events.InventoryClosedEvent
 import com.github.jacks.roleplayinggame.events.InventoryOpenEvent
 import com.github.jacks.roleplayinggame.events.UseConsumableEvent
+import com.github.jacks.roleplayinggame.events.SwitchActiveCharacterEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.configurations.ConsumableItemData
 import com.github.jacks.roleplayinggame.configurations.EquipmentItemData
@@ -34,6 +35,7 @@ import com.github.jacks.roleplayinggame.events.ShopBuyConfirmedEvent
 import com.github.jacks.roleplayinggame.events.ShopClosedEvent
 import com.github.jacks.roleplayinggame.events.ShopSellConfirmedEvent
 import com.github.jacks.roleplayinggame.events.SkillViewOpenEvent
+import com.github.jacks.roleplayinggame.ui.viewmodels.CharacterInfoViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.ShopMode
 import com.github.jacks.roleplayinggame.ui.viewmodels.ShopTab
 import com.github.jacks.roleplayinggame.ui.viewmodels.ShopViewModel
@@ -79,6 +81,7 @@ class PlayerKeyboardInputProcessor(
     private val gameStage: Stage,
     private val uiStage: Stage,
     private val settingsViewModel: SettingsViewModel? = null,
+    private val characterInfoViewModel: CharacterInfoViewModel? = null,
     private val moveComponents: ComponentMapper<MoveComponent> = world.mapper(),
 ) : KtxInputAdapter, EventListener {
 
@@ -165,6 +168,16 @@ class PlayerKeyboardInputProcessor(
             return true
         }
 
+        // Character info navigation when character view is open
+        if (getActiveView() == CHARACTER) {
+            val model = characterInfoViewModel ?: return true
+            when (keycode) {
+                UP, W   -> model.moveFocus(-1)
+                DOWN, S -> model.moveFocus(1)
+            }
+            return true
+        }
+
         // Quest navigation takes priority when quest view is open
         if (getActiveView() == QUEST) {
             handleQuestKeyDown(keycode)
@@ -217,6 +230,19 @@ class PlayerKeyboardInputProcessor(
             log.debug { "key pressed: $keycode, cos: $playerCos, sin: $playerSin, direction: $playerDirection" }
             return true
         } else {
+            // Alt+1 through Alt+6: switch active overworld character
+            if (Gdx.input.isKeyPressed(ALT_LEFT) || Gdx.input.isKeyPressed(ALT_RIGHT)) {
+                val charId = when (keycode) {
+                    NUM_1 -> 1; NUM_2 -> 2; NUM_3 -> 3
+                    NUM_4 -> 4; NUM_5 -> 5; NUM_6 -> 6
+                    else  -> -1
+                }
+                if (charId > 0) {
+                    gameStage.fire(SwitchActiveCharacterEvent(charId))
+                    return true
+                }
+            }
+
             val backgroundView = uiStage.actors.filterIsInstance<BackgroundView>().first()
             when (keycode) {
                 ESCAPE -> {

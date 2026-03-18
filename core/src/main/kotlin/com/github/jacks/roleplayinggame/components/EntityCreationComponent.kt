@@ -35,4 +35,6 @@ data class EntityCreationComponent(
     var spawnerMapId: Int = -1,
     // Shop identity — non-zero if this entity is a shop NPC
     var shopId: Int = 0,
+    // Character identity — which CharacterData to load stats from (player entities only)
+    var characterId: Int = 1,
 )

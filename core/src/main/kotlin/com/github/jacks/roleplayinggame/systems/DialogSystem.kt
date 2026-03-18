@@ -45,6 +45,7 @@ class DialogSystem(
                 getDialogFlow(dialogId) ?: return
             }
             dialog.stage = stage
+            dialog.npcEntity = entity
             dialog.startDialog()
             currentDialog = dialog
             moveComponents.getOrNull(triggerEntity)?.let { it.isRooted = true }

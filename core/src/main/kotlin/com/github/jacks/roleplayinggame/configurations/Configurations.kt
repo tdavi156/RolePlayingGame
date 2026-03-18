@@ -6,11 +6,8 @@ import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
 import com.github.jacks.roleplayinggame.components.AnimationModel
 import com.github.jacks.roleplayinggame.components.NonPlayerConfiguration
 import com.github.jacks.roleplayinggame.components.PlayerConfiguration
-import com.github.jacks.roleplayinggame.configurations.TIER_1_ITEMS
-import com.github.jacks.roleplayinggame.configurations.TIER_2_ITEMS
 import com.github.jacks.roleplayinggame.components.StatComponent
 import ktx.math.vec2
-import com.github.jacks.roleplayinggame.configurations.DialogId
 
 enum class ConfigurationType {
     UNDEFINED, PLAYER, NON_PLAYER
@@ -23,6 +20,9 @@ class Configurations {
                 "player" -> { ConfigurationType.PLAYER }
                 "oldman" -> { ConfigurationType.NON_PLAYER }
                 "questman" -> { ConfigurationType.NON_PLAYER }
+                "cleric" -> { ConfigurationType.NON_PLAYER }
+                "ranger" -> { ConfigurationType.NON_PLAYER }
+                "sorcerer" -> { ConfigurationType.NON_PLAYER }
                 "slimeGreen" -> { ConfigurationType.NON_PLAYER }
                 "slimeBlue" -> { ConfigurationType.NON_PLAYER }
                 "slimeRed" -> { ConfigurationType.NON_PLAYER }
@@ -40,7 +40,10 @@ class Configurations {
         fun getConfiguration(entityName : String) : Any? {
             return when(entityName) {
                 "player" -> { PLAYER_CONFIGURATION }
-                "oldman" -> { NPC_CONFIGURATION }
+                "oldman" -> { OLDMAN_CONFIGURATION }
+                "cleric" -> { CLERIC_CONFIGURATION }
+                "ranger" -> { RANGER_CONFIGURATION }
+                "sorcerer" -> { SORCERER_CONFIGURATION }
                 "questman" -> { QUESTMAN_CONFIGURATION }
                 "slimeGreen" -> { SLIME_GREEN_CONFIGURATION }
                 "slimeBlue" -> { SLIME_BLUE_CONFIGURATION }
@@ -84,7 +87,7 @@ class Configurations {
             color = Color.WHITE,
             dialogId = DialogId.QUEST_MAN
         )
-        val NPC_CONFIGURATION = NonPlayerConfiguration(
+        val OLDMAN_CONFIGURATION = NonPlayerConfiguration(
             AnimationModel.OLD_MAN,
             hasStats = false,
             speedScaling = 0f,
@@ -97,6 +100,51 @@ class Configurations {
             physicsOffset = vec2(0f, -10f * UNIT_SCALE),
             bodyType = BodyDef.BodyType.StaticBody,
             color = Color.WHITE,
+        )
+        val CLERIC_CONFIGURATION = NonPlayerConfiguration(
+            AnimationModel.OLD_MAN,
+            hasStats = false,
+            speedScaling = 0f,
+            canAttack = false,
+            canBattle = false,
+            attackScaling = 0f,
+            lifeScaling = 0f,
+            hasAiBehavior = false,
+            physicsScaling = vec2(0.3f, 0.3f,),
+            physicsOffset = vec2(0f, -10f * UNIT_SCALE),
+            bodyType = BodyDef.BodyType.StaticBody,
+            color = Color.WHITE,
+            dialogId = DialogId.RECRUIT_CHARACTER_2
+        )
+        val RANGER_CONFIGURATION = NonPlayerConfiguration(
+            AnimationModel.OLD_MAN,
+            hasStats = false,
+            speedScaling = 0f,
+            canAttack = false,
+            canBattle = false,
+            attackScaling = 0f,
+            lifeScaling = 0f,
+            hasAiBehavior = false,
+            physicsScaling = vec2(0.3f, 0.3f,),
+            physicsOffset = vec2(0f, -10f * UNIT_SCALE),
+            bodyType = BodyDef.BodyType.StaticBody,
+            color = Color.WHITE,
+            dialogId = DialogId.RECRUIT_CHARACTER_3
+        )
+        val SORCERER_CONFIGURATION = NonPlayerConfiguration(
+            AnimationModel.OLD_MAN,
+            hasStats = false,
+            speedScaling = 0f,
+            canAttack = false,
+            canBattle = false,
+            attackScaling = 0f,
+            lifeScaling = 0f,
+            hasAiBehavior = false,
+            physicsScaling = vec2(0.3f, 0.3f,),
+            physicsOffset = vec2(0f, -10f * UNIT_SCALE),
+            bodyType = BodyDef.BodyType.StaticBody,
+            color = Color.WHITE,
+            dialogId = DialogId.NO_DIALOG
         )
 
         // enemy configurations

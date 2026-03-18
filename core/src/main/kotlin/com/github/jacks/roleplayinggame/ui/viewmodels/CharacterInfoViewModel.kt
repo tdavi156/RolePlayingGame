@@ -3,71 +3,82 @@ package com.github.jacks.roleplayinggame.ui.viewmodels
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
-import com.github.jacks.roleplayinggame.components.PlayerComponent
-import com.github.jacks.roleplayinggame.components.StatComponent
-import com.github.jacks.roleplayinggame.events.EntityRespawnEvent
+import com.github.jacks.roleplayinggame.events.PartyUpdatedEvent
 import com.github.jacks.roleplayinggame.events.RewardDismissedEvent
-import com.github.jacks.roleplayinggame.events.EntityTakeDamageEvent
+import com.github.jacks.roleplayinggame.systems.CharacterData
+import com.github.jacks.roleplayinggame.systems.PartySystem
 import com.github.jacks.roleplayinggame.systems.ResourceSystem
-import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.World
 
 class CharacterInfoViewModel(
-    world: World,
+    private val world: World,
     stage: Stage,
 ) : PropertyChangeSource(), EventListener {
 
-    private val playerFamily = world.family(allOf = arrayOf(PlayerComponent::class))
-    private val statMapper: ComponentMapper<StatComponent> = world.mapper()
+    private val partySystem: PartySystem = world.system()
     private val resourceSystem: ResourceSystem = world.system()
 
-    var playerLevel by propertyNotify(1)
-    var playerExperience by propertyNotify(0)
-    var playerExperienceToNext by propertyNotify(50)
-    var playerCurrentHealth by propertyNotify(0f)
-    var playerMaxHealth by propertyNotify(0f)
-    var playerCurrentMana by propertyNotify(0f)
-    var playerMaxMana by propertyNotify(0f)
-    var playerAttack by propertyNotify(0f)
-    var playerDefense by propertyNotify(0f)
-    var playerSpeed by propertyNotify(0f)
-    var playerGold by propertyNotify(0)
+    // Left panel — ordered list of unlocked characters
+    var partyList by propertyNotify(listOf<CharacterData>())
+    var focusedIndex by propertyNotify(0)
+
+    // Right panel — detail stats for the focused character
+    var detailName        by propertyNotify("")
+    var detailLevel       by propertyNotify(1)
+    var detailExperience  by propertyNotify(0)
+    var detailExpToNext   by propertyNotify(50)
+    var detailCurrentHp   by propertyNotify(0f)
+    var detailMaxHp       by propertyNotify(0f)
+    var detailCurrentMana by propertyNotify(0f)
+    var detailMaxMana     by propertyNotify(0f)
+    var detailAttack      by propertyNotify(0f)
+    var detailDefense     by propertyNotify(0f)
+    var detailSpeed       by propertyNotify(0f)
+    var detailGold        by propertyNotify(0)
+    var activeOverworldId by propertyNotify(1)
 
     init {
         stage.addListener(this)
     }
 
-    fun refreshStats() {
-        playerFamily.forEach { player ->
-            val stat = statMapper[player]
-            playerLevel = stat.level
-            playerExperience = stat.experience
-            playerExperienceToNext = stat.experienceToNextLevel
-            playerCurrentHealth = stat.currentHealth
-            playerMaxHealth = stat.maxHealth
-            playerCurrentMana = stat.currentMana
-            playerMaxMana = stat.maxMana
-            playerAttack = stat.attackDamage
-            playerDefense = stat.defense
-            playerSpeed = stat.moveSpeed
-        }
-        playerGold = resourceSystem.resources.gold
+    fun refresh() {
+        partyList = partySystem.getUnlockedCharacters()
+        activeOverworldId = partySystem.activeOverworldCharacterId
+        // Clamp focused index to valid range
+        if (partyList.isEmpty()) return
+        focusedIndex = focusedIndex.coerceIn(0, partyList.lastIndex)
+        refreshDetail()
+        detailGold = resourceSystem.resources.gold
+    }
+
+    fun moveFocus(delta: Int) {
+        if (partyList.isEmpty()) return
+        focusedIndex = (focusedIndex + delta).coerceIn(0, partyList.lastIndex)
+        refreshDetail()
+    }
+
+    private fun refreshDetail() {
+        val char = partyList.getOrNull(focusedIndex) ?: return
+        // Compute XP-to-next using the same formula as StatComponent
+        val xpToNext = (char.level * 50 * Math.pow(1.15, char.level.toDouble())).toInt()
+        detailName        = char.characterName
+        detailLevel       = char.level
+        detailExperience  = char.exp
+        detailExpToNext   = xpToNext
+        detailCurrentHp   = char.currentHp
+        detailMaxHp       = char.maxHp
+        detailCurrentMana = char.currentMana
+        detailMaxMana     = char.maxMana
+        detailAttack      = char.attack
+        detailDefense     = char.defense
+        detailSpeed       = char.attackSpeed
     }
 
     override fun handle(event: Event): Boolean {
         when (event) {
-            is EntityTakeDamageEvent -> {
-                playerFamily.forEach { player ->
-                    if (player == event.entity) {
-                        val stat = statMapper[player]
-                        playerCurrentHealth = stat.currentHealth
-                    }
-                }
-            }
-            is EntityRespawnEvent -> refreshStats()
-            is RewardDismissedEvent -> playerGold = resourceSystem.resources.gold
+            is PartyUpdatedEvent  -> { refresh(); return true }
+            is RewardDismissedEvent -> { detailGold = resourceSystem.resources.gold; return true }
             else -> return false
         }
-        return true
     }
 }

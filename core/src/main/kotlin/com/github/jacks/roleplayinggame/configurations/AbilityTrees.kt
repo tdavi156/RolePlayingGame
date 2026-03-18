@@ -63,6 +63,22 @@ val ABILITY_TREE_CHARACTER_1 = AbilityTree(
     ),
 )
 
+val ABILITY_TREE_CHARACTER_2 = AbilityTree(
+    characterId = 2,
+    nodes = listOf(
+        // Stub — add Cleric ability nodes here
+    ),
+)
+
+val ABILITY_TREE_CHARACTER_3 = AbilityTree(
+    characterId = 3,
+    nodes = listOf(
+        // Stub — add Ranger ability nodes here
+    ),
+)
+
 val ABILITY_TREES: Map<Int, AbilityTree> = mapOf(
     1 to ABILITY_TREE_CHARACTER_1,
+    2 to ABILITY_TREE_CHARACTER_2,
+    3 to ABILITY_TREE_CHARACTER_3,
 )

@@ -30,6 +30,7 @@ import com.github.jacks.roleplayinggame.components.BattleEndReason
 import com.github.jacks.roleplayinggame.components.BattlePhase
 import com.github.jacks.roleplayinggame.components.ImageComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.physicsComponentFromShape2D
+import com.github.jacks.roleplayinggame.components.AbilityComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.PortalComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
@@ -72,6 +73,7 @@ import com.github.jacks.roleplayinggame.events.GainSkillPointEvent
 import com.github.jacks.roleplayinggame.events.ItemUseFlashEvent
 import com.github.jacks.roleplayinggame.events.LevelUpEvent
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
+import com.github.jacks.roleplayinggame.events.PlayerTurnStartedEvent
 import com.github.jacks.roleplayinggame.events.SpellCastDismissedEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.ui.Fonts
@@ -106,6 +108,9 @@ class BattleSystem(
     private val playerFamily by lazy { world.family(allOf = arrayOf(PlayerComponent::class)) }
     private val resourceSystem by lazy { world.system<ResourceSystem>() }
     private val inventorySystem by lazy { world.system<InventorySystem>() }
+    private val partySystem by lazy { world.system<PartySystem>() }
+    private val abilityMapper by lazy { world.mapper<AbilityComponent>() }
+    private val playerMapper by lazy { world.mapper<PlayerComponent>() }
 
     // -------------------------------------------------------------------------
     // Overworld trigger data (saved before map transition)
@@ -152,6 +157,11 @@ class BattleSystem(
     // Home positions for animation
     private var playerOriginX = 0f
     private var playerOriginY = 0f
+
+    // Multi-character combat tracking
+    private val allCombatPlayerEntities = mutableListOf<Entity>()
+    private val createdCombatPlayers = mutableListOf<Entity>()  // battle-only entities to despawn
+    private val playerOrigins = mutableMapOf<Entity, Vector2>()
 
     private var sequenceRunning = false
 
@@ -231,10 +241,12 @@ class BattleSystem(
 
     private fun executeEnemyTurn(battleComponent: BattleComponent) {
         if (sequenceRunning) return
-        val playerEntity = currentPlayerEntity ?: return
+        // Target the first living player
+        val targetPlayer = allCombatPlayerEntities.firstOrNull { !(statComponents.getOrNull(it)?.isDead ?: true) }
+            ?: currentPlayerEntity ?: return
         val enemyEntity  = activeAttackingEnemy ?: return
         battleComponent.resolvingPlayer = false
-        startEnemyAttackSequence(playerEntity, enemyEntity, battleComponent)
+        startEnemyAttackSequence(targetPlayer, enemyEntity, battleComponent)
     }
 
     // -------------------------------------------------------------------------
@@ -265,9 +277,12 @@ class BattleSystem(
                     gameStage.fire(BattleLogEvent(message))
                 }
                 BattleEndReason.LOSE -> {
-                    currentPlayerEntity?.let { pe ->
-                        val pStat = statComponents.getOrNull(pe)
-                        pStat?.currentHealth = pStat?.maxHealth ?: 0f
+                    // Restore all party members to at least 1 HP
+                    allCombatPlayerEntities.forEach { pe ->
+                        val pStat = statComponents.getOrNull(pe) ?: return@forEach
+                        pStat.currentHealth = pStat.currentHealth.coerceAtLeast(1f)
+                        val charId = playerMapper.getOrNull(pe)?.characterId ?: return@forEach
+                        partySystem.updateCharacterData(charId) { currentHp = pStat.currentHealth }
                     }
                     gameStage.fire(BattleLogEvent("You were defeated...\nReturning to last save point."))
                 }
@@ -308,6 +323,11 @@ class BattleSystem(
             resourceSystem.saveResources()
             pendingLoot.filterNotNull().forEach { item -> inventorySystem.addItem(item) }
             val rewardData = BattleRewardData(totalXpGained, pendingGold, pendingLoot.filterNotNull())
+            // Save CharacterData for all combat party members
+            allCombatPlayerEntities.forEach { pe ->
+                val charId = playerMapper.getOrNull(pe)?.characterId ?: return@forEach
+                partySystem.saveCharacterData(charId)
+            }
             clearEscrow()
             clearSessionState()
             gameStage.fire(BattleRewardEvent(rewardData))
@@ -324,9 +344,10 @@ class BattleSystem(
     // -------------------------------------------------------------------------
 
     private fun buildTurnOrder() {
-        val playerEntity = currentPlayerEntity ?: return
         turnOrder.clear()
-        turnOrder.add(playerEntity)
+        allCombatPlayerEntities.forEach { p ->
+            if (!(statComponents.getOrNull(p)?.isDead ?: true)) turnOrder.add(p)
+        }
         allEnemyEntities.forEach { e ->
             if (!(statComponents.getOrNull(e)?.isDead ?: true)) turnOrder.add(e)
         }
@@ -356,22 +377,22 @@ class BattleSystem(
     }
 
     private fun advanceTurn(battleComponent: BattleComponent) {
-        val playerEntity  = currentPlayerEntity ?: return
-        val playerDead    = statComponents.getOrNull(playerEntity)?.isDead ?: false
-        val livingEnemies = allEnemyEntities.filter { !(statComponents.getOrNull(it)?.isDead ?: true) }
+        val livingEnemies  = allEnemyEntities.filter { !(statComponents.getOrNull(it)?.isDead ?: true) }
+        val livingPlayers  = allCombatPlayerEntities.filter { !(statComponents.getOrNull(it)?.isDead ?: true) }
 
         if (livingEnemies.isEmpty()) {
             battleComponent.endReason = BattleEndReason.WIN
             transitionPhase(battleComponent, BattlePhase.BATTLE_END)
             return
         }
-        if (playerDead) {
+        if (livingPlayers.isEmpty()) {
             battleComponent.endReason = BattleEndReason.LOSE
             transitionPhase(battleComponent, BattlePhase.BATTLE_END)
             return
         }
 
-        turnOrder.removeAll { e -> e != playerEntity && (statComponents.getOrNull(e)?.isDead ?: true) }
+        // Remove dead entities (both players and enemies) from turn order
+        turnOrder.removeAll { e -> statComponents.getOrNull(e)?.isDead ?: true }
 
         if (turnOrder.isEmpty()) {
             battleComponent.endReason = BattleEndReason.WIN
@@ -385,9 +406,16 @@ class BattleSystem(
 
     private fun setPhaseForCurrentTurn(battleComponent: BattleComponent) {
         val currentEntity = turnOrder.getOrNull(currentTurnIndex)
-        if (currentEntity == currentPlayerEntity) {
+        if (currentEntity != null && currentEntity in allCombatPlayerEntities) {
+            // Update the active player entity and their origin for this turn
+            currentPlayerEntity = currentEntity
+            playerOrigins[currentEntity]?.let { origin ->
+                playerOriginX = origin.x
+                playerOriginY = origin.y
+            }
             autoAdvanceSelectedEnemy()
             transitionPhase(battleComponent, BattlePhase.PLAYER_TURN)
+            gameStage.fire(PlayerTurnStartedEvent(currentEntity))
         } else {
             activeAttackingEnemy = currentEntity
             transitionPhase(battleComponent, BattlePhase.ENEMY_TURN)
@@ -470,17 +498,71 @@ class BattleSystem(
     private fun createBattleEnemies(map: TiledMap) {
         val spawnerLayer  = map.layer("spawners")
         val enemySpawners = spawnerLayer.objects
-            .filter { it.name != "player_spawner" }
+            .filter { !it.name.startsWith("player_spawner") }
             .sortedBy { it.name }
 
         val comp = resolveBattleComp() ?: return
 
         val playerEntity = currentPlayerEntity ?: return
         animationComponents.getOrNull(playerEntity)?.nextAnimation(AnimationType.IDLE, AnimationDirection.SIDE)
-        imageComponents.getOrNull(playerEntity)?.image?.let { playerImg ->
+        val playerImgSize = imageComponents.getOrNull(playerEntity)?.image?.let { playerImg ->
             if (playerImg is FlipImage) playerImg.flipX = false
             playerOriginX = playerImg.x
             playerOriginY = playerImg.y
+            Pair(playerImg.width, playerImg.height)
+        } ?: Pair(1f, 1f)
+
+        // Track slot 1 player
+        allCombatPlayerEntities.add(playerEntity)
+        playerOrigins[playerEntity] = Vector2(playerOriginX, playerOriginY)
+
+        // Spawn additional combat player entities for slots 2 and 3
+        val allSpawnObjects = map.layer("spawners").objects
+        val slotSpawnerIds = listOf(/* slot1= */1, /* slot2= */5, /* slot3= */6)
+        val combatSlots = partySystem.combatSlots
+        val pWidth = playerImgSize.first
+        val pHeight = playerImgSize.second
+
+        combatSlots.forEachIndexed { slotIndex, charId ->
+            if (slotIndex == 0) return@forEachIndexed  // slot 1 is already currentPlayerEntity
+            val spawnerId = slotSpawnerIds.getOrNull(slotIndex) ?: return@forEachIndexed
+            val spawnerObj = allSpawnObjects.find { it.id == spawnerId } ?: return@forEachIndexed
+            val charData = partySystem.getCharacterData(charId)
+
+            val imgX = spawnerObj.x * UNIT_SCALE - pWidth * 0.5f + spawnerObj.width * 0.5f * UNIT_SCALE
+            val imgY = spawnerObj.y * UNIT_SCALE - spawnerObj.height * 0.5f * UNIT_SCALE
+
+            val additionalPlayer = world.entity {
+                add<ImageComponent> {
+                    image = FlipImage().apply {
+                        setPosition(imgX, imgY)
+                        setSize(pWidth, pHeight)
+                        setScaling(Scaling.fill)
+                    }
+                }
+                add<AnimationComponent> {
+                    nextAnimation(AnimationModel.PLAYER, AnimationType.IDLE, AnimationDirection.SIDE)
+                }
+                add<StatComponent> {
+                    maxHealth  = charData.maxHp
+                    currentHealth = charData.currentHp
+                    maxMana    = charData.maxMana
+                    currentMana = charData.currentMana
+                    attackDamage = charData.attack
+                    defense    = charData.defense
+                    attackSpeed = charData.attackSpeed
+                    moveSpeed  = charData.moveSpeed
+                }
+                add<PlayerComponent> {
+                    characterId = charId
+                }
+                add<AbilityComponent> {
+                    unlockedAbilityIds.addAll(charData.unlockedAbilityIds)
+                }
+            }
+            allCombatPlayerEntities.add(additionalPlayer)
+            createdCombatPlayers.add(additionalPlayer)
+            playerOrigins[additionalPlayer] = Vector2(imgX, imgY)
         }
 
         val units = listOfNotNull(comp.unit1, comp.unit2, comp.unit3)
@@ -608,6 +690,12 @@ class BattleSystem(
     }
 
     private fun clearSessionState() {
+        // Despawn battle-only player entities (slots 2 and 3)
+        createdCombatPlayers.forEach { world.remove(it) }
+        createdCombatPlayers.clear()
+        allCombatPlayerEntities.clear()
+        playerOrigins.clear()
+
         allEnemyEntities.clear()
         enemyConfigs.clear()
         enemyOrigins.clear()
@@ -885,7 +973,9 @@ class BattleSystem(
                 val playerEntity    = currentPlayerEntity ?: return false
                 if (battleComponent.phase != BattlePhase.PLAYER_TURN) return false
 
-                val tree  = ABILITY_TREES[1] ?: return false
+                val casterCharId = playerMapper.getOrNull(event.casterEntity)?.characterId ?: 1
+                val treeId = com.github.jacks.roleplayinggame.configurations.CHARACTER_CONFIGS[casterCharId]?.abilityTreeId ?: 1
+                val tree  = ABILITY_TREES[treeId] ?: return false
                 val node  = tree.nodes.find { it.id == event.abilityId } ?: return false
                 val cStat = statComponents.getOrNull(event.casterEntity) ?: return false
 
@@ -958,7 +1048,7 @@ class BattleSystem(
             }
 
             is ItemUseFlashEvent -> {
-                val targetEntity = playerFamily.firstOrNull() ?: return false
+                val targetEntity = currentPlayerEntity ?: return false
                 val targetImg    = imageComponents.getOrNull(targetEntity)?.image ?: return false
                 targetImg.addAction(Actions.sequence(
                     Actions.run { targetImg.color.set(event.flashColor) },

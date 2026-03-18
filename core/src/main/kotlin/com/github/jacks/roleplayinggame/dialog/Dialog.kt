@@ -2,10 +2,12 @@ package com.github.jacks.roleplayinggame.dialog
 
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.events.AcceptQuestEvent
+import com.github.jacks.roleplayinggame.events.AddCharacterToPartyEvent
 import com.github.jacks.roleplayinggame.events.CompleteQuestEvent
 import com.github.jacks.roleplayinggame.events.DialogGiveItemEvent
 import com.github.jacks.roleplayinggame.events.DialogHealPlayerEvent
 import com.github.jacks.roleplayinggame.events.fire
+import com.github.quillraven.fleks.Entity
 import ktx.app.gdxError
 
 @DslMarker
@@ -23,6 +25,7 @@ data class Dialog(
 ) {
     lateinit var currentNode : Node
     var stage : Stage? = null
+    var npcEntity : Entity? = null
 
     fun node(id : Int, text : String, configuration: Node.() -> Unit) : Node {
         return Node(id, text).apply {
@@ -59,6 +62,11 @@ data class Dialog(
 
     fun healPlayer() {
         stage?.fire(DialogHealPlayerEvent())
+    }
+
+    fun addCharacterToParty(characterId: Int) {
+        val entity = npcEntity ?: return
+        stage?.fire(AddCharacterToPartyEvent(characterId, entity))
     }
 
     fun isComplete() : Boolean {

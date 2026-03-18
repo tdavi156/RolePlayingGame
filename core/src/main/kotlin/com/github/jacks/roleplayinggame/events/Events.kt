@@ -93,7 +93,7 @@ class SkillViewClosedEvent : Event()
 class AbilityViewOpenEvent : Event()
 class AbilityViewClosedEvent : Event()
 class AbilitySkillChangedEvent(val entity: Entity) : Event()
-class AbilityPointsSaveEvent(val entity: Entity, val pendingIds: Set<Int>) : Event()
+class AbilityPointsSaveEvent(val characterId: Int, val pendingIds: Set<Int>) : Event()
 
 // Spell events — targetIndex: which enemy slot to target (0-based)
 class CastSpellEvent(val abilityId: Int, val casterEntity: Entity, val targetIndex: Int = 0) : Event()
@@ -114,6 +114,9 @@ class EnemyKilledEvent(val enemyType: com.github.jacks.roleplayinggame.configura
 // Speed-based turn order event (Part 6)
 class CombatSpeedChangedEvent(val entity: Entity) : Event()
 
+// Fired when a player entity's turn starts in battle (Part 10: per-turn Spells evaluation)
+class PlayerTurnStartedEvent(val playerEntity: Entity) : Event()
+
 // Enemy selection events (Part 7)
 class EnemySelectionModeStartedEvent : Event()    // BattleViewModel → BattleSystem: enter selection
 class EnemySelectionModeEndedEvent : Event()       // BattleViewModel → BattleSystem: exit selection
@@ -122,3 +125,10 @@ class EnemySelectPrevEvent : Event()               // Input processor → Battle
 class EnemySelectionConfirmedEvent : Event()       // Input processor → BattleViewModel: confirm target
 class EnemySelectionCancelledEvent : Event()       // Input processor → BattleViewModel: cancel selection
 data class EnemySelectionIndexChangedEvent(val newIndex: Int) : Event()  // BattleSystem → BattleViewModel
+
+// Party / character events
+data class SwitchActiveCharacterEvent(val newCharacterId: Int) : Event()
+class PartyUpdatedEvent : Event()
+data class AddCharacterToPartyEvent(val characterId: Int, val npcEntity: Entity) : Event()
+class CharacterInfoViewOpenEvent : Event()
+class CharacterInfoViewClosedEvent : Event()

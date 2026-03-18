@@ -11,6 +11,7 @@ import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.configurations.AbilityNode
 import com.github.jacks.roleplayinggame.configurations.ABILITY_TREES
+import com.github.jacks.roleplayinggame.configurations.CHARACTER_CONFIGS
 import com.github.jacks.roleplayinggame.events.AbilitySkillChangedEvent
 import com.github.jacks.roleplayinggame.events.BattleActionSelectedEvent
 import com.github.jacks.roleplayinggame.events.BattleEndEvent
@@ -24,6 +25,7 @@ import com.github.jacks.roleplayinggame.events.CastSpellEvent
 import com.github.jacks.roleplayinggame.events.CombatInventoryOpenEvent
 import com.github.jacks.roleplayinggame.events.EnemySelectionCancelledEvent
 import com.github.jacks.roleplayinggame.events.EnemySelectionConfirmedEvent
+import com.github.jacks.roleplayinggame.events.PlayerTurnStartedEvent
 import com.github.jacks.roleplayinggame.events.EnemySelectionIndexChangedEvent
 import com.github.jacks.roleplayinggame.events.EnemySelectionModeEndedEvent
 import com.github.jacks.roleplayinggame.events.EnemySelectionModeStartedEvent
@@ -43,6 +45,7 @@ class BattleViewModel(
     private val statComponents: ComponentMapper<StatComponent>           = world.mapper()
     private val animationComponents: ComponentMapper<AnimationComponent> = world.mapper()
     private val abilityComponents: ComponentMapper<AbilityComponent>     = world.mapper()
+    private val playerMapper: ComponentMapper<PlayerComponent>           = world.mapper()
 
     // Observable UI state
     var playerLife  by propertyNotify(1f)
@@ -134,21 +137,23 @@ class BattleViewModel(
             is BattleEvent -> {
                 currentEnemy = event.enemy
                 battlePhase  = BattlePhase.PLAYER_TURN
-
-                // Populate player info
-                world.family(allOf = arrayOf(PlayerComponent::class)).forEach { playerEntity ->
-                    currentPlayerEntity = playerEntity
-                    val playerStat = statComponents[playerEntity]
+                // Spells button and player stats will be set by PlayerTurnStartedEvent
+                // when the first player turn begins (fired from BattleSystem.setPhaseForCurrentTurn)
+            }
+            is PlayerTurnStartedEvent -> {
+                currentPlayerEntity = event.playerEntity
+                val playerStat = statComponents.getOrNull(event.playerEntity)
+                if (playerStat != null) {
                     playerLevel = playerStat.level
                     playerMana  = if (playerStat.maxMana > 0f) playerStat.currentMana / playerStat.maxMana else 0f
                     playerLife  = if (playerStat.maxHealth > 0f) playerStat.currentHealth / playerStat.maxHealth else 1f
                     playerCurrentMana = playerStat.currentMana
                     playerMaxMana = playerStat.maxMana
-
-                    val abilityComp = abilityComponents.getOrNull(playerEntity)
-                    spellsButtonEnabled = abilityComp?.unlockedAbilityIds?.isNotEmpty() == true
-                    updateAvailableSpells(playerEntity)
                 }
+                val abilityComp = abilityComponents.getOrNull(event.playerEntity)
+                spellsButtonEnabled = abilityComp?.unlockedAbilityIds?.isNotEmpty() == true
+                updateAvailableSpells(event.playerEntity)
+                return true
             }
             is BattleReadyEvent -> {
                 lastEnemyHealthPcts.clear()
@@ -202,10 +207,14 @@ class BattleViewModel(
                 availableSpells = emptyList()
             }
             is AbilitySkillChangedEvent -> {
-                val playerEntity = currentPlayerEntity ?: return false
-                val abilityComp = abilityComponents.getOrNull(playerEntity) ?: return false
-                spellsButtonEnabled = abilityComp.unlockedAbilityIds.isNotEmpty()
-                updateAvailableSpells(playerEntity)
+                // Use the changed entity (may differ from current turn entity if abilities were unlocked mid-battle)
+                val targetEntity = event.entity
+                val abilityComp = abilityComponents.getOrNull(targetEntity) ?: return false
+                // Only update UI if the changed entity is the currently acting player
+                if (targetEntity == currentPlayerEntity) {
+                    spellsButtonEnabled = abilityComp.unlockedAbilityIds.isNotEmpty()
+                    updateAvailableSpells(targetEntity)
+                }
                 return true
             }
             is EnemySelectionIndexChangedEvent -> {
@@ -244,7 +253,9 @@ class BattleViewModel(
             availableSpells = emptyList()
             return
         }
-        val tree = ABILITY_TREES[1] ?: run { availableSpells = emptyList(); return }
+        val charId = playerMapper.getOrNull(playerEntity)?.characterId ?: 1
+        val treeId = CHARACTER_CONFIGS[charId]?.abilityTreeId ?: 1
+        val tree = ABILITY_TREES[treeId] ?: run { availableSpells = emptyList(); return }
         availableSpells = tree.nodes
             .filter { it.id in abilityComp.unlockedAbilityIds }
             .sortedBy { it.id }

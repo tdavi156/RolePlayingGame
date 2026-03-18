@@ -21,4 +21,5 @@ data class PlayerConfiguration(
 )
 
 class PlayerComponent {
+    var characterId: Int = 1
 }

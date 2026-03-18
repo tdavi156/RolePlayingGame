@@ -10,13 +10,19 @@ enum class DialogId {
     SLIME,
     SIGN_1,
     SIGN_2,
-    QUEST_MAN;
+    QUEST_MAN,
+    RECRUIT_CHARACTER_2,
+    RECRUIT_CHARACTER_3;
 }
 
 private val dialogCache = mutableMapOf<DialogId, Dialog>()
 
 fun getDialogFlow(dialogId: DialogId): Dialog? {
     if (dialogId == DialogId.NO_DIALOG || dialogId == DialogId.QUEST_MAN) return null
+    // Recruit dialogs are always built fresh so npcEntity is not stale
+    if (dialogId == DialogId.RECRUIT_CHARACTER_2 || dialogId == DialogId.RECRUIT_CHARACTER_3) {
+        return buildDialogFlow(dialogId)
+    }
     dialogCache[dialogId]?.let { return it }
     val built = buildDialogFlow(dialogId) ?: return null
     dialogCache[dialogId] = built
@@ -25,6 +31,32 @@ fun getDialogFlow(dialogId: DialogId): Dialog? {
 
 private fun buildDialogFlow(dialogId: DialogId): Dialog? = when (dialogId) {
     DialogId.NO_DIALOG, DialogId.QUEST_MAN -> null
+    DialogId.RECRUIT_CHARACTER_2 -> dialog(dialogId.name) {
+        node(0, "I am the Cleric. I can heal allies and smite foes. Want me to join your party?") {
+            option("Yes") {
+                action = {
+                    this@dialog.addCharacterToParty(2)
+                    this@dialog.endDialog()
+                }
+            }
+            option("No") {
+                action = { this@dialog.endDialog() }
+            }
+        }
+    }
+    DialogId.RECRUIT_CHARACTER_3 -> dialog(dialogId.name) {
+        node(0, "I am the Ranger. I can take a hit and keep standing. Care to have me along?") {
+            option("Yes") {
+                action = {
+                    this@dialog.addCharacterToParty(3)
+                    this@dialog.endDialog()
+                }
+            }
+            option("No") {
+                action = { this@dialog.endDialog() }
+            }
+        }
+    }
     DialogId.SLIME -> dialog(dialogId.name) {
         node(0, "Hello, I am a Slime. Welcome to the world of Slime Land") {
             option("Continue") {
