@@ -13,6 +13,7 @@ import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.configurations.ConsumableStatType
 import com.github.jacks.roleplayinggame.configurations.consumableItemById
 import com.github.jacks.roleplayinggame.configurations.equipmentItemById
+import com.github.jacks.roleplayinggame.events.CombatSpeedChangedEvent
 import com.github.jacks.roleplayinggame.events.EquipItemEvent
 import com.github.jacks.roleplayinggame.events.FloatingTextEvent
 import com.github.jacks.roleplayinggame.events.AbilityPointsSaveEvent
@@ -76,6 +77,7 @@ class StatSystem(
 
                 // Remove old equipped item's stat bonuses
                 val oldId = inv.equippedItems[newItem.category]
+                val speedBefore = stat.attackSpeed
                 if (oldId != null) {
                     equipmentItemById(oldId)?.stats?.forEach { (statType, value) ->
                         stat.decreaseStat(statType.toStatType(), value.toFloat())
@@ -91,6 +93,11 @@ class StatSystem(
                 // Clamp current values to their maximums
                 stat.currentHealth = stat.currentHealth.coerceAtMost(stat.maxHealth)
                 stat.currentMana   = stat.currentMana.coerceAtMost(stat.maxMana)
+
+                // Notify turn-order system if attack speed changed
+                if (stat.attackSpeed != speedBefore) {
+                    gameStage.fire(CombatSpeedChangedEvent(entity))
+                }
                 return true
             }
 

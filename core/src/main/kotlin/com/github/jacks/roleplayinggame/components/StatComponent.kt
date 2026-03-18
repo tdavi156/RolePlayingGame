@@ -3,7 +3,7 @@ package com.github.jacks.roleplayinggame.components
 import com.github.jacks.roleplayinggame.components.StatType.*
 
 enum class StatType {
-    UNDEFINED, CURRENT_HEALTH, MAX_HEALTH, ATTACK_DAMAGE, DEFENSE, MOVE_SPEED;
+    UNDEFINED, CURRENT_HEALTH, MAX_HEALTH, ATTACK_DAMAGE, DEFENSE, MOVE_SPEED, ATTACK_SPEED;
 }
 
 data class StatComponent(
@@ -79,6 +79,9 @@ data class StatComponent(
             MOVE_SPEED -> {
                 moveSpeed += statValue
             }
+            ATTACK_SPEED -> {
+                attackSpeed += statValue
+            }
         }
     }
 
@@ -100,6 +103,9 @@ data class StatComponent(
             }
             MOVE_SPEED -> {
                 moveSpeed -= statValue
+            }
+            ATTACK_SPEED -> {
+                attackSpeed -= statValue
             }
         }
     }

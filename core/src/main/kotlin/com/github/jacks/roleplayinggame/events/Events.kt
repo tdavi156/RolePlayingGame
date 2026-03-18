@@ -33,13 +33,18 @@ data class BattleEndTransitionStartEvent(val reason: BattleEndReason) : Event()
 
 // Battle state-machine events
 data class BattlePhaseChangedEvent(val phase: BattlePhase) : Event()
-data class BattleActionSelectedEvent(val action: BattleAction) : Event()
-data class BattleHealthUpdateEvent(val playerHealthPct: Float, val enemyHealthPct: Float) : Event()
+// targetIndex = which enemy slot (0-based) the action is directed at; ignored for FLEE
+data class BattleActionSelectedEvent(val action: BattleAction, val targetIndex: Int = 0) : Event()
+// enemyHealthPcts: one entry per battle enemy entity, in spawn order
+data class BattleHealthUpdateEvent(val playerHealthPct: Float, val enemyHealthPcts: List<Float>) : Event()
 data class BattleLogEvent(val message: String) : Event()
 class BattleLogDismissedEvent : Event()
 data class BattleTargetSelectedEvent(val target: Entity) : Event()
+// Fired after all battle entities are created on the battle map; enemies in spawn order
+data class BattleReadyEvent(val enemies: List<Entity>) : Event()
 
-data class BattleRewardData(val expGained: Int, val goldGained: Int, val itemDropped: EquipmentItemData?)
+// items: all non-null drops from the battle (may be empty); expGained and goldGained are totals
+data class BattleRewardData(val expGained: Int, val goldGained: Int, val items: List<EquipmentItemData>)
 class BattleRewardEvent(val rewardData: BattleRewardData) : Event()
 class RewardDismissedEvent : Event()
 
@@ -90,8 +95,8 @@ class AbilityViewClosedEvent : Event()
 class AbilitySkillChangedEvent(val entity: Entity) : Event()
 class AbilityPointsSaveEvent(val entity: Entity, val pendingIds: Set<Int>) : Event()
 
-// Spell events
-class CastSpellEvent(val abilityId: Int, val casterEntity: Entity) : Event()
+// Spell events — targetIndex: which enemy slot to target (0-based)
+class CastSpellEvent(val abilityId: Int, val casterEntity: Entity, val targetIndex: Int = 0) : Event()
 class SpellCastDismissedEvent : Event()
 
 // Quest events
@@ -103,5 +108,17 @@ class QuestStateChangedEvent(val questId: Int) : Event()
 class QuestViewOpenEvent : Event()
 class QuestViewClosedEvent : Event()
 
-// Enemy killed event (fired by BattleSystem on enemy death)
+// Enemy killed event (fired by BattleSystem on each individual enemy death during combat)
 class EnemyKilledEvent(val enemyType: com.github.jacks.roleplayinggame.configurations.EnemyType) : Event()
+
+// Speed-based turn order event (Part 6)
+class CombatSpeedChangedEvent(val entity: Entity) : Event()
+
+// Enemy selection events (Part 7)
+class EnemySelectionModeStartedEvent : Event()    // BattleViewModel → BattleSystem: enter selection
+class EnemySelectionModeEndedEvent : Event()       // BattleViewModel → BattleSystem: exit selection
+class EnemySelectNextEvent : Event()               // Input processor → BattleSystem: cycle forward
+class EnemySelectPrevEvent : Event()               // Input processor → BattleSystem: cycle backward
+class EnemySelectionConfirmedEvent : Event()       // Input processor → BattleViewModel: confirm target
+class EnemySelectionCancelledEvent : Event()       // Input processor → BattleViewModel: cancel selection
+data class EnemySelectionIndexChangedEvent(val newIndex: Int) : Event()  // BattleSystem → BattleViewModel

@@ -21,6 +21,7 @@ data class BattleComponent(
     // State-machine fields
     var phase: BattlePhase = BattlePhase.PLAYER_TURN,
     var pendingPlayerAction: BattleAction = BattleAction.NONE,
+    var pendingTargetIndex: Int = 0,       // which enemy slot (0-based) the pending action targets
     var resolvingPlayer: Boolean = true,   // true = resolving player action, false = resolving enemy action
     // Battle-end fields
     var endReason: BattleEndReason = BattleEndReason.WIN,

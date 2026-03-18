@@ -18,6 +18,7 @@ data class NonPlayerConfiguration(
     val goldReward : Int = 0,
     val lootPool : List<String>? = null,
     val lootChance : Int = 0,
+    val battleCompId : Int? = null,   // null = random roll; non-null = fixed BATTLE_COMPS lookup
     val attackScaling : Float = 1f,
     val attackDelay : Float = 0.2f,
     val attackRange : Float = 0f,

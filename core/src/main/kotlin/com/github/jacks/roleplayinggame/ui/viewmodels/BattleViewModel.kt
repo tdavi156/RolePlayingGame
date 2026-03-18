@@ -7,7 +7,6 @@ import com.github.jacks.roleplayinggame.components.AbilityComponent
 import com.github.jacks.roleplayinggame.components.AnimationComponent
 import com.github.jacks.roleplayinggame.components.BattleAction
 import com.github.jacks.roleplayinggame.components.BattlePhase
-import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.configurations.AbilityNode
@@ -20,38 +19,42 @@ import com.github.jacks.roleplayinggame.events.BattleHealthUpdateEvent
 import com.github.jacks.roleplayinggame.events.BattleLogDismissedEvent
 import com.github.jacks.roleplayinggame.events.BattleLogEvent
 import com.github.jacks.roleplayinggame.events.BattlePhaseChangedEvent
+import com.github.jacks.roleplayinggame.events.BattleReadyEvent
 import com.github.jacks.roleplayinggame.events.CastSpellEvent
 import com.github.jacks.roleplayinggame.events.CombatInventoryOpenEvent
+import com.github.jacks.roleplayinggame.events.EnemySelectionCancelledEvent
+import com.github.jacks.roleplayinggame.events.EnemySelectionConfirmedEvent
+import com.github.jacks.roleplayinggame.events.EnemySelectionIndexChangedEvent
+import com.github.jacks.roleplayinggame.events.EnemySelectionModeEndedEvent
+import com.github.jacks.roleplayinggame.events.EnemySelectionModeStartedEvent
 import com.github.jacks.roleplayinggame.events.SpellCastDismissedEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.World
 
+data class EnemyStatInfo(val name: String, val level: Int, val lifePct: Float, val manaPct: Float)
+
 class BattleViewModel(
     private val world: World,
     private val gameStage: Stage,
 ) : PropertyChangeSource(), EventListener {
 
-    private val playerComponents: ComponentMapper<PlayerComponent> = world.mapper()
-    private val lifeComponents: ComponentMapper<LifeComponent>     = world.mapper()
-    private val statComponents: ComponentMapper<StatComponent>     = world.mapper()
+    private val statComponents: ComponentMapper<StatComponent>           = world.mapper()
     private val animationComponents: ComponentMapper<AnimationComponent> = world.mapper()
-    private val abilityComponents: ComponentMapper<AbilityComponent> = world.mapper()
+    private val abilityComponents: ComponentMapper<AbilityComponent>     = world.mapper()
 
     // Observable UI state
     var playerLife  by propertyNotify(1f)
-    var enemyLife   by propertyNotify(1f)
     var playerMana  by propertyNotify(1f)
-    var enemyMana   by propertyNotify(1f)
     var playerName  by propertyNotify("Player")
-    var enemyName   by propertyNotify("Enemy")
     var playerLevel by propertyNotify(1)
-    var enemyLevel  by propertyNotify(1)
     var battlePhase by propertyNotify(BattlePhase.PLAYER_TURN)
     var battleLog   by propertyNotify("")
     var spellsButtonEnabled by propertyNotify(false)
     var availableSpells by propertyNotify(emptyList<AbilityNode>())
+    var enemyStatInfos by propertyNotify(emptyList<EnemyStatInfo>())
+    var enemySelectionActive by propertyNotify(false)
 
     // Non-observable: actual mana values for spell affordability checks
     var playerCurrentMana: Float = 0f
@@ -59,9 +62,15 @@ class BattleViewModel(
     var playerMaxMana: Float = 0f
         private set
 
+    // Internal session state
     var currentEnemy: Entity? = null
         private set
     private var currentPlayerEntity: Entity? = null
+    private val lastEnemyHealthPcts = mutableListOf<Float>()
+    var selectedEnemyIndex = 0
+        private set
+    private var pendingBattleAction = BattleAction.NONE
+    private var pendingAbilityId = -1
 
     init {
         gameStage.addListener(this)
@@ -69,15 +78,46 @@ class BattleViewModel(
 
     // -- Action callbacks invoked by BattleView button clicks -----------------
 
-    fun onAttack()       = gameStage.fire(BattleActionSelectedEvent(BattleAction.ATTACK))
+    fun onAttack() {
+        val numLiving = lastEnemyHealthPcts.count { it > 0f }
+        if (numLiving <= 1) {
+            val targetIndex = lastEnemyHealthPcts.indexOfFirst { it > 0f }.coerceAtLeast(0)
+            gameStage.fire(BattleActionSelectedEvent(BattleAction.ATTACK, targetIndex))
+        } else {
+            pendingBattleAction = BattleAction.ATTACK
+            pendingAbilityId = -1
+            enemySelectionActive = true
+            gameStage.fire(EnemySelectionModeStartedEvent())
+        }
+    }
+
     fun onFlee()         = gameStage.fire(BattleActionSelectedEvent(BattleAction.FLEE))
     fun onItems()        = gameStage.fire(CombatInventoryOpenEvent())
     fun onLogDismissed() = gameStage.fire(BattleLogDismissedEvent())
+
     fun onSpellCast(abilityId: Int) {
         val caster = currentPlayerEntity ?: return
-        gameStage.fire(CastSpellEvent(abilityId, caster))
+        val numLiving = lastEnemyHealthPcts.count { it > 0f }
+        if (numLiving <= 1) {
+            val targetIndex = lastEnemyHealthPcts.indexOfFirst { it > 0f }.coerceAtLeast(0)
+            gameStage.fire(CastSpellEvent(abilityId, caster, targetIndex))
+        } else {
+            pendingBattleAction = BattleAction.NONE
+            pendingAbilityId = abilityId
+            enemySelectionActive = true
+            gameStage.fire(EnemySelectionModeStartedEvent())
+        }
     }
+
     fun onSpellCastDismissed() = gameStage.fire(SpellCastDismissedEvent())
+
+    fun onSelectionCancel() {
+        if (!enemySelectionActive) return
+        enemySelectionActive = false
+        pendingBattleAction = BattleAction.NONE
+        pendingAbilityId = -1
+        gameStage.fire(EnemySelectionModeEndedEvent())
+    }
 
     /** Refresh non-observable mana fields from the live player StatComponent. */
     fun refreshPlayerMana() {
@@ -93,17 +133,7 @@ class BattleViewModel(
         when (event) {
             is BattleEvent -> {
                 currentEnemy = event.enemy
-                battlePhase  = BattlePhase.PLAYER_TURN   // show action menu immediately
-
-                // Populate enemy info
-                val enemyStat = statComponents[event.enemy]
-                val enemyAnim = animationComponents[event.enemy]
-                enemyName  = enemyAnim.model.name
-                    .split("_")
-                    .joinToString(" ") { it.lowercase().replaceFirstChar { c -> c.uppercase() } }
-                enemyLevel = enemyStat.level
-                enemyMana  = if (enemyStat.maxMana > 0f) enemyStat.currentMana / enemyStat.maxMana else 0f
-                enemyLife  = if (enemyStat.maxHealth > 0f) enemyStat.currentHealth / enemyStat.maxHealth else 1f
+                battlePhase  = BattlePhase.PLAYER_TURN
 
                 // Populate player info
                 world.family(allOf = arrayOf(PlayerComponent::class)).forEach { playerEntity ->
@@ -115,10 +145,24 @@ class BattleViewModel(
                     playerCurrentMana = playerStat.currentMana
                     playerMaxMana = playerStat.maxMana
 
-                    // Check for unlocked abilities to enable/disable Spells button
                     val abilityComp = abilityComponents.getOrNull(playerEntity)
                     spellsButtonEnabled = abilityComp?.unlockedAbilityIds?.isNotEmpty() == true
                     updateAvailableSpells(playerEntity)
+                }
+            }
+            is BattleReadyEvent -> {
+                lastEnemyHealthPcts.clear()
+                selectedEnemyIndex = 0
+                enemyStatInfos = event.enemies.map { enemy ->
+                    val stat = statComponents[enemy]
+                    val anim = animationComponents[enemy]
+                    val name = anim.model.name
+                        .split("_")
+                        .joinToString(" ") { it.lowercase().replaceFirstChar { c -> c.uppercase() } }
+                    val lifePct = if (stat.maxHealth > 0f) stat.currentHealth / stat.maxHealth else 1f
+                    val manaPct = if (stat.maxMana > 0f) stat.currentMana / stat.maxMana else 0f
+                    lastEnemyHealthPcts.add(lifePct)
+                    EnemyStatInfo(name, stat.level, lifePct, manaPct)
                 }
             }
             is BattlePhaseChangedEvent -> {
@@ -126,7 +170,20 @@ class BattleViewModel(
             }
             is BattleHealthUpdateEvent -> {
                 playerLife = event.playerHealthPct
-                enemyLife  = event.enemyHealthPct
+                event.enemyHealthPcts.forEachIndexed { i, pct ->
+                    if (i < lastEnemyHealthPcts.size) lastEnemyHealthPcts[i] = pct
+                }
+                enemyStatInfos = enemyStatInfos.mapIndexed { i, info ->
+                    val newPct = event.enemyHealthPcts.getOrElse(i) { info.lifePct }
+                    info.copy(lifePct = newPct)
+                }
+                // Auto-advance selected index if the selected enemy just died
+                if (enemySelectionActive
+                    && selectedEnemyIndex < lastEnemyHealthPcts.size
+                    && lastEnemyHealthPcts[selectedEnemyIndex] <= 0f) {
+                    val nextLiving = lastEnemyHealthPcts.indexOfFirst { it > 0f }
+                    if (nextLiving >= 0) selectedEnemyIndex = nextLiving
+                }
             }
             is BattleLogEvent -> {
                 battleLog = event.message
@@ -134,7 +191,13 @@ class BattleViewModel(
             is BattleEndEvent -> {
                 currentEnemy = null
                 currentPlayerEntity = null
-                battlePhase  = BattlePhase.PLAYER_TURN   // reset for next battle
+                lastEnemyHealthPcts.clear()
+                enemyStatInfos = emptyList()
+                enemySelectionActive = false
+                selectedEnemyIndex = 0
+                pendingBattleAction = BattleAction.NONE
+                pendingAbilityId = -1
+                battlePhase = BattlePhase.PLAYER_TURN
                 spellsButtonEnabled = false
                 availableSpells = emptyList()
             }
@@ -143,6 +206,32 @@ class BattleViewModel(
                 val abilityComp = abilityComponents.getOrNull(playerEntity) ?: return false
                 spellsButtonEnabled = abilityComp.unlockedAbilityIds.isNotEmpty()
                 updateAvailableSpells(playerEntity)
+                return true
+            }
+            is EnemySelectionIndexChangedEvent -> {
+                selectedEnemyIndex = event.newIndex
+                return true
+            }
+            is EnemySelectionConfirmedEvent -> {
+                if (!enemySelectionActive) return false
+                enemySelectionActive = false
+                gameStage.fire(EnemySelectionModeEndedEvent())
+                if (pendingBattleAction != BattleAction.NONE) {
+                    gameStage.fire(BattleActionSelectedEvent(pendingBattleAction, selectedEnemyIndex))
+                } else if (pendingAbilityId >= 0) {
+                    val caster = currentPlayerEntity ?: return false
+                    gameStage.fire(CastSpellEvent(pendingAbilityId, caster, selectedEnemyIndex))
+                }
+                pendingBattleAction = BattleAction.NONE
+                pendingAbilityId = -1
+                return true
+            }
+            is EnemySelectionCancelledEvent -> {
+                if (!enemySelectionActive) return false
+                enemySelectionActive = false
+                pendingBattleAction = BattleAction.NONE
+                pendingAbilityId = -1
+                gameStage.fire(EnemySelectionModeEndedEvent())
                 return true
             }
             else -> return false

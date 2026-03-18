@@ -4,9 +4,17 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input.Keys.*
 import com.badlogic.gdx.InputMultiplexer
 import com.badlogic.gdx.InputProcessor
+import com.badlogic.gdx.scenes.scene2d.Event
+import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.MoveComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
+import com.github.jacks.roleplayinggame.events.EnemySelectionCancelledEvent
+import com.github.jacks.roleplayinggame.events.EnemySelectionConfirmedEvent
+import com.github.jacks.roleplayinggame.events.EnemySelectionModeEndedEvent
+import com.github.jacks.roleplayinggame.events.EnemySelectionModeStartedEvent
+import com.github.jacks.roleplayinggame.events.EnemySelectNextEvent
+import com.github.jacks.roleplayinggame.events.EnemySelectPrevEvent
 import com.github.jacks.roleplayinggame.events.GamePauseEvent
 import com.github.jacks.roleplayinggame.events.GameResumeEvent
 import com.github.jacks.roleplayinggame.events.InteractionEvent
@@ -72,7 +80,7 @@ class PlayerKeyboardInputProcessor(
     private val uiStage: Stage,
     private val settingsViewModel: SettingsViewModel? = null,
     private val moveComponents: ComponentMapper<MoveComponent> = world.mapper(),
-) : KtxInputAdapter {
+) : KtxInputAdapter, EventListener {
 
     private var playerSin = 0f
     private var playerCos = 0f
@@ -81,9 +89,19 @@ class PlayerKeyboardInputProcessor(
     private val playerEntities = world.family(allOf = arrayOf(PlayerComponent::class))
     private var pausedInventory = false
     private var paused = false
+    private var inBattleSelectionMode = false
 
     init {
         gdxInputProcessor(this)
+        gameStage.addListener(this)
+    }
+
+    override fun handle(event: Event): Boolean {
+        when (event) {
+            is EnemySelectionModeStartedEvent -> { inBattleSelectionMode = true; return true }
+            is EnemySelectionModeEndedEvent   -> { inBattleSelectionMode = false; return true }
+        }
+        return false
     }
 
     private fun updatePlayerMovement() {
@@ -116,6 +134,17 @@ class PlayerKeyboardInputProcessor(
 //    }
 
     override fun keyDown(keycode: Int): Boolean {
+        // Enemy selection takes priority during multi-enemy targeting
+        if (inBattleSelectionMode) {
+            when (keycode) {
+                RIGHT, DOWN, D, S -> gameStage.fire(EnemySelectNextEvent())
+                LEFT,  UP,   A, W -> gameStage.fire(EnemySelectPrevEvent())
+                ENTER              -> gameStage.fire(EnemySelectionConfirmedEvent())
+                ESCAPE             -> gameStage.fire(EnemySelectionCancelledEvent())
+            }
+            return true
+        }
+
         // Shop navigation takes priority when shop is open
         if (getActiveView() == SHOP) {
             handleShopKeyDown(keycode)

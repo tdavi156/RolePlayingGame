@@ -1,6 +1,5 @@
 package com.github.jacks.roleplayinggame.ui.views
 
-import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.TextureRegion
@@ -15,6 +14,7 @@ import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.Scaling
 import com.github.jacks.roleplayinggame.ui.Buttons
 import com.github.jacks.roleplayinggame.ui.Labels
+import com.github.jacks.roleplayinggame.ui.viewmodels.ItemDropInfo
 import com.github.jacks.roleplayinggame.ui.viewmodels.RewardViewModel
 import ktx.scene2d.KTable
 import ktx.scene2d.KWidget
@@ -29,9 +29,7 @@ class RewardView(
 
     private val expLabel: Label
     private val goldLabel: Label
-    private val itemRow: Table
-    private val itemIcon: Image
-    private val itemNameLabel: Label
+    private val itemDropTable: Table
 
     init {
         setFillParent(true)
@@ -78,21 +76,9 @@ class RewardView(
             this@RewardView.goldLabel = Label("+0", skin, Labels.YELLOW.skinKey)
             add(this@RewardView.goldLabel).row()
 
-            // Item row (hidden by default)
-            this@RewardView.itemIcon = Image().apply {
-                setScaling(Scaling.contain)
-                setSize(20f, 20f)
-            }
-            this@RewardView.itemNameLabel = Label("", skin, Labels.DEFAULT.skinKey).apply {
-                setAlignment(Align.left)
-            }
-            this@RewardView.itemRow = Table(skin).apply {
-                add(Label("Item:", skin, Labels.DEFAULT.skinKey)).right().padRight(8f)
-                add(this@RewardView.itemIcon).size(20f, 20f).padRight(6f)
-                add(this@RewardView.itemNameLabel)
-                isVisible = false
-            }
-            add(this@RewardView.itemRow).colspan(2).left().row()
+            // Dynamic item drop rows — rebuilt on each reward
+            this@RewardView.itemDropTable = Table(skin)
+            add(this@RewardView.itemDropTable).colspan(2).left().row()
 
             // Confirm button
             val confirmButton = com.badlogic.gdx.scenes.scene2d.ui.TextButton(
@@ -119,14 +105,26 @@ class RewardView(
         model.onPropertyChange(RewardViewModel::goldGained) { gold ->
             goldLabel.setText("+$gold")
         }
-        model.onPropertyChange(RewardViewModel::hasItemDrop) { has ->
-            itemRow.isVisible = has
+        model.onPropertyChange(RewardViewModel::itemDrops) { drops ->
+            rebuildItemDropRows(drops, skin)
         }
-        model.onPropertyChange(RewardViewModel::itemDropName) { name ->
-            itemNameLabel.setText(name)
-        }
-        model.onPropertyChange(RewardViewModel::itemDropAtlasKey) { key ->
-            itemIcon.drawable = if (key.isNotBlank()) runCatching { skin.getDrawable(key) }.getOrNull() else null
+    }
+
+    private fun rebuildItemDropRows(drops: List<ItemDropInfo>, skin: Skin) {
+        itemDropTable.clear()
+        drops.forEach { drop ->
+            itemDropTable.defaults().left().padBottom(4f)
+            itemDropTable.add(Label("Item:", skin, Labels.DEFAULT.skinKey)).right().padRight(8f)
+            val icon = Image().apply {
+                setScaling(Scaling.contain)
+                drawable = if (drop.uiAtlasKey.isNotBlank())
+                    runCatching { skin.getDrawable(drop.uiAtlasKey) }.getOrNull()
+                else null
+            }
+            itemDropTable.add(icon).size(20f, 20f).padRight(6f)
+            itemDropTable.add(Label(drop.name, skin, Labels.DEFAULT.skinKey).apply {
+                setAlignment(Align.left)
+            }).row()
         }
     }
 }

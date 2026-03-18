@@ -19,6 +19,7 @@ import com.github.jacks.roleplayinggame.configurations.AbilityNode
 import com.github.jacks.roleplayinggame.ui.Buttons
 import com.github.jacks.roleplayinggame.ui.Labels
 import com.github.jacks.roleplayinggame.ui.viewmodels.BattleViewModel
+import com.github.jacks.roleplayinggame.ui.viewmodels.EnemyStatInfo
 import com.github.jacks.roleplayinggame.ui.widgets.BattleStatBar
 import com.github.jacks.roleplayinggame.ui.widgets.battleStatBar
 import ktx.actors.txt
@@ -38,11 +39,12 @@ class BattleView(
 ) : Table(skin), KTable {
 
     private val playerStatBar: BattleStatBar
-    private val enemyStatBar: BattleStatBar
+    private val enemyStatBars: Array<BattleStatBar>
     private val actionTable: Table
     private val messageTable: Table
     private val messageLabel: Label
     private val spellsButton: TextButton
+    private val selectionPanel: Table
 
     // Spell panel
     private val spellPanel: Table
@@ -66,12 +68,23 @@ class BattleView(
         }
         val panelBgd = skin.get("battlePanelBgd", TextureRegionDrawable::class.java)
 
-        // === Row 1: Spacer (left) + Enemy stat bar (right) ===
+        // === Row 1: Spacer (left) + Enemy stat bars stacked (right) ===
         table { it.expandX() } // spacer
-        enemyStatBar = battleStatBar(skin) {
-            it.width(Value.percentWidth(0.30f, this@BattleView))
-                .padTop(8f).padRight(8f).row()
+
+        val enemyBarsContainer = Table(skin).apply {
+            defaults().left().padBottom(2f)
         }
+        enemyStatBars = Array(3) { i ->
+            BattleStatBar(skin).also { bar ->
+                bar.isVisible = false
+                enemyBarsContainer.add(bar)
+                    .width(Value.percentWidth(1f, enemyBarsContainer))
+                    .row()
+            }
+        }
+        add(enemyBarsContainer)
+            .width(Value.percentWidth(0.30f, this@BattleView))
+            .padTop(8f).padRight(8f).row()
 
         // === Row 2: Player stat bar (lower-left) + spacer — fills middle space ===
         table { innerTable ->
@@ -174,9 +187,26 @@ class BattleView(
             isVisible = false
         }
 
+        // -- Selection panel (shown during enemy target selection) --
+        selectionPanel = Table(skin).apply {
+            add(Label("Choose Target", skin, Labels.DEFAULT.skinKey))
+                .expandX().center().padBottom(8f).row()
+            add(Label("Arrow Keys to cycle  |  Enter to confirm", skin, Labels.SMALL.skinKey))
+                .expandX().center().padBottom(8f).row()
+            add(TextButton("Cancel", skin, Buttons.RED_BUTTON_MEDIUM.skinKey).apply {
+                addListener(object : ClickListener() {
+                    override fun clicked(event: InputEvent, x: Float, y: Float) {
+                        model.onSelectionCancel()
+                    }
+                })
+            }).center().minWidth(80f)
+            isVisible = false
+        }
+
         bottomPanel.add(actionTable)
         bottomPanel.add(messageTable)
         bottomPanel.add(spellPanel)
+        bottomPanel.add(selectionPanel)
 
         val panelWrapper = Table(skin).apply {
             background = panelBgd
@@ -186,14 +216,14 @@ class BattleView(
             .height(Value.percentHeight(0.25f, this@BattleView))
 
         // === Data bindings ===
-        model.onPropertyChange(BattleViewModel::playerLife) { pct -> playerStatBar.life(pct) }
-        model.onPropertyChange(BattleViewModel::enemyLife)  { pct -> enemyStatBar.life(pct) }
-        model.onPropertyChange(BattleViewModel::playerMana) { pct -> playerStatBar.mana(pct) }
-        model.onPropertyChange(BattleViewModel::enemyMana)  { pct -> enemyStatBar.mana(pct) }
-        model.onPropertyChange(BattleViewModel::playerName) { name -> playerStatBar.updateName(name) }
-        model.onPropertyChange(BattleViewModel::enemyName)  { name -> enemyStatBar.updateName(name) }
+        model.onPropertyChange(BattleViewModel::playerLife)  { pct -> playerStatBar.life(pct) }
+        model.onPropertyChange(BattleViewModel::playerMana)  { pct -> playerStatBar.mana(pct) }
+        model.onPropertyChange(BattleViewModel::playerName)  { name -> playerStatBar.updateName(name) }
         model.onPropertyChange(BattleViewModel::playerLevel) { level -> playerStatBar.updateLevel(level) }
-        model.onPropertyChange(BattleViewModel::enemyLevel)  { level -> enemyStatBar.updateLevel(level) }
+
+        model.onPropertyChange(BattleViewModel::enemyStatInfos) { infos ->
+            updateEnemyBars(infos)
+        }
 
         model.onPropertyChange(BattleViewModel::battleLog) { log ->
             if (log.isNotBlank()) messageLabel.txt = log
@@ -204,6 +234,7 @@ class BattleView(
                     spellPanelVisible = false
                     spellPanel.isVisible = false
                 }
+                if (selectionPanel.isVisible) selectionPanel.isVisible = false
                 actionTable.isVisible = true
                 messageTable.isVisible = false
             } else {
@@ -219,8 +250,34 @@ class BattleView(
             spellsButton.isDisabled = !enabled
         }
         model.onPropertyChange(BattleViewModel::availableSpells) { spells ->
-            // Rebuild grid if panel is currently open
             if (spellPanelVisible) rebuildSpellGrid(spells, model, skin)
+        }
+        model.onPropertyChange(BattleViewModel::enemySelectionActive) { active ->
+            if (active) {
+                actionTable.isVisible = false
+                spellPanel.isVisible = false
+                spellPanelVisible = false
+                selectionPanel.isVisible = true
+                messageTable.isVisible = false
+            } else {
+                selectionPanel.isVisible = false
+            }
+        }
+    }
+
+    private fun updateEnemyBars(infos: List<EnemyStatInfo>) {
+        for (i in enemyStatBars.indices) {
+            val bar = enemyStatBars[i]
+            val info = infos.getOrNull(i)
+            if (info != null) {
+                bar.isVisible = true
+                bar.life(info.lifePct)
+                bar.mana(info.manaPct)
+                bar.updateName(info.name)
+                bar.updateLevel(info.level)
+            } else {
+                bar.isVisible = false
+            }
         }
     }
 
@@ -243,7 +300,6 @@ class BattleView(
     /**
      * Builds a 2-column grid of spell TextButtons.
      * Affordable spells use blue; unaffordable use grey.
-     * Clicking an affordable spell casts it; clicking an unaffordable one shows "Not enough MP".
      */
     private fun rebuildSpellGrid(spells: List<AbilityNode>, model: BattleViewModel, skin: Skin) {
         spellGridTable.clear()
@@ -254,7 +310,6 @@ class BattleView(
             return
         }
 
-        // Pad to even count so rows are complete
         val cells = spells.toMutableList<AbilityNode?>()
         if (cells.size % 2 != 0) cells.add(null)
 

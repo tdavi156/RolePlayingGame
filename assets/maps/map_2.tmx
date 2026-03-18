@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="52" height="36" tilewidth="16" tileheight="16" infinite="0" nextlayerid="10" nextobjectid="48">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="52" height="36" tilewidth="16" tileheight="16" infinite="0" nextlayerid="10" nextobjectid="55">
  <properties>
   <property name="background_music" type="file" value="../audio/field_theme_1.wav"/>
   <property name="mapId" type="int" value="1"/>
@@ -27,7 +27,11 @@
    eJztlckNwjAURH1GERBfKIalFpYu2E/QBA2wdMF+oQsaYLkzUSxhLCM5EDs/4JGegrPg8f/jhDEvr/9Us8xYS6KtjDviHBV1Q8b6oCeOEYPweX0OrwuJpTJeCahoDe9bsBHHiJ20ngu8XiVuyvgUxlBRwBkrgrM4RpT483oVXmsSM/46Xir9WRRwDqwKZvMnvd+2ot7cpfVc4esG7ob+dPcP8Z8jhbGFDOhqWUG/GoTy9q4WOu9Ja5+F9vB+APUAdQ7i38cwH951KvOYCdYyBZzHUBO198a3ymtefk15ypWJ17Ry5aIun3jVfU9MvrF+v/2u8rSHTeSz+p18HtyKer2T+rNR7zRrRCEPtj1QyVRaPij0LEsfVPqZlqj006Zc9uyTuVy+113MpXvGVg+yyu8/7BtqegDcVqIA
   </data>
  </layer>
- <objectgroup color="#ff0000" id="5" name="entities"/>
+ <objectgroup color="#ff0000" id="5" name="entities">
+  <object id="52" name="cleric" gid="10664" x="309.333" y="461.667" width="48" height="48"/>
+  <object id="53" name="ranger" gid="10664" x="392.333" y="371.333" width="48" height="48"/>
+  <object id="54" name="sorcerer" gid="10664" x="505" y="371.333" width="48" height="48"/>
+ </objectgroup>
  <objectgroup color="#2411f9" id="6" name="portals">
   <object id="44" name="fromMap1" x="411.029" y="547.134" width="10.1818" height="9.81818"/>
   <object id="45" name="toMap1" x="384.182" y="566.795" width="63.6364" height="8.90909">

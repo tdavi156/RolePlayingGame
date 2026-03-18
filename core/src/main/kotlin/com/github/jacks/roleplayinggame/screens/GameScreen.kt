@@ -176,7 +176,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
     private val playerFamily by lazy { entityWorld.family(allOf = arrayOf(PlayerComponent::class)) }
     private val attackMapper by lazy { entityWorld.mapper<AttackComponent>() }
     private val settingsViewModel = SettingsViewModel(uiStage, entityWorld.system<SettingsSystem>())
-    private val rewardViewModel   = RewardViewModel(entityWorld, gameStage)
+    private val rewardViewModel   = RewardViewModel(gameStage)
     private val shopViewModel     = ShopViewModel(entityWorld, gameStage)
     private val abilityViewModel  = AbilityViewModel(entityWorld, gameStage)
 
