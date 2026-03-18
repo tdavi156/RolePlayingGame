@@ -160,7 +160,9 @@ enum class Fonts(
 
     TINY_BUTTON("regular_12pt", 1f),
     SMALL_BUTTON("regular_16pt", 1f),
-    MEDIUM_BUTTON("regular_20pt", 1f);
+    MEDIUM_BUTTON("regular_20pt", 1f),
+
+    DAMAGE("fnt_white", 1f);
 
     val skinKey = "Font_${this.name.lowercase()}"
     val fontPath = "assets/fonts/${this.atlasRegionKey}.fnt"

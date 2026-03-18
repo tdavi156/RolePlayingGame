@@ -48,6 +48,7 @@ class InitializeGameSystem(
                 }
                 loadSettings()
                 loadResources()
+                loadQuestState()
                 seedStartingInventory()
                 world.entity {
                     // eventually there may be a step before this that just loads the main menu and this doesn't
@@ -84,6 +85,10 @@ class InitializeGameSystem(
             this["is_game_initialized"] = true
             this["current_map"] = "map_1"
         }
+    }
+
+    private fun loadQuestState() {
+        world.system<QuestSystem>().loadState(preferences)
     }
 
     private fun loadResources() {

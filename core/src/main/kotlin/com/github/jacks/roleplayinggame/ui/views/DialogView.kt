@@ -1,10 +1,12 @@
 package com.github.jacks.roleplayinggame.ui.views
 
-import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input.Keys
+import com.badlogic.gdx.scenes.scene2d.InputEvent
+import com.badlogic.gdx.scenes.scene2d.InputListener
 import com.badlogic.gdx.scenes.scene2d.ui.Label
 import com.badlogic.gdx.scenes.scene2d.ui.Skin
 import com.badlogic.gdx.scenes.scene2d.ui.Table
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.badlogic.gdx.utils.Align
 import com.github.jacks.roleplayinggame.ui.Buttons
 import com.github.jacks.roleplayinggame.ui.Drawables
@@ -13,7 +15,6 @@ import com.github.jacks.roleplayinggame.ui.Labels
 import com.github.jacks.roleplayinggame.ui.viewmodels.DialogViewModel
 import ktx.actors.alpha
 import ktx.actors.onClick
-import ktx.actors.onKeyDown
 import ktx.actors.txt
 import ktx.scene2d.*
 
@@ -24,6 +25,8 @@ class DialogView(
 
     private val dialogText : Label
     private val buttonArea : Table
+    private val optionButtons = mutableListOf<TextButton>()
+    private var focusedOptionIndex = 0
 
     init {
         setFillParent(true)
@@ -40,38 +43,66 @@ class DialogView(
 
             this@DialogView.buttonArea = table { buttonAreaCell ->
                 this.defaults().expand()
-                //this.background = skin[Drawables.FRAME_BGD]
-                textButton("", Buttons.TEXT_BUTTON.skinKey)
                 buttonAreaCell.expandX().fillX().pad(0f, 8f, 8f, 8f)
             }
 
             it.expand().width(200f).height(130f).padTop(8f).top().row()
         }
 
+        addListener(object : InputListener() {
+            override fun keyDown(event: InputEvent, keycode: Int): Boolean {
+                if (this@DialogView.alpha == 0f || optionButtons.isEmpty()) return false
+                when (keycode) {
+                    Keys.LEFT, Keys.UP -> {
+                        focusedOptionIndex = (focusedOptionIndex - 1).coerceAtLeast(0)
+                        updateButtonFocus()
+                        return true
+                    }
+                    Keys.RIGHT, Keys.DOWN -> {
+                        focusedOptionIndex = (focusedOptionIndex + 1).coerceAtMost(optionButtons.size - 1)
+                        updateButtonFocus()
+                        return true
+                    }
+                    Keys.ENTER, Keys.NUMPAD_ENTER -> {
+                        model.triggerOption(focusedOptionIndex)
+                        return true
+                    }
+                    else -> return false
+                }
+            }
+        })
+
         model.onPropertyChange(DialogViewModel::text) {
             dialogText.txt = it
             this.alpha = 1f
+            stage?.setKeyboardFocus(this)
         }
         model.onPropertyChange(DialogViewModel::completed) { completed ->
             if (completed) {
                 this.alpha = 0f
-                this.buttonArea.clearChildren()
+                buttonArea.clearChildren()
+                optionButtons.clear()
+                focusedOptionIndex = 0
             }
         }
         model.onPropertyChange(DialogViewModel::options) { dialogOptions ->
             buttonArea.clearChildren()
+            optionButtons.clear()
+            focusedOptionIndex = 0
             dialogOptions.forEach { option ->
-                buttonArea.add(table { buttonOption ->
-                    this.defaults().expandX()
-                    this.background = skin[Drawables.FRAME_BGD]
-                    textButton(option.text, Buttons.TEXT_BUTTON.skinKey).apply {
-                        onClick { this@DialogView.model.triggerOption(option.index) }
-                    }
-                })
-//                buttonArea.add(textButton(option.text, Buttons.TEXT_BUTTON.skinKey).apply {
-//                    onClick { this@DialogView.model.triggerOption(option.index) }
-//                })
+                val btn = scene2d.textButton(option.text, Buttons.BROWN_BUTTON_SMALL.skinKey) {
+                    onClick { this@DialogView.model.triggerOption(option.index) }
+                }
+                optionButtons.add(btn)
+                buttonArea.add(btn).expandX().fillX().pad(2f)
             }
+            updateButtonFocus()
+        }
+    }
+
+    private fun updateButtonFocus() {
+        optionButtons.forEachIndexed { index, button ->
+            button.isChecked = (index == focusedOptionIndex)
         }
     }
 }

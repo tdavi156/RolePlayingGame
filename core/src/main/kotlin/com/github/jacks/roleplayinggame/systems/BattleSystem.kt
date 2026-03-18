@@ -3,6 +3,7 @@ package com.github.jacks.roleplayinggame.systems
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.graphics.g2d.Animation
+import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.maps.tiled.TiledMap
 import com.badlogic.gdx.physics.box2d.World
 import com.badlogic.gdx.scenes.scene2d.Action
@@ -42,8 +43,19 @@ import com.github.jacks.roleplayinggame.events.BattlePhaseChangedEvent
 import com.github.jacks.roleplayinggame.events.BattleRewardData
 import com.github.jacks.roleplayinggame.events.BattleRewardEvent
 import com.github.jacks.roleplayinggame.events.BattleTransitionStartEvent
+import com.github.jacks.roleplayinggame.configurations.AbilityEffect
+import com.github.jacks.roleplayinggame.configurations.ABILITY_TREES
+import com.github.jacks.roleplayinggame.events.CastSpellEvent
 import com.github.jacks.roleplayinggame.events.CombatItemUseDismissedEvent
+import com.github.jacks.roleplayinggame.events.FloatingTextEvent
+import com.github.jacks.roleplayinggame.events.GainAbilityPointEvent
+import com.github.jacks.roleplayinggame.events.EnemyKilledEvent
+import com.github.jacks.roleplayinggame.events.GainSkillPointEvent
 import com.github.jacks.roleplayinggame.events.ItemUseFlashEvent
+import com.github.jacks.roleplayinggame.events.LevelUpEvent
+import com.github.jacks.roleplayinggame.configurations.EnemyType
+import com.github.jacks.roleplayinggame.events.SpellCastDismissedEvent
+import com.github.jacks.roleplayinggame.ui.Fonts
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.quillraven.fleks.AllOf
@@ -192,21 +204,32 @@ class BattleSystem(
             when (battleComponent.endReason) {
                 BattleEndReason.WIN -> {
                     var xpGained = 0
+                    var levelsGained = 0
+                    val playerStat = playerEntity?.let { statComponents.getOrNull(it) }
+                    val enemyStat  = statComponents.getOrNull(entity)
+                    if (playerStat != null && enemyStat != null && enemyStat.xpReward > 0) {
+                        xpGained    = enemyStat.xpReward
+                        levelsGained = playerStat.gainExperience(xpGained)
+                    }
                     val message = buildString {
                         append("Victory!")
-                        if (playerEntity != null) {
-                            val playerStat = statComponents.getOrNull(playerEntity)
-                            val enemyStat = statComponents.getOrNull(entity)
-                            if (playerStat != null && enemyStat != null) {
-                                xpGained = enemyStat.xpReward
-                                if (xpGained > 0) {
-                                    append("\nGained $xpGained XP!")
-                                    val levelsGained = playerStat.gainExperience(xpGained)
-                                    if (levelsGained > 0) {
-                                        append("\nLevel up! Now level ${playerStat.level}!")
-                                    }
-                                }
+                        if (xpGained > 0) {
+                            append("\nGained $xpGained XP!")
+                            if (levelsGained > 0) {
+                                append("\nLevel up! Now level ${playerStat?.level}!")
                             }
+                        }
+                    }
+                    // Fire per-level events and save prefs after all level-ups are processed
+                    if (levelsGained > 0 && playerEntity != null && playerStat != null) {
+                        repeat(levelsGained) {
+                            gameStage.fire(LevelUpEvent(playerEntity, playerStat.level))
+                            gameStage.fire(GainSkillPointEvent(playerEntity))
+                            gameStage.fire(GainAbilityPointEvent(playerEntity))
+                        }
+                        preferences.flush {
+                            this["player_level"]      = playerStat.level
+                            this["player_experience"] = playerStat.experience
                         }
                     }
                     val config = savedNonPlayerConfig
@@ -215,6 +238,8 @@ class BattleSystem(
                         if (rollForDrop(config.lootChance)) rollRandomItem(pool) else null
                     }
                     pendingRewardData = BattleRewardData(xpGained, goldGained, itemDropped)
+                    val enemyType = EnemyType.entries.find { it.animationModel == savedEnemyModel }
+                    if (enemyType != null) gameStage.fire(EnemyKilledEvent(enemyType))
                     gameStage.fire(BattleLogEvent(message))
                 }
                 BattleEndReason.LOSE -> {
@@ -282,10 +307,10 @@ class BattleSystem(
         val enemyAnimComp  = animationComponents.getOrNull(enemyEntity)     ?: return
         val enemyName      = enemyDisplayName(enemyEntity)
 
-        // Pre-compute lethality so the death animation can fire with the flash
-        val isLethalHit = peekDamage(playerEntity, enemyEntity).let { dmg ->
-            (statComponents.getOrNull(enemyEntity)?.currentHealth ?: 0f) - dmg <= 0f
-        }
+        // Pre-compute lethality and display damage so both can fire with the flash
+        val peekDmg = peekDamage(playerEntity, enemyEntity)
+        val isLethalHit = (statComponents.getOrNull(enemyEntity)?.currentHealth ?: 0f) - peekDmg <= 0f
+        val displayDmg = peekDmg.toInt()
 
         sequenceRunning = true
         var intendedNextPhase = BattlePhase.ENEMY_TURN
@@ -302,10 +327,11 @@ class BattleSystem(
                 playerAnimComp.stateTime = 0f
             },
 
-            // 3. Mid-animation: flash the enemy white; start death animation simultaneously on a lethal hit
+            // 3. Mid-animation: flash the enemy white; fire floating damage text; start death animation simultaneously on a lethal hit
             Actions.delay(HIT_FLASH_DELAY),
             Actions.run {
                 enemyImg.useWhiteShader = true
+                gameStage.fire(FloatingTextEvent(Vector2(enemyOriginX, enemyOriginY), displayDmg.toString(), Fonts.DAMAGE))
                 if (isLethalHit) {
                     enemyAnimComp.nextAnimation(AnimationType.DEATH)
                     enemyAnimComp.playMode = Animation.PlayMode.NORMAL
@@ -365,10 +391,10 @@ class BattleSystem(
         val playerAnimComp = animationComponents.getOrNull(playerEntity)    ?: return
         val enemyName      = enemyDisplayName(enemyEntity)
 
-        // Pre-compute lethality so the death animation can fire with the flash
-        val isLethalHit = peekDamage(enemyEntity, playerEntity).let { dmg ->
-            (statComponents.getOrNull(playerEntity)?.currentHealth ?: 0f) - dmg <= 0f
-        }
+        // Pre-compute lethality and display damage so both can fire with the flash
+        val peekDmg = peekDamage(enemyEntity, playerEntity)
+        val isLethalHit = (statComponents.getOrNull(playerEntity)?.currentHealth ?: 0f) - peekDmg <= 0f
+        val displayDmg = peekDmg.toInt()
 
         sequenceRunning = true
         var intendedNextPhase = BattlePhase.PLAYER_TURN
@@ -395,10 +421,11 @@ class BattleSystem(
                 enemyAnimComp.stateTime = 0f
             },
 
-            // 3. Mid-animation: flash the player white; start death animation simultaneously on a lethal hit
+            // 3. Mid-animation: flash the player white; fire floating damage text; start death animation simultaneously on a lethal hit
             Actions.delay(HIT_FLASH_DELAY),
             Actions.run {
                 playerImg.useWhiteShader = true
+                gameStage.fire(FloatingTextEvent(Vector2(playerOriginX, playerOriginY), displayDmg.toString(), Fonts.DAMAGE))
                 if (isLethalHit) {
                     playerAnimComp.nextAnimation(AnimationType.DEATH)
                     playerAnimComp.playMode = Animation.PlayMode.NORMAL
@@ -594,6 +621,9 @@ class BattleSystem(
                 if (battleComponent.phase == BattlePhase.BATTLE_END && battleComponent.waitingForEndDismiss) {
                     battleComponent.waitingForEndDismiss = false
                 }
+                if (battleComponent.waitingForSpellDismiss) {
+                    gameStage.fire(SpellCastDismissedEvent())
+                }
                 return true
             }
 
@@ -602,6 +632,88 @@ class BattleSystem(
                 val battleEntity    = currentBattleEntity ?: return false
                 val battleComponent = battleComponents.getOrNull(battleEntity) ?: return false
                 if (battleComponent.phase == BattlePhase.PLAYER_TURN) {
+                    transitionPhase(battleComponent, BattlePhase.ENEMY_TURN)
+                }
+                return true
+            }
+
+            // Player cast a spell — deduct mana, apply effect, show result, gate turn
+            is CastSpellEvent -> {
+                val battleEntity    = currentBattleEntity ?: return false
+                val battleComponent = battleComponents.getOrNull(battleEntity) ?: return false
+                val playerEntity    = currentPlayerEntity ?: return false
+                if (battleComponent.phase != BattlePhase.PLAYER_TURN) return false
+
+                val tree = ABILITY_TREES[1] ?: return false
+                val node = tree.nodes.find { it.id == event.abilityId } ?: return false
+
+                val casterStat = statComponents.getOrNull(event.casterEntity) ?: return false
+
+                // Deduct mana
+                casterStat.currentMana = (casterStat.currentMana - node.manaCost).coerceAtLeast(0f)
+                fireHealthUpdate(playerEntity, battleEntity)
+
+                // Apply effect and show result log
+                val characterName = "Player"
+                val effectLine: String
+                when (val effect = node.effect) {
+                    is AbilityEffect.DamageEnemy -> {
+                        val enemyEntity = battleEntity
+                        val enemyStat = statComponents.getOrNull(enemyEntity) ?: return false
+                        val dmg = effect.amount.toFloat()
+                        enemyStat.currentHealth = (enemyStat.currentHealth - dmg).coerceAtLeast(0f)
+                        fireHealthUpdate(playerEntity, enemyEntity)
+                        gameStage.fire(FloatingTextEvent(
+                            com.badlogic.gdx.math.Vector2(enemyOriginX, enemyOriginY),
+                            dmg.toInt().toString(), Fonts.DAMAGE
+                        ))
+                        // Hit flash on enemy
+                        imageComponents.getOrNull(enemyEntity)?.image?.let { img ->
+                            img.addAction(com.badlogic.gdx.scenes.scene2d.actions.Actions.sequence(
+                                com.badlogic.gdx.scenes.scene2d.actions.Actions.run { img.useWhiteShader = true },
+                                com.badlogic.gdx.scenes.scene2d.actions.Actions.delay(FLASH_DURATION),
+                                com.badlogic.gdx.scenes.scene2d.actions.Actions.run { img.useWhiteShader = false }
+                            ))
+                        }
+                        effectLine = "Dealt ${dmg.toInt()} damage!"
+                    }
+                    is AbilityEffect.HealSelf -> {
+                        val healAmount = effect.amount.toFloat()
+                        casterStat.currentHealth = (casterStat.currentHealth + healAmount).coerceAtMost(casterStat.maxHealth)
+                        fireHealthUpdate(playerEntity, battleEntity)
+                        // TODO: Replace with Fonts.HEAL (green) once "heal.fnt" asset is created
+                        gameStage.fire(FloatingTextEvent(
+                            com.badlogic.gdx.math.Vector2(playerOriginX, playerOriginY),
+                            "+${healAmount.toInt()} HP", Fonts.DAMAGE
+                        ))
+                        // Heal flash (green tint) on player
+                        imageComponents.getOrNull(playerEntity)?.image?.let { img ->
+                            img.addAction(com.badlogic.gdx.scenes.scene2d.actions.Actions.sequence(
+                                com.badlogic.gdx.scenes.scene2d.actions.Actions.run {
+                                    img.color.set(com.badlogic.gdx.graphics.Color.GREEN)
+                                },
+                                com.badlogic.gdx.scenes.scene2d.actions.Actions.delay(ITEM_FLASH_DURATION),
+                                com.badlogic.gdx.scenes.scene2d.actions.Actions.run {
+                                    img.color.set(com.badlogic.gdx.graphics.Color.WHITE)
+                                }
+                            ))
+                        }
+                        effectLine = "Restored ${healAmount.toInt()} HP!"
+                    }
+                }
+
+                gameStage.fire(BattleLogEvent("$characterName cast ${node.name}!\n$effectLine"))
+                battleComponent.waitingForSpellDismiss = true
+                transitionPhase(battleComponent, BattlePhase.RESOLVING)
+                return true
+            }
+
+            // Player dismissed spell cast result — advance to enemy turn
+            is SpellCastDismissedEvent -> {
+                val battleEntity    = currentBattleEntity ?: return false
+                val battleComponent = battleComponents.getOrNull(battleEntity) ?: return false
+                if (battleComponent.waitingForSpellDismiss) {
+                    battleComponent.waitingForSpellDismiss = false
                     transitionPhase(battleComponent, BattlePhase.ENEMY_TURN)
                 }
                 return true
@@ -628,6 +740,7 @@ class BattleSystem(
                         it.battleInProgress         = false
                         it.endDelayTimer            = -1f
                         it.waitingForActionDismiss  = false
+                        it.waitingForSpellDismiss   = false
                     }
                 }
                 currentBattleEntity  = null

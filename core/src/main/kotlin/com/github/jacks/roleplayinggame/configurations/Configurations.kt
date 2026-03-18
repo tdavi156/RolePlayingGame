@@ -10,6 +10,7 @@ import com.github.jacks.roleplayinggame.configurations.TIER_1_ITEMS
 import com.github.jacks.roleplayinggame.configurations.TIER_2_ITEMS
 import com.github.jacks.roleplayinggame.components.StatComponent
 import ktx.math.vec2
+import com.github.jacks.roleplayinggame.configurations.DialogId
 
 enum class ConfigurationType {
     UNDEFINED, PLAYER, NON_PLAYER
@@ -21,6 +22,7 @@ class Configurations {
             return when(entityName) {
                 "player" -> { ConfigurationType.PLAYER }
                 "oldman" -> { ConfigurationType.NON_PLAYER }
+                "questman" -> { ConfigurationType.NON_PLAYER }
                 "slimeGreen" -> { ConfigurationType.NON_PLAYER }
                 "slimeBlue" -> { ConfigurationType.NON_PLAYER }
                 "slimeRed" -> { ConfigurationType.NON_PLAYER }
@@ -39,6 +41,7 @@ class Configurations {
             return when(entityName) {
                 "player" -> { PLAYER_CONFIGURATION }
                 "oldman" -> { NPC_CONFIGURATION }
+                "questman" -> { QUESTMAN_CONFIGURATION }
                 "slimeGreen" -> { SLIME_GREEN_CONFIGURATION }
                 "slimeBlue" -> { SLIME_BLUE_CONFIGURATION }
                 "slimeRed" -> { SLIME_RED_CONFIGURATION }
@@ -66,6 +69,21 @@ class Configurations {
         )
 
         // non-player configurations
+        val QUESTMAN_CONFIGURATION = NonPlayerConfiguration(
+            AnimationModel.OLD_MAN,
+            hasStats = false,
+            speedScaling = 0f,
+            canAttack = false,
+            canBattle = false,
+            attackScaling = 0f,
+            lifeScaling = 0f,
+            hasAiBehavior = false,
+            physicsScaling = vec2(0.3f, 0.3f),
+            physicsOffset = vec2(0f, -10f * UNIT_SCALE),
+            bodyType = BodyDef.BodyType.StaticBody,
+            color = Color.WHITE,
+            dialogId = DialogId.QUEST_MAN
+        )
         val NPC_CONFIGURATION = NonPlayerConfiguration(
             AnimationModel.OLD_MAN,
             hasStats = false,

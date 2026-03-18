@@ -39,151 +39,315 @@
 | File | Purpose |
 |------|---------|
 | `screens/GameScreen.kt` | Main screen. Owns `gameStage`, `uiStage`, `entityWorld`. Manages system enable/disable, UI layer transitions (fade in/out), input processors. `render()` drives the ECS tick. |
-| `systems/BattleSystem.kt` | Drives battle flow, turn order, and animations. Items button currently disabled — to be enabled here. Turn advancement gated on result message dismissal after item use. |
-| `systems/StatSystem.kt` | Handles stat recalculation and current value modification. Extended here to expose a full-stat check function. |
-| `systems/InventorySystem.kt` | Singleton inventory source of truth. `removeItem()` called on successful consumable use. |
-| `ui/views/BattleView.kt` | Battle UI layer. Items button wired here to fire `CombatInventoryOpenEvent`. |
-| `ui/views/InventoryView.kt` | Existing inventory UI. Reused in combat with tab locked to Consumables via `isCombatMode` flag. |
-| `ui/viewmodels/InventoryViewModel.kt` | Shared ViewModel for inventory. Extended with `isCombatMode` flag and combat-specific open/close event handling. |
-| `ui/widgets/InventoryLeftPanel.kt` | Character list panel. Extended to show result messages and full-stat warnings inline. |
-| `configurations/ConsumableItems.kt` | Consumable item config. Extended with `flashColor: Color` field per item. |
-| `events/Events.kt` | Central event definitions. New combat inventory and flash events added here. |
+| `systems/DialogSystem.kt` | Drives dialog flow. Currently holds dialog data and `getDialog()` — both moved to `DialogConfigurations.kt` in this feature. |
+| `systems/InteractionSystem.kt` | Already handles entity contact detection and routes to dialog/shop/loot. Unchanged in this feature. |
+| `systems/InitializeGameSystem.kt` | Extended to load quest state from prefs on startup. |
+| `systems/BattleSystem.kt` | Fires `EnemyKilledEvent` on enemy death — consumed by `QuestSystem` to update kill progress. |
+| `components/DialogComponent.kt` | Simplified to hold only `dialogId: DialogId`. |
+| `components/NonPlayerComponent.kt` | Extended with `dialogId: DialogId = DialogId.NO_DIALOG` field. |
+| `systems/EntityCreationSystem.kt` | Extended to add `DialogComponent` when `config.dialogId != NO_DIALOG`. |
+| `Dialog.kt` | DSL state machine for dialog flow. Refactored — all action functions fire events only, no side effects. |
+| `ui/views/QuestView.kt` | Currently a stub. Fully implemented in this feature. |
+| `ui/viewmodels/QuestViewModel.kt` | Currently a stub. Fully implemented in this feature. |
+| `ui/views/MainGameView.kt` | Quest button added alongside existing HUD buttons. |
+| `input/PlayerKeyboardInputProcessor.kt` | `Q` hotkey added to open `QuestView`. |
+| `events/Events.kt` | All new dialog, quest, and kill events added here. |
+| `maps/map_1.tmx` | `questman` entity added here with `dialogId = QUEST_MAN`. |
 
 ---
 
 ## Next Feature
 
-# Consumable Items in Combat
+# Dialog System Refactor and Quest System
 
 ## Context
-- The Items button in `BattleView` is already present but disabled — this feature enables it
-- The existing `InventoryView` and `InventoryViewModel` are reused directly in combat, locked to the Consumables tab via an `isCombatMode` flag — no separate combat view is created
-- `UseConsumableEvent` is shared between overworld and combat; an `isCombatItemUse: Boolean` flag (default `false`) distinguishes the two contexts for turn-advancement purposes
-- Stat application logic is identical in both contexts — only turn advancement differs
-- Full stat restriction (HP/mana already full) is checked after the player confirms a character, not before — character appears selectable, warning shown on confirm
-- Turn does not advance until the player dismisses the result message in combat
-- Flash animation reuses the existing hit-flash mechanism with a per-item color defined in `ConsumableItems.kt`
+- Dialog data and `DialogId` enum are extracted from `DialogSystem.kt` and `DialogComponent.kt` into a new `DialogConfigurations.kt` — `DialogSystem` becomes a pure state machine with no embedded data
+- `Dialog.kt` action functions (`acceptQuest`, `endDialog`, etc.) fire events only — all side effects handled by the appropriate systems
+- Quest state is tracked in a standalone `QuestSystem` singleton — not tied to any entity
+- Quest conditions are checked automatically when kill events occur — `QuestView` updates reactively via `QuestStateChangedEvent`
+- Quest completion requires returning to the quest giver — `CONDITIONS_MET` status is set automatically on kill, but `COMPLETED` is only set during the reward delivery dialog node
+- Quest state persists to prefs as part of game data
+- `QuestCondition` is a sealed class — future condition types (`CollectItem`, `ReachLocation`, `TalkToNPC`) are new subclasses, no structural changes needed
+- Dialog flows in `DialogConfigurations.kt` require runtime access to `QuestSystem` for status-based branching — inject via a static accessor or world injection at the point the dialog is evaluated, not at config load time
 
 ---
 
-## Part 1 — Add `flashColor` to `ConsumableItemData`
+## Part 1 — Extract Dialog Config to `DialogConfigurations.kt`
 
-Modify `configurations/ConsumableItems.kt`:
-- Add `flashColor: Color` field to `ConsumableItemData` (LibGDX `Color`)
-- Update all existing consumable entries with appropriate colors:
-  - Health-restoring items → `Color.GREEN`
-  - Mana-restoring items → `Color.BLUE`
-- Update any existing construction sites of `ConsumableItemData` to include the new field
-- Compilation must pass after this step
+Create `configurations/DialogConfigurations.kt`:
+- Move `DialogId` enum from `DialogComponent.kt` into this file — `NO_DIALOG` remains the default value
+- Move all dialog flow definitions out of `DialogSystem.kt` (`getDialog()` function) into this file — each `DialogId` maps to a dialog flow built with the existing `Dialog.kt` DSL
+- All future dialog flows are defined here — `DialogSystem.kt` contains no dialog data
 
----
+Modify `systems/DialogSystem.kt`:
+- Remove `getDialog()` function and all embedded dialog data
+- Look up flows from `DialogConfigurations.kt` by `DialogId` at runtime
+- No other behavioral changes — existing flow iteration logic unchanged
 
-## Part 2 — Add Combat Lock Flag to `InventoryViewModel`
-
-Modify `ui/viewmodels/InventoryViewModel.kt`:
-- Add `isCombatMode by propertyNotify(false)` observable property
-- When `isCombatMode == true`:
-  - Force `activeTab = InventoryTab.CONSUMABLES` on open and prevent tab changes — Left/Right key cycling and tab header clicks are no-ops
-  - Non-consumable tabs rendered faded and unselectable in the tab bar
-- Add to `events/Events.kt`:
-  - `class CombatInventoryOpenEvent : Event()`
-  - `class CombatInventoryClosedEvent : Event()`
-  - `class CombatItemUseDismissedEvent : Event()` — fired when result message is dismissed in combat
-  - `class ItemUseFlashEvent(val characterIndex: Int, val flashColor: Color) : Event()`
-- On `CombatInventoryOpenEvent`: set `isCombatMode = true`, reset `focusedItemIndex` to 0, set `activeTab = CONSUMABLES`
-- On `CombatInventoryClosedEvent`: set `isCombatMode = false`
-- Existing `InventoryOpenEvent` behavior unchanged — overworld flow unaffected
+Modify `components/DialogComponent.kt`:
+- Remove `DialogId` enum (now in `DialogConfigurations.kt`)
+- Simplify to a single field: `dialogId: DialogId`
 
 ---
 
-## Part 3 — Enable Items Button in `BattleView` and Wire to Inventory
+## Part 2 — Add `dialogId` to `NonPlayerConfiguration` and Wire Entity Creation
 
-Modify `ui/views/BattleView.kt` and its ViewModel:
-- Enable the currently-disabled Items button
-- On Items button press (keyboard or mouse): fire `CombatInventoryOpenEvent` on `uiStage`
-- `InventoryView` overlays on top of the battle UI — same layout as overworld, tab bar locked to Consumables
-- ESC or cancel from within the inventory while `isCombatMode == true`: fire `CombatInventoryClosedEvent`, return focus to battle action buttons — player's turn is NOT consumed
+Modify `components/NonPlayerComponent.kt`:
+- Add field to `NonPlayerConfiguration`: `dialogId: DialogId = DialogId.NO_DIALOG`
 
----
-
-## Part 4 — Update `UseConsumableEvent` with Combat Flag
-
-Modify `events/Events.kt`:
-- Add `isCombatItemUse: Boolean = false` parameter to `UseConsumableEvent`
-- Default is `false` — all existing overworld usages are unaffected without changes
-- `InventoryViewModel` sets `isCombatItemUse = true` when firing the event from combat context (i.e. when `isCombatMode == true`)
-- `BattleSystem` inspects this flag to determine whether to gate turn advancement on result message dismissal
+Modify `systems/EntityCreationSystem.kt`:
+- When creating a `NON_PLAYER` entity: if `config.dialogId != DialogId.NO_DIALOG`, add `DialogComponent(config.dialogId)` to the entity
+- Restores dialog component assignment removed during earlier refactor
+- No changes to entity creation for other component types
 
 ---
 
-## Part 5 — Extend `StatSystem` with Full Stat Check
+## Part 3 — Refactor `Dialog.kt` Action Functions to Fire Events
 
-Modify `systems/StatSystem.kt`:
-- Add `isStatFull(characterIndex: Int, statType: ConsumableStatType): Boolean`
-  - Returns `true` if the relevant current stat equals its maximum: `currentHealth == maxHealth` for `HEALTH`, `currentMana == maxMana` for `MANA`
-- Called by `InventoryViewModel` after item use is confirmed on a character, before applying any stat delta
-- Used identically in both combat and overworld contexts
+Modify `Dialog.kt`:
+- All action functions become thin event wrappers — no logic, no side effects:
+  - `acceptQuest(questId: Int)` → fires `AcceptQuestEvent(questId)` on `gameStage`
+  - `endDialog()` → fires `EndDialogEvent` on `gameStage`; `DialogSystem` handles cleanup
+  - `completeQuest(questId: Int)` → fires `CompleteQuestEvent(questId)` on `gameStage`
+  - `giveItem(itemId: Int)` → fires `DialogGiveItemEvent(itemId)` on `gameStage`
+  - `healPlayer()` → fires `DialogHealPlayerEvent()` on `gameStage`
+- Add all new events to `events/Events.kt`:
+  - `class AcceptQuestEvent(val questId: Int) : Event()`
+  - `class CompleteQuestEvent(val questId: Int) : Event()`
+  - `class EndDialogEvent : Event()`
+  - `class DialogGiveItemEvent(val itemId: Int) : Event()`
+  - `class DialogHealPlayerEvent : Event()`
+  - `class QuestStateChangedEvent(val questId: Int) : Event()`
+  - `class QuestViewOpenEvent : Event()`
+  - `class QuestViewClosedEvent : Event()`
 
 ---
 
-## Part 6 — Result Message, Full Stat Warning, and Turn Gating
+## Part 4 — Update Dialog UI to Use New Drawables
 
-Modify `ui/viewmodels/InventoryViewModel.kt` and `ui/widgets/InventoryLeftPanel.kt`:
+Modify the dialog view/widget files:
+- Replace old assets with drawables consistent with `InventoryView` and `BattleView` style
+- Layout: two layered boxes
+  - **Upper box**: dialog text — scales vertically with text length, does not clip
+  - **Lower box**: dynamic option buttons — one button per option in the current node; button count changes as nodes progress
+  - Button text scales to fit label length without clipping
+- Keyboard navigation: Left/Right (or Up/Down) cycles between option buttons; Enter confirms focused option
+- Mouse click on any button triggers that option
+- All button actions delegate to the option's `action` lambda — no dialog logic in the view
 
-**After `UseConsumableEvent` is confirmed on a character:**
-- Call `StatSystem.isStatFull()` for the item's `statType`
-- If **stat is full**:
-  - Show warning message in left panel: `"[CharacterName] is already at full [HP/MP]!"`
-  - Do NOT apply stat delta; do NOT remove item from inventory
-  - Return focus to character list for re-selection — turn is NOT consumed in combat
-- If **stat is not full**:
-  - Apply stat delta via `StatSystem`
-  - Call `inventorySystem.removeItem(itemId, 1)` — removes entry if quantity reaches 0
-  - Fire `ItemUseFlashEvent(characterIndex, item.flashColor)` on `gameStage`
-  - Show result message in left panel: `"[CharacterName] recovered [value] HP!"` or equivalent
-  - Result message requires player input (Enter or click) to dismiss
-  - On dismiss in **combat**: fire `CombatItemUseDismissedEvent` on `gameStage`; close inventory overlay; `BattleSystem` then advances the turn
-  - On dismiss in **overworld**: return focus to item list — no turn consumption
+---
+
+## Part 5 — Create `QuestConfigurations.kt`
+
+Create `configurations/QuestConfigurations.kt`:
+- Sealed class `QuestCondition`:
+  - `data class KillEnemy(val enemyType: EnemyType, val requiredCount: Int)`
+  - Add new subclasses here for future condition types (`CollectItem`, `ReachLocation`, `TalkToNPC`)
+- Data class `QuestReward`: `goldAmount: Int` — extensible for item rewards later
+- Data class `QuestConfig`: `questId: Int`, `questName: String`, `questDescription: String`, `condition: QuestCondition`, `reward: QuestReward`
+- Define `KILL_BLUE_SLIME_QUEST`:
+  - `questId = 1`, `questName = "Slime Exterminator"`, `questDescription = "Kill 1 blue slime for the questman."`
+  - `condition = KillEnemy(EnemyType.BLUE_SLIME, requiredCount = 1)`
+  - `reward = QuestReward(goldAmount = 100)`
+- Top-level registry: `val QUESTS: Map<Int, QuestConfig>` keyed by `questId`
+- Include commented template for adding new quests:
+  ```
+  // QuestConfig(
+  //     questId = 2,
+  //     questName = "Quest Name",
+  //     questDescription = "Quest description.",
+  //     condition = QuestCondition.KillEnemy(EnemyType.GREEN_SLIME, requiredCount = 5),
+  //     reward = QuestReward(goldAmount = 50)
+  // ),
+  ```
+
+---
+
+## Part 6 — Create `QuestSystem.kt`
+
+Create `systems/QuestSystem.kt`:
+- Extend `IntervalSystem()`, implement `EventListener`; register in `GameScreen.kt`
+- Enum `QuestStatus { NOT_STARTED, ACTIVE, CONDITIONS_MET, COMPLETED }`
+- Data class `QuestState(val questId: Int, var progress: Int = 0, var status: QuestStatus = NOT_STARTED)`
+- Internal state: `questStates: MutableMap<Int, QuestState>` — loaded from prefs on startup (Part 8)
+- Companion object pref key constants: `KEY_QUEST_STATES`
+- Handle `AcceptQuestEvent(questId)`:
+  - Add or update entry with `status = ACTIVE`, `progress = 0`
+  - Save to prefs; fire `QuestStateChangedEvent(questId)`
+- Handle `EnemyKilledEvent(enemyType)` (add to `Events.kt` if not already present — fired by `BattleSystem` on enemy death):
+  - For each `ACTIVE` quest whose `condition` is `KillEnemy` matching `enemyType`: increment `progress`
+  - If `progress >= requiredCount`: set `status = CONDITIONS_MET`
+  - Save to prefs; fire `QuestStateChangedEvent(questId)` for each updated quest
+- Handle `CompleteQuestEvent(questId)`:
+  - Set `status = COMPLETED`
+  - Look up `QuestReward` from `QUESTS` — apply `goldAmount` to `ResourceSystem.resources.gold`; call `resourceSystem.saveResources()`
+  - Save to prefs; fire `QuestStateChangedEvent(questId)`
+- Expose query method: `getState(questId: Int): QuestState` — used by dialog nodes to branch on status
+
+---
+
+## Part 7 — Add `questman` Entity and Full Quest Dialog Flow
+
+Modify `maps/map_1.tmx`:
+- Add `questman` entity with `NonPlayerConfiguration` field `dialogId = QUEST_MAN`
+
+Add `DialogId.QUEST_MAN` to `DialogConfigurations.kt` and define the full dialog flow.
+All 5 test scenarios are covered by status-based branching at Node 0:
+
+```
+val questManDialog = dialog(DialogId.QUEST_MAN.name) {
+
+    // Entry node — branches based on current quest status
+    node(0, "") {
+        action = {
+            when (questSystem.getState(1).status) {
+                QuestStatus.NOT_STARTED  -> goToNode(1)
+                QuestStatus.ACTIVE       -> goToNode(3)
+                QuestStatus.CONDITIONS_MET -> goToNode(4)
+                QuestStatus.COMPLETED    -> goToNode(5)
+            }
+        }
+    }
+
+    // Node 1 — Quest offer (NOT_STARTED)
+    node(1, "Can you kill 1 blue slime for me?") {
+        option("Accept") {
+            action = {
+                acceptQuest(1)
+                goToNode(2)
+            }
+        }
+        option("Decline") {
+            action = { endDialog() }
+        }
+    }
+
+    // Node 2 — Accepted confirmation
+    node(2, "Great! Come back when it's done.") {
+        option("Okay") {
+            action = { endDialog() }
+        }
+    }
+
+    // Node 3 — Quest in progress (ACTIVE)
+    node(3, "You haven't finished yet — come back when the blue slime is defeated.") {
+        option("Okay") {
+            action = { endDialog() }
+        }
+    }
+
+    // Node 4 — Conditions met, reward delivery (CONDITIONS_MET)
+    node(4, "You did it! Here's your reward — 100 gold.") {
+        option("Thanks") {
+            action = {
+                completeQuest(1)
+                endDialog()
+            }
+        }
+    }
+
+    // Node 5 — Already completed (COMPLETED)
+    node(5, "Thanks again for helping me!") {
+        option("No problem") {
+            action = { endDialog() }
+        }
+    }
+}
+```
+
+Note: `questSystem` in the dialog DSL requires runtime injection — pass `QuestSystem` reference at the point the dialog is evaluated, not at config load time. The implementer should ensure `DialogConfigurations.kt` receives this reference via world injection or a passed context object when `getDialog()` is called.
+
+---
+
+## Part 8 — Load and Save Quest State via Prefs
+
+Modify `systems/InitializeGameSystem.kt`:
+- Inject `QuestSystem` via world (same pattern as `ResourceSystem`, `SettingsSystem`)
+- On startup: check for `KEY_QUEST_STATES` in `"rolePlayingGamePrefs"` — if absent write empty defaults; if present deserialize and populate `QuestSystem.questStates`
+- Use the existing `preferences` instance — do not open a second one
+
+---
+
+## Part 9 — Fire `EnemyKilledEvent` from `BattleSystem`
 
 Modify `systems/BattleSystem.kt`:
-- Listen for `CombatItemUseDismissedEvent` — advance turn to the next entity (same flow as after an attack action)
-- Do NOT advance turn on `UseConsumableEvent` directly — always wait for dismissal
+- After enemy death (already handled for reward resolution in Feature 1): fire `EnemyKilledEvent(enemyType)` on `gameStage`
+- If `EnemyKilledEvent` already exists from Feature 1, reuse it — do not create a duplicate
+- Add `class EnemyKilledEvent(val enemyType: EnemyType) : Event()` to `Events.kt` if not present
 
 ---
 
-## Part 7 — Item Use Flash Animation
+## Part 10 — Build `QuestViewModel.kt`
 
-Modify the system handling the existing hit-flash effect (whichever system drives the white flash on hit):
-- Handle `ItemUseFlashEvent(characterIndex, flashColor)`: tint the target character entity to `flashColor` for `0.2s`, then restore original color
-- Reuse the same tint/restore action sequence as the existing hit-flash — only the color and duration differ
-- Flash plays in both combat and overworld contexts — fired identically from `InventoryViewModel` in both cases
-- `FLASH_DURATION = 0.2f` — define as a constant alongside existing flash duration constants, or reuse if already at the same value
+Rework `ui/viewmodels/QuestViewModel.kt` (currently placeholder):
+- Extend `PropertyChangeSource`, implement `EventListener`; register on `uiStage`
+- Data class `QuestRowUiState`: `questId: Int`, `questName: String`, `progressText: String` (e.g. `"Slimes Killed: 0/1"`), `rewardText: String`, `isComplete: Boolean`
+- Observable properties: `activeQuests by propertyNotify(emptyList<QuestRowUiState>())`, `completedQuests by propertyNotify(emptyList<QuestRowUiState>())`, `focusedQuest by propertyNotify<QuestRowUiState?>(null)`, `activePanelFocus by propertyNotify(QuestPanelFocus.ACTIVE)` — enum `QuestPanelFocus { ACTIVE, COMPLETED }`
+- On `QuestViewOpenEvent` and `QuestStateChangedEvent`: rebuild both lists from `QuestSystem` state — active lists show `ACTIVE` and `CONDITIONS_MET` quests; completed list shows `COMPLETED` quests
 
 ---
 
-## Part 8 — Verification Pass
+## Part 11 — Build `QuestView.kt`
 
-- Confirm Items button is enabled in battle and opens `InventoryView` locked to Consumables tab
-- Confirm Left/Right tab cycling and tab header clicks are disabled in combat mode; non-consumable tabs are faded
-- Confirm ESC from combat inventory closes without consuming the player's turn
-- Confirm full stat warning: message shown, item not consumed, focus returns to character list, turn not consumed
-- Confirm successful use: stat delta applied, inventory quantity decremented (entry removed at 0), result message shown, flash animation plays in correct color
-- Confirm turn advances only after result message is dismissed via `CombatItemUseDismissedEvent`
-- Confirm overworld item use unchanged: no `isCombatItemUse` flag set, no turn gating, result message dismisses back to item list
+Rework `ui/views/QuestView.kt` (currently placeholder):
+- Extend `Table(skin)`, mix `KTable`, `setFillParent(true)`
+- Layout: two side-by-side boxes
+  - **Active Quests** (left box): scrollable list of quest name rows; `CONDITIONS_MET` quests shown with a visual indicator (e.g. `"★ Ready to deliver"`)
+  - **Completed Quests** (right box): scrollable list of completed quest name rows
+  - Left/Right arrow keys switch `activePanelFocus` between boxes; Up/Down navigates rows within the focused box
+- **Info panel** below both boxes — updates on focus change or hover:
+  - Active quest: quest name, description, progress (e.g. `"Slimes Killed: 0/1"`), reward summary
+  - Completed quest: quest name, final progress (e.g. `"Slimes Killed: 1/1"`), reward received
+- Bind all elements to `QuestViewModel` via `model.onPropertyChange()`
+- DSL extension function following existing view patterns
+
+---
+
+## Part 12 — Wire `QuestView` Access (Hotkey + Button)
+
+Modify `input/PlayerKeyboardInputProcessor.kt`:
+- Add hotkey (`Q`) to fire `QuestViewOpenEvent` on `uiStage` — same pattern as `I`, `K`, `J`
+
+Modify `ui/views/MainGameView.kt`:
+- Add Quest button alongside Inventory / Skill / Ability buttons — fires `QuestViewOpenEvent` on press
+
+---
+
+## Part 13 — Verification Pass (5 Test Scenarios + General)
+
+Verify all 5 dialog test scenarios:
+- **Test 1**: Init → talk to questman → Decline. Re-interact → quest offered again (status still `NOT_STARTED`)
+- **Test 2**: Init → talk to questman → Accept. Quest appears in Active Quests list in `QuestView` (`progress = 0/1`)
+- **Test 3**: After accepting → immediately re-interact with questman → `"You haven't finished yet"` node shown
+- **Test 4**: Accept quest → kill blue slime → `QuestView` updates to show `CONDITIONS_MET` (`"★ Ready to deliver"`) → re-interact with questman → reward node shown → 100 gold added → quest moves to Completed list
+- **Test 5**: After completion → re-interact with questman → `"Thanks again"` node shown, no quest options
+
+Additional checks:
+- Confirm `QuestStateChangedEvent` updates `QuestView` lists reactively without reopening the view
+- Confirm quest progress and status persist correctly across game restart via prefs
+- Confirm `EnemyKilledEvent` only increments progress for `ACTIVE` quests with matching enemy type
+- Confirm dialog UI uses new drawables; option buttons are dynamic per node; button text does not clip
+- Confirm `Dialog.kt` action functions fire events only — no direct side effects remain
+- Confirm `DialogId` enum and all dialog flows live in `DialogConfigurations.kt` — none remain in `DialogSystem.kt` or `DialogComponent.kt`
 - `./gradlew :core:compileKotlin` — must pass after each part
 
 ---
 
 ## Implementation Order
 
-1. **Part 1** — Add `flashColor: Color` to `ConsumableItemData`; update all existing entries with appropriate colors
-2. **Part 2** — Add `isCombatMode` flag to `InventoryViewModel`; add `CombatInventoryOpenEvent`, `CombatInventoryClosedEvent`, `CombatItemUseDismissedEvent`, `ItemUseFlashEvent` to `Events.kt`; wire tab-lock behavior
-3. **Part 3** — Enable Items button in `BattleView`; fire `CombatInventoryOpenEvent` on press; wire ESC to close without consuming turn
-4. **Part 4** — Add `isCombatItemUse: Boolean = false` to `UseConsumableEvent`; set to `true` when fired from combat context
-5. **Part 5** — Add `isStatFull()` check function to `StatSystem` for `HEALTH` and `MANA` stat types
-6. **Part 6** — Wire full stat warning and result message in `InventoryViewModel` and `InventoryLeftPanel`; gate combat turn advancement on `CombatItemUseDismissedEvent` in `BattleSystem`
-7. **Part 7** — Implement `ItemUseFlashEvent` handler using existing hit-flash mechanism with per-item `flashColor` and `0.2s` duration
-8. **Part 8** — Verification pass: combat lock, ESC behavior, full stat warning, successful use flow, turn gating, overworld unchanged, compilation after each part
+1. **Part 1** — Extract `DialogId` enum and all dialog flows to `DialogConfigurations.kt`; simplify `DialogComponent` to `dialogId` field only; remove data from `DialogSystem`
+2. **Part 2** — Add `dialogId` field to `NonPlayerConfiguration`; restore `DialogComponent` assignment in `EntityCreationSystem`
+3. **Part 3** — Refactor `Dialog.kt` action functions to fire events only; add all new events to `Events.kt`
+4. **Part 4** — Update dialog UI to use new drawables; dynamic option buttons; keyboard and mouse navigation
+5. **Part 5** — Create `QuestConfigurations.kt` with sealed `QuestCondition`, `QuestReward`, `QuestConfig`, and `KILL_BLUE_SLIME_QUEST`
+6. **Part 6** — Create `QuestSystem` singleton — handles `AcceptQuestEvent`, `EnemyKilledEvent`, `CompleteQuestEvent`; exposes `getState()` query
+7. **Part 7** — Add `questman` to `map_1.tmx`; define `QUEST_MAN` dialog flow in `DialogConfigurations.kt` covering all 5 test scenarios
+8. **Part 8** — Load and save quest state via prefs in `InitializeGameSystem`
+9. **Part 9** — Fire `EnemyKilledEvent` from `BattleSystem` on enemy death; reuse existing event if present
+10. **Part 10** — Build `QuestViewModel` with active/completed list state and reactive `QuestStateChangedEvent` handling
+11. **Part 11** — Build `QuestView` — two-panel layout, info panel, keyboard navigation between panels
+12. **Part 12** — Wire `QuestView` to `Q` hotkey and MainGameView button
+13. **Part 13** — Verification pass: all 5 test scenarios, reactive UI updates, prefs persistence, dialog UI, event purity in `Dialog.kt`
 
 ---
 
@@ -192,15 +356,23 @@ Modify the system handling the existing hit-flash effect (whichever system drive
 | File | Path |
 |------|------|
 | GameScreen | `core/src/main/kotlin/.../screens/GameScreen.kt` |
+| DialogSystem | `core/src/main/kotlin/.../systems/DialogSystem.kt` |
+| InteractionSystem | `core/src/main/kotlin/.../systems/InteractionSystem.kt` |
 | BattleSystem | `core/src/main/kotlin/.../systems/BattleSystem.kt` |
-| StatSystem | `core/src/main/kotlin/.../systems/StatSystem.kt` |
-| InventorySystem | `core/src/main/kotlin/.../systems/InventorySystem.kt` |
-| BattleView | `core/src/main/kotlin/.../ui/views/BattleView.kt` |
-| InventoryView | `core/src/main/kotlin/.../ui/views/InventoryView.kt` |
-| InventoryViewModel | `core/src/main/kotlin/.../ui/viewmodels/InventoryViewModel.kt` |
-| InventoryLeftPanel | `core/src/main/kotlin/.../ui/widgets/InventoryLeftPanel.kt` |
-| ConsumableItems | `core/src/main/kotlin/.../configurations/ConsumableItems.kt` |
+| InitializeGameSystem | `core/src/main/kotlin/.../systems/InitializeGameSystem.kt` |
+| EntityCreationSystem | `core/src/main/kotlin/.../systems/EntityCreationSystem.kt` |
+| Dialog | `core/src/main/kotlin/.../Dialog.kt` |
+| DialogComponent | `core/src/main/kotlin/.../components/DialogComponent.kt` |
+| NonPlayerComponent | `core/src/main/kotlin/.../components/NonPlayerComponent.kt` |
+| PlayerKeyboardInputProcessor | `core/src/main/kotlin/.../input/PlayerKeyboardInputProcessor.kt` |
+| MainGameView | `core/src/main/kotlin/.../ui/views/MainGameView.kt` |
 | Events | `core/src/main/kotlin/.../events/Events.kt` |
+| map_1.tmx | `assets/maps/map_1.tmx` |
+| **[NEW] DialogConfigurations** | `core/src/main/kotlin/.../configurations/DialogConfigurations.kt` |
+| **[NEW] QuestConfigurations** | `core/src/main/kotlin/.../configurations/QuestConfigurations.kt` |
+| **[NEW] QuestSystem** | `core/src/main/kotlin/.../systems/QuestSystem.kt` |
+| **[REWORKED] QuestViewModel** | `core/src/main/kotlin/.../ui/viewmodels/QuestViewModel.kt` |
+| **[REWORKED] QuestView** | `core/src/main/kotlin/.../ui/views/QuestView.kt` |
 
 ## Verification
 

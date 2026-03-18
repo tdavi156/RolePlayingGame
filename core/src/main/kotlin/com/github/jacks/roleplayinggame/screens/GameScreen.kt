@@ -21,22 +21,27 @@ import com.github.jacks.roleplayinggame.events.BattleEndTransitionStartEvent
 import com.github.jacks.roleplayinggame.events.BattleEvent
 import com.github.jacks.roleplayinggame.events.BattleRewardEvent
 import com.github.jacks.roleplayinggame.events.BattleTransitionStartEvent
+import com.github.jacks.roleplayinggame.events.AbilityViewClosedEvent
 import com.github.jacks.roleplayinggame.events.CombatInventoryClosedEvent
 import com.github.jacks.roleplayinggame.events.CombatInventoryOpenEvent
 import com.github.jacks.roleplayinggame.events.CombatItemUseDismissedEvent
+import com.github.jacks.roleplayinggame.events.GameResumeEvent
 import com.github.jacks.roleplayinggame.events.RewardDismissedEvent
 import com.github.jacks.roleplayinggame.events.InitializeGameEvent
+import com.github.jacks.roleplayinggame.events.SkillViewClosedEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.input.PlayerKeyboardInputProcessor
 import com.github.jacks.roleplayinggame.input.gdxInputProcessor
 import com.github.jacks.roleplayinggame.events.ShopClosedEvent
 import com.github.jacks.roleplayinggame.events.ShopOpenEvent
+import com.github.jacks.roleplayinggame.systems.AbilitySystem
 import com.github.jacks.roleplayinggame.systems.AiSystem
 import com.github.jacks.roleplayinggame.systems.AnimationSystem
 import com.github.jacks.roleplayinggame.systems.AttackSystem
 import com.github.jacks.roleplayinggame.systems.BattleSystem
 import com.github.jacks.roleplayinggame.systems.ResourceSystem
 import com.github.jacks.roleplayinggame.systems.SettingsSystem
+import com.github.jacks.roleplayinggame.systems.QuestSystem
 import com.github.jacks.roleplayinggame.systems.ShopSystem
 import com.github.jacks.roleplayinggame.systems.CameraSystem
 import com.github.jacks.roleplayinggame.systems.CollisionDespawnSystem
@@ -77,8 +82,13 @@ import com.github.jacks.roleplayinggame.ui.viewmodels.MapViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.MenuViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.QuestViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.SettingsViewModel
+import com.github.jacks.roleplayinggame.ui.viewmodels.AbilityViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.SkillViewModel
+import com.github.jacks.roleplayinggame.ui.views.AbilityView
+import com.github.jacks.roleplayinggame.ui.views.BackgroundView
 import com.github.jacks.roleplayinggame.ui.views.PauseView
+import com.github.jacks.roleplayinggame.ui.views.SkillView
+import com.github.jacks.roleplayinggame.ui.views.abilityView
 import com.github.jacks.roleplayinggame.ui.views.backgroundView
 import com.github.jacks.roleplayinggame.ui.views.battleView
 import com.github.jacks.roleplayinggame.ui.views.characterInfoView
@@ -138,11 +148,13 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
             add<CollisionSpawnSystem>()
             add<CollisionDespawnSystem>()
             add<InventorySystem>()
+            add<AbilitySystem>()
             add<StatSystem>()
             add<PortalSystem>()
             add<MoveSystem>()
             add<AttackSystem>()
             add<BattleSystem>()
+            add<QuestSystem>()
             add<LootSystem>()
             add<DialogSystem>()
             add<InteractionSystem>()
@@ -166,6 +178,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
     private val settingsViewModel = SettingsViewModel(uiStage, entityWorld.system<SettingsSystem>())
     private val rewardViewModel   = RewardViewModel(entityWorld, gameStage)
     private val shopViewModel     = ShopViewModel(entityWorld, gameStage)
+    private val abilityViewModel  = AbilityViewModel(entityWorld, gameStage)
 
     init {
         uiStage.actors {
@@ -175,7 +188,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
             // fade in out
 
             // main UI, actor.get(0)
-            mainGameView(MainGameViewModel(entityWorld, gameStage)) { isVisible = true }
+            mainGameView(MainGameViewModel(entityWorld, gameStage), gameStage) { isVisible = true }
 
             // battle UI, actor.get(1)
             battleView(BattleViewModel(entityWorld, gameStage)) { isVisible = false }
@@ -216,7 +229,10 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
             // shop UI, actor.get(13)
             shopView(shopViewModel) { isVisible = false }
 
-            // fade overlay, actor.get(14) — drawn on top for screen transitions
+            // ability UI, actor.get(14)
+            abilityView(abilityViewModel) { isVisible = false }
+
+            // fade overlay, actor.get(15) — drawn on top for screen transitions
             fadeView = fadeInOutView { isVisible = false }
         }
     }
@@ -303,6 +319,18 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
                 entityWorld.systems.forEach { it.enabled = true }
                 disableOverworldSystems()
                 uiStage.actors.filterIsInstance<ShopView>().first().isVisible = false
+                return true
+            }
+            is SkillViewClosedEvent -> {
+                uiStage.actors.filterIsInstance<SkillView>().firstOrNull()?.isVisible = false
+                uiStage.actors.filterIsInstance<BackgroundView>().firstOrNull()?.isVisible = false
+                gameStage.fire(GameResumeEvent())
+                return true
+            }
+            is AbilityViewClosedEvent -> {
+                uiStage.actors.filterIsInstance<AbilityView>().firstOrNull()?.isVisible = false
+                uiStage.actors.filterIsInstance<BackgroundView>().firstOrNull()?.isVisible = false
+                gameStage.fire(GameResumeEvent())
                 return true
             }
             else -> return false

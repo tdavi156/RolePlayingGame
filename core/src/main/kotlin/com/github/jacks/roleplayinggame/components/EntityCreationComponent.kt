@@ -22,8 +22,7 @@ data class SpawnConfiguration(
     val aiTreePath : String = "",
     val physicsScaling : Vector2 = vec2(1f, 1f),
     val physicsOffset : Vector2 = vec2(0f, 0f),
-    val bodyType : BodyType = BodyType.DynamicBody,
-    val dialogId : DialogId = DialogId.NONE
+    val bodyType : BodyType = BodyType.DynamicBody
 )
 
 data class EntityCreationComponent(

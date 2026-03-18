@@ -1,5 +1,11 @@
 package com.github.jacks.roleplayinggame.dialog
 
+import com.badlogic.gdx.scenes.scene2d.Stage
+import com.github.jacks.roleplayinggame.events.AcceptQuestEvent
+import com.github.jacks.roleplayinggame.events.CompleteQuestEvent
+import com.github.jacks.roleplayinggame.events.DialogGiveItemEvent
+import com.github.jacks.roleplayinggame.events.DialogHealPlayerEvent
+import com.github.jacks.roleplayinggame.events.fire
 import ktx.app.gdxError
 
 @DslMarker
@@ -16,6 +22,7 @@ data class Dialog(
     private var complete : Boolean = false
 ) {
     lateinit var currentNode : Node
+    var stage : Stage? = null
 
     fun node(id : Int, text : String, configuration: Node.() -> Unit) : Node {
         return Node(id, text).apply {
@@ -39,7 +46,19 @@ data class Dialog(
     }
 
     fun acceptQuest(questId : Int) {
+        stage?.fire(AcceptQuestEvent(questId))
+    }
 
+    fun completeQuest(questId : Int) {
+        stage?.fire(CompleteQuestEvent(questId))
+    }
+
+    fun giveItem(itemId : Int) {
+        stage?.fire(DialogGiveItemEvent(itemId))
+    }
+
+    fun healPlayer() {
+        stage?.fire(DialogHealPlayerEvent())
     }
 
     fun isComplete() : Boolean {

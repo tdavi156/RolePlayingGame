@@ -21,12 +21,15 @@ import com.github.jacks.roleplayinggame.configurations.EquipmentItemData
 import com.github.jacks.roleplayinggame.ui.viewmodels.InventoryContext
 import com.github.jacks.roleplayinggame.ui.viewmodels.InventoryTab
 import com.github.jacks.roleplayinggame.ui.viewmodels.PendingAction
+import com.github.jacks.roleplayinggame.events.AbilityViewOpenEvent
 import com.github.jacks.roleplayinggame.events.ShopBuyConfirmedEvent
 import com.github.jacks.roleplayinggame.events.ShopClosedEvent
 import com.github.jacks.roleplayinggame.events.ShopSellConfirmedEvent
+import com.github.jacks.roleplayinggame.events.SkillViewOpenEvent
 import com.github.jacks.roleplayinggame.ui.viewmodels.ShopMode
 import com.github.jacks.roleplayinggame.ui.viewmodels.ShopTab
 import com.github.jacks.roleplayinggame.ui.viewmodels.ShopViewModel
+import com.github.jacks.roleplayinggame.ui.views.AbilityView
 import com.github.jacks.roleplayinggame.ui.views.BackgroundView
 import com.github.jacks.roleplayinggame.ui.views.CharacterInfoView
 import com.github.jacks.roleplayinggame.ui.views.InventoryView
@@ -45,7 +48,7 @@ import ktx.log.logger
 import ktx.math.vec2
 
 enum class ViewType {
-    NO_VIEW, CHARACTER, INVENTORY, SKILL, QUEST, MAP, MAIN_MENU, SETTINGS, SHOP
+    NO_VIEW, CHARACTER, INVENTORY, SKILL, QUEST, MAP, MAIN_MENU, SETTINGS, SHOP, ABILITY
 }
 
 fun gdxInputProcessor(processor : InputProcessor) {
@@ -130,6 +133,12 @@ class PlayerKeyboardInputProcessor(
                 ENTER -> model.confirmCurrentRow()
                 ESCAPE -> model.cancel()
             }
+            return true
+        }
+
+        // Quest navigation takes priority when quest view is open
+        if (getActiveView() == QUEST) {
+            handleQuestKeyDown(keycode)
             return true
         }
 
@@ -219,6 +228,7 @@ class PlayerKeyboardInputProcessor(
                     val skillView = uiStage.actors.filterIsInstance<SkillView>().first()
                     if (getActiveView() == NO_VIEW) {
                         gameStage.fire(GamePauseEvent())
+                        gameStage.fire(SkillViewOpenEvent())
                         backgroundView.isVisible = true
                         skillView.isVisible = true
                     } else if (getActiveView() == SKILL) {
@@ -227,8 +237,27 @@ class PlayerKeyboardInputProcessor(
                         gameStage.fire(GameResumeEvent())
                     } else {
                         clearActiveView()
+                        gameStage.fire(SkillViewOpenEvent())
                         backgroundView.isVisible = true
                         skillView.isVisible = true
+                    }
+                }
+                J -> {
+                    val abilityView = uiStage.actors.filterIsInstance<AbilityView>().first()
+                    if (getActiveView() == NO_VIEW) {
+                        gameStage.fire(GamePauseEvent())
+                        gameStage.fire(AbilityViewOpenEvent())
+                        backgroundView.isVisible = true
+                        abilityView.isVisible = true
+                    } else if (getActiveView() == ABILITY) {
+                        backgroundView.isVisible = false
+                        abilityView.isVisible = false
+                        gameStage.fire(GameResumeEvent())
+                    } else {
+                        clearActiveView()
+                        gameStage.fire(AbilityViewOpenEvent())
+                        backgroundView.isVisible = true
+                        abilityView.isVisible = true
                     }
                 }
                 M -> {
@@ -453,6 +482,7 @@ class PlayerKeyboardInputProcessor(
         val characterInfoView = uiStage.actors.filterIsInstance<CharacterInfoView>().first()
         val inventoryView = uiStage.actors.filterIsInstance<InventoryView>().first()
         val skillView = uiStage.actors.filterIsInstance<SkillView>().first()
+        val abilityView = uiStage.actors.filterIsInstance<AbilityView>().firstOrNull()
         val questView = uiStage.actors.filterIsInstance<QuestView>().first()
         val mapView = uiStage.actors.filterIsInstance<MapView>().first()
         val menuView = uiStage.actors.filterIsInstance<MenuView>().first()
@@ -463,6 +493,7 @@ class PlayerKeyboardInputProcessor(
         if (characterInfoView.isVisible) { return CHARACTER }
         if (inventoryView.isVisible) { return INVENTORY }
         if (skillView.isVisible) { return SKILL }
+        if (abilityView?.isVisible == true) { return ABILITY }
         if (questView.isVisible) { return QUEST }
         if (mapView.isVisible) { return MAP }
         if (menuView.isVisible) { return MAIN_MENU }
@@ -475,10 +506,27 @@ class PlayerKeyboardInputProcessor(
         uiStage.actors.filterIsInstance<CharacterInfoView>().first().isVisible = false
         uiStage.actors.filterIsInstance<InventoryView>().first().isVisible = false
         uiStage.actors.filterIsInstance<SkillView>().first().isVisible = false
+        uiStage.actors.filterIsInstance<AbilityView>().firstOrNull()?.isVisible = false
         uiStage.actors.filterIsInstance<QuestView>().first().isVisible = false
         uiStage.actors.filterIsInstance<MapView>().first().isVisible = false
         uiStage.actors.filterIsInstance<MenuView>().first().isVisible = false
         uiStage.actors.filterIsInstance<ShopView>().firstOrNull()?.isVisible = false
+    }
+
+    private fun handleQuestKeyDown(keycode: Int) {
+        val model = uiStage.actors.filterIsInstance<QuestView>().first().model
+        when (keycode) {
+            LEFT, A  -> model.movePanelFocus(-1)
+            RIGHT, D -> model.movePanelFocus(1)
+            UP, W    -> model.moveRowFocus(-1)
+            DOWN, S  -> model.moveRowFocus(1)
+            ESCAPE   -> {
+                val backgroundView = uiStage.actors.filterIsInstance<BackgroundView>().first()
+                backgroundView.isVisible = false
+                uiStage.actors.filterIsInstance<QuestView>().first().isVisible = false
+                gameStage.fire(GameResumeEvent())
+            }
+        }
     }
 
     private fun handleInventoryKeyDown(keycode: Int) {

@@ -2,6 +2,8 @@ package com.github.jacks.roleplayinggame.events
 
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.maps.tiled.TiledMap
+import com.badlogic.gdx.math.Vector2
+import com.github.jacks.roleplayinggame.ui.Fonts
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer.Cell
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.Stage
@@ -66,9 +68,40 @@ class CombatInventoryClosedEvent : Event()
 class CombatItemUseDismissedEvent : Event()
 data class ItemUseFlashEvent(val characterIndex: Int, val flashColor: Color) : Event()
 
+class FloatingTextEvent(val position: Vector2, val text: String, val fontType: Fonts) : Event()
+
 // Shop events
 class ShopInteractionEvent(val shopId: Int) : Event()
 class ShopOpenEvent(val shopConfig: com.github.jacks.roleplayinggame.configurations.ShopConfig) : Event()
 class ShopClosedEvent : Event()
 class ShopBuyConfirmedEvent(val itemId: Int, val quantity: Int) : Event()
 class ShopSellConfirmedEvent(val itemId: Int, val quantity: Int) : Event()
+
+// Level / skill / ability point events
+class LevelUpEvent(val entity: Entity, val newLevel: Int) : Event()
+class GainSkillPointEvent(val entity: Entity) : Event()
+class GainAbilityPointEvent(val entity: Entity) : Event()
+class SkillPointsSaveEvent(val entity: Entity, val pendingAttackPoints: Int, val pendingDefensePoints: Int) : Event()
+class SkillPointsChangedEvent(val entity: Entity) : Event()
+class SkillViewOpenEvent : Event()
+class SkillViewClosedEvent : Event()
+class AbilityViewOpenEvent : Event()
+class AbilityViewClosedEvent : Event()
+class AbilitySkillChangedEvent(val entity: Entity) : Event()
+class AbilityPointsSaveEvent(val entity: Entity, val pendingIds: Set<Int>) : Event()
+
+// Spell events
+class CastSpellEvent(val abilityId: Int, val casterEntity: Entity) : Event()
+class SpellCastDismissedEvent : Event()
+
+// Quest events
+class AcceptQuestEvent(val questId: Int) : Event()
+class CompleteQuestEvent(val questId: Int) : Event()
+class DialogGiveItemEvent(val itemId: Int) : Event()
+class DialogHealPlayerEvent : Event()
+class QuestStateChangedEvent(val questId: Int) : Event()
+class QuestViewOpenEvent : Event()
+class QuestViewClosedEvent : Event()
+
+// Enemy killed event (fired by BattleSystem on enemy death)
+class EnemyKilledEvent(val enemyType: com.github.jacks.roleplayinggame.configurations.EnemyType) : Event()

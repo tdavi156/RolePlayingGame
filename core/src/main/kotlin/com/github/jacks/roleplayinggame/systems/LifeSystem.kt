@@ -1,31 +1,24 @@
 package com.github.jacks.roleplayinggame.systems
 
-import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.g2d.Animation
-import com.badlogic.gdx.graphics.g2d.BitmapFont
-import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.scenes.scene2d.Stage
-import com.badlogic.gdx.scenes.scene2d.ui.Label
-import com.badlogic.gdx.scenes.scene2d.ui.Label.LabelStyle
+import com.github.jacks.roleplayinggame.ui.Fonts
 import com.github.jacks.roleplayinggame.components.AnimationComponent
 import com.github.jacks.roleplayinggame.components.AnimationType
 import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.DeathComponent
-import com.github.jacks.roleplayinggame.components.FloatingTextComponent
-import com.github.jacks.roleplayinggame.components.MoveComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.events.EntityDeathEvent
 import com.github.jacks.roleplayinggame.events.EntityTakeDamageEvent
+import com.github.jacks.roleplayinggame.events.FloatingTextEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.quillraven.fleks.AllOf
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.NoneOf
-import ktx.assets.disposeSafely
 import kotlin.math.roundToInt
 
 @AllOf([LifeComponent::class, StatComponent::class])
@@ -40,20 +33,18 @@ class LifeSystem(
     private val gameStage : Stage
 ) : IteratingSystem() {
 
-    private val damageFont = BitmapFont(Gdx.files.internal("assets/fonts/damage.fnt"))
-    private val floatingTextStyle = LabelStyle(damageFont, Color.WHITE)
-
     override fun onTickEntity(entity: Entity) {
         val lifeComponent = lifeComponents[entity]
         val statComponent = statComponents[entity]
         statComponent.currentHealth = statComponent.currentHealth.coerceAtMost(statComponent.maxHealth)
 
         if (lifeComponent.takeDamage > 0f) {
-            val physicsComponent = physicsComponents[entity]
             val damageDealt = (lifeComponent.takeDamage - statComponent.defense).coerceAtLeast(1f)
             statComponent.currentHealth -= damageDealt.coerceAtLeast(0f)
             gameStage.fire(EntityTakeDamageEvent(entity))
-            damageText(damageDealt.roundToInt().toString(), physicsComponent.body.position, physicsComponent.size)
+            physicsComponents.getOrNull(entity)?.body?.position?.let { pos ->
+                gameStage.fire(FloatingTextEvent(pos, damageDealt.roundToInt().toString(), Fonts.DAMAGE))
+            }
             lifeComponent.takeDamage = 0f
         }
 
@@ -72,20 +63,5 @@ class LifeSystem(
                 }
             }
         }
-    }
-
-    private fun damageText(text : String, position : Vector2, size : Vector2) {
-        world.entity {
-            add<FloatingTextComponent> {
-                textStartLocation.set(position.x, position.y - size.y * 0.5f)
-                textDuration = 1.5f
-                label = Label(text, floatingTextStyle)
-                label.setFontScale(0.75f)
-            }
-        }
-    }
-
-    override fun onDispose() {
-        damageFont.disposeSafely()
     }
 }

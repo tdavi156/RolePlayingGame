@@ -39,8 +39,9 @@ import com.github.jacks.roleplayinggame.components.CollisionComponent
 import com.github.jacks.roleplayinggame.components.DEFAULT_ATTACK_DAMAGE
 import com.github.jacks.roleplayinggame.components.DEFAULT_LIFE
 import com.github.jacks.roleplayinggame.components.DEFAULT_SPEED
-import com.github.jacks.roleplayinggame.components.DialogId
+import com.github.jacks.roleplayinggame.components.DialogComponent
 import com.github.jacks.roleplayinggame.components.InventoryComponent
+import com.github.jacks.roleplayinggame.configurations.DialogId
 import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.MoveComponent
 import com.github.jacks.roleplayinggame.components.NonPlayerComponent
@@ -48,6 +49,7 @@ import com.github.jacks.roleplayinggame.components.NonPlayerConfiguration
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.PlayerConfiguration
+import com.github.jacks.roleplayinggame.components.AbilityComponent
 import com.github.jacks.roleplayinggame.components.ShopComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.components.StateComponent
@@ -118,11 +120,26 @@ class EntityCreationSystem(
                             moveSpeed = config.stats.moveSpeed
                             level = preferences.getInteger("player_level", 1)
                             experience = preferences.getInteger("player_experience", 0)
+                            skillPoints = preferences.getInteger("player_skill_points", 0)
+                            // TODO: Remove default of 3 after abilities testing is complete (was 0)
+                            abilityPoints = preferences.getInteger("player_ability_points", 3)
+                            skillPointsInvestedAttack = preferences.getInteger("player_invested_attack", 0)
+                            skillPointsInvestedDefense = preferences.getInteger("player_invested_defense", 0)
+                            // Apply effective stat bonuses from invested skill points
+                            attackDamage += skillPointsInvestedAttack * 2f
+                            defense += skillPointsInvestedDefense * 1f
                         }
                         add<PlayerComponent>()
                         add<StateComponent>()
                         add<InventoryComponent>()
                         add<CollisionComponent>()
+                        add<AbilityComponent> {
+                            val savedIds = preferences.getString(AbilityComponent.KEY_UNLOCKED_ABILITY_IDS, "")
+                            if (savedIds.isNotBlank()) {
+                                savedIds.split(",").mapNotNull { it.trim().toIntOrNull() }
+                                    .forEach { unlockedAbilityIds.add(it) }
+                            }
+                        }
                     }
                 }
                 ConfigurationType.NON_PLAYER -> {
@@ -196,6 +213,9 @@ class EntityCreationSystem(
                         if (this@with.shopId > 0) {
                             add<ShopComponent> { shopId = this@with.shopId }
                         }
+                        if (config.dialogId != DialogId.NO_DIALOG) {
+                            add<DialogComponent> { dialogId = config.dialogId }
+                        }
                     }
                 }
                 else -> { gdxError("Entity has no configuration.") }
@@ -242,28 +262,5 @@ class EntityCreationSystem(
         const val AI_SENSOR = "aiSensor"
         const val PLAYER_NAME = "player"
 
-        val SLIME_DIALOG_CONFIGURATION = SpawnConfiguration(
-            AnimationModel.SLIME_BLUE,
-            lifeScaling = 0f,
-            physicsScaling = vec2(0.3f, 0.3f),
-            physicsOffset = vec2(0f, -2f * UNIT_SCALE),
-            dialogId = DialogId.SLIME
-        )
-        val SIGN_1_CONFIGURATION = SpawnConfiguration(
-            AnimationModel.SIGN,
-            lifeScaling = 0f,
-            speedScaling = 0f,
-            bodyType = StaticBody,
-            canAttack = false,
-            dialogId = DialogId.SIGN_1
-        )
-        val SIGN_2_CONFIGURATION = SpawnConfiguration(
-            AnimationModel.SIGN,
-            lifeScaling = 0f,
-            speedScaling = 0f,
-            bodyType = StaticBody,
-            canAttack = false,
-            dialogId = DialogId.SIGN_2
-        )
     }
 }

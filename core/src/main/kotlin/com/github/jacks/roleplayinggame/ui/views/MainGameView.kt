@@ -17,6 +17,10 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.utils.Align
+import com.github.jacks.roleplayinggame.events.AbilityViewOpenEvent
+import com.github.jacks.roleplayinggame.events.GamePauseEvent
+import com.github.jacks.roleplayinggame.events.SkillViewOpenEvent
+import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.ui.Buttons
 import com.github.jacks.roleplayinggame.ui.Drawables
 import com.github.jacks.roleplayinggame.ui.Labels
@@ -39,6 +43,7 @@ import java.math.RoundingMode
 
 class MainGameView(
     model : MainGameViewModel,
+    private val gameStage: Stage,
     skin : Skin
 ) : Table(skin), KTable {
 
@@ -176,24 +181,25 @@ class MainGameView(
                     cell.expandX().width(100f).height(30f).pad(0f,2f,2f,2f)
                     this.addListener(object : ChangeListener() {
                         override fun changed(event: ChangeEvent, actor: Actor) {
-                            // set the active view, similar to the menu buttons
-                            // change the active view to be accurate according to the order of the gameScreen.init
-                            this@MainGameView.changeActiveView(7)
+                            this@MainGameView.gameStage.fire(GamePauseEvent())
+                            this@MainGameView.gameStage.fire(SkillViewOpenEvent())
+                            stage.actors.filterIsInstance<BackgroundView>().firstOrNull()?.isVisible = true
+                            stage.actors.filterIsInstance<SkillView>().firstOrNull()?.isVisible = true
                         }
                     })
-//                this.addListener(object : InputListener() {
-//                    override fun enter(event: InputEvent, x: Float, y: Float, pointer: Int, fromActor: Actor?) {
-//                        this@MainGameView.skillToolTipLabel.isVisible = isOver
-//                        this@MainGameView.skillToolTipLabel.setPosition(Gdx.input.x.toFloat(), Gdx.input.y.toFloat())
-//                        super.enter(event, x, y, pointer, fromActor)
-//                    }
-//                    override fun exit(event: InputEvent, x: Float, y: Float, pointer: Int, toActor: Actor?) {
-//                        this@MainGameView.skillToolTipLabel.isVisible = isOver
-//                        super.exit(event, x, y, pointer, toActor)
-//                    }
-//                })
                 }
-                this@MainGameView.questButton = textButton("Quests (J)", Buttons.BROWN_BUTTON_MEDIUM.skinKey) { cell ->
+                textButton("Ability (J)", Buttons.BROWN_BUTTON_MEDIUM.skinKey) { cell ->
+                    cell.expandX().width(105f).height(30f).pad(0f,2f,2f,2f)
+                    this.addListener(object : ChangeListener() {
+                        override fun changed(event: ChangeEvent, actor: Actor) {
+                            this@MainGameView.gameStage.fire(GamePauseEvent())
+                            this@MainGameView.gameStage.fire(AbilityViewOpenEvent())
+                            stage.actors.filterIsInstance<BackgroundView>().firstOrNull()?.isVisible = true
+                            stage.actors.filterIsInstance<AbilityView>().firstOrNull()?.isVisible = true
+                        }
+                    })
+                }
+                this@MainGameView.questButton = textButton("Quests (Q)", Buttons.BROWN_BUTTON_MEDIUM.skinKey) { cell ->
                     cell.expandX().width(115f).height(30f).pad(0f,2f,2f,2f)
                     this.addListener(object : ChangeListener() {
                         override fun changed(event: ChangeEvent, actor: Actor) {
@@ -308,6 +314,7 @@ class MainGameView(
 @Scene2dDsl
 fun <S> KWidget<S>.mainGameView(
     model : MainGameViewModel,
+    gameStage: Stage,
     skin : Skin = Scene2DSkin.defaultSkin,
     init: MainGameView.(S) -> Unit = {}
-) : MainGameView = actor(MainGameView(model, skin), init)
+) : MainGameView = actor(MainGameView(model, gameStage, skin), init)
