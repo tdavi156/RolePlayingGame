@@ -85,7 +85,7 @@ class AbilityView(
 
             // Tree panel (scrollable)
             this@AbilityView.treeContainer = Table(skin)
-            val scrollPane = ScrollPane(this@AbilityView.treeContainer, skin).apply {
+            val scrollPane = ScrollPane(this@AbilityView.treeContainer).apply {
                 setScrollingDisabled(true, false)
                 setOverscroll(false, false)
             }
