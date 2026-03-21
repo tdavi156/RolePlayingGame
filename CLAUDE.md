@@ -44,75 +44,63 @@
 
 ## Next Feature
 
-# Feature 12 — Save System Overhaul (Prefs → JSON Serialization)
+# Feature 23 — Remove Dead Life/Death/Attack Systems
 
-Remove all `Preferences`-based saving in favor of a central `SaveManager` class that serializes game state to JSON files using LibGDX's built-in `Json`. One `game_save.json` for all game state, a separate `settings.json` for user preferences so settings survive a new game. `SaveManager` is the **single point of responsibility** for all file I/O — no system writes files directly.
+All overworld combat infrastructure (`LifeSystem`, `DeathSystem`, `AttackSystem`, `LifeComponent`, `DeathComponent`) became dead code when turn-based battle replaced real-time overworld combat. These systems still exist in the codebase, register in the ECS world, and run every tick — but process nothing. `AttackSystem` is permanently disabled via `overworldDisabledSystems`. `LifeSystem` runs but `takeDamage` is never set (no attacker). `DeathSystem` iterates zero entities (no `DeathComponent` is ever added). Three events they fire (`EntityAttackEvent`, `EntityDeathEvent`, `EntityTakeDamageEvent`, `EntityRespawnEvent`) are never received in a meaningful way. All real battle death logic lives in `BattleSystem` and is unaffected.
 
-### What's currently saved via prefs (all migrated by this feature):
-| System / Class | What it saves |
-|---|---|
-| `PartySystem` | Per-character stats (20+ fields each), combat slots, active character ID |
-| `ResourceSystem` | Gold |
-| `QuestSystem` | Quest status + progress per quest |
-| `MapSystem` | Current map name, spawner `isSpawned` + `currentTime` |
-| `SpawnerSystem` | `isSpawned` on spawn event |
-| `InitializeGameSystem` | Coordinates all loading; seeds defaults on first run |
-| `SettingsViewModel` | Audio volumes, animation speed, auto-clear text |
+**Audio note:** `AudioSystem` currently handles `EntityAttackEvent` and `EntityDeathEvent` for attack/death sounds — both of which never fire. Wiring battle audio to `BattleSystem` is a future feature; for now these dead handlers are simply removed.
 
-### Known gap being fixed:
-`InventorySystem` has **no save/load today** — inventory reseeds every boot from hardcoded defaults. This feature adds full inventory persistence.
-
-### Save file layout:
-- `save/game_save.json` — all game state (party, resources, inventory, quests, map/spawners)
-- `save/settings.json` — user preferences (audio, display options) — preserved on new game
-
-### Temp data (battle entry) — stays in-memory only:
-`preBattleMapName`, `preBattlePlayerX/Y` in `MapSystem` are already in-memory. No disk save needed for these.
-
-### `SaveManager` API summary:
-- `hasSave(): Boolean` — checks if `game_save.json` exists
-- `saveFull(data: GameSaveData)` — write to disk, update cache
-- `gatherAndSave(world: World)` — collect from all systems, then `saveFull()`
-- `load(): GameSaveData?` — read from disk (null = no save, use defaults)
-- `saveSettings(data: SettingsSaveData)` / `loadSettings(): SettingsSaveData?`
-- `findSpawnerState(spawnerId, mapId): SpawnerEntrySaveData?` — lookup from cache for `SpawnerSystem`
+**`AttackComponent` is preserved** — `AiEntity` references it and the AI system will use it for future complex battle enemy behavior.
 
 ---
 
-## Implementation Order
+## What Gets Deleted
 
-1. **Part 1 — `SaveData.kt` + `SaveManager.kt` + inject into `GameScreen`**
-   - Create `systems/SaveData.kt`: all `*SaveData` data classes (`CharacterSaveData`, `PartySaveData`, `ResourceSaveData`, `ItemEntrySaveData`, `InventorySaveData`, `QuestEntrySaveData`, `SpawnerEntrySaveData`, `MapSaveData`, `GameSaveData`, `SettingsSaveData`). All fields have default values for LibGDX Json no-arg construction. `ArrayList<T>` used for object lists; comma-separated `String` for int lists (ability IDs, combat slots).
-   - Create `systems/SaveManager.kt`: implements all API above using `com.badlogic.gdx.utils.Json` + `Gdx.files.local()`. Caches the last loaded/saved `GameSaveData` in memory for fast spawner lookups.
-   - Add `var currentMapName: String = "map_1"` to `MapSystem` (set on every `setMap()` / `setBattleMap()` / `returnToOverworld()`).
-   - Add `fun collectSpawnerSaveData(): ArrayList<SpawnerEntrySaveData>` to `MapSystem` (iterates spawner family from ECS).
-   - Construct `SaveManager` in `GameScreen`, add as ECS world injectable.
+| File | Reason |
+|------|--------|
+| `systems/LifeSystem.kt` | Dead — `takeDamage` never set, `isDead` never true in overworld |
+| `systems/DeathSystem.kt` | Dead — `DeathComponent` never added, iterates zero entities |
+| `systems/AttackSystem.kt` | Dead — permanently in `overworldDisabledSystems`, never runs |
+| `components/LifeComponent.kt` | Dead — only `takeDamage` field was relevant; all other fields superseded by `StatsProvider` |
+| `components/DeathComponent.kt` | Dead — never added to any entity |
 
-2. **Part 2 — Rework `InitializeGameSystem`**
-   - Replace `is_game_initialized` prefs check with `saveManager.hasSave()`.
-   - On **no save** (new game): seed defaults for party/resources/settings; call `saveManager.gatherAndSave(world)` to write initial save file.
-   - On **save found**: `saveManager.load()` → distribute `GameSaveData` to `PartySystem` (characters, slots), `ResourceSystem` (gold), `InventorySystem` (items), `QuestSystem` (quest states); `saveManager.loadSettings()` → `SettingsSystem`.
-   - `seedStartingInventory()` only runs when no save exists.
-   - Remove all `Preferences` usage from `InitializeGameSystem`.
-   - Remove `resetOnStart` prefs clear from `RolePlayingGame` (replace with save file delete if still needed for testing).
+---
 
-3. **Part 3 — Strip prefs from `PartySystem`, `ResourceSystem`, `QuestSystem`**
-   - `PartySystem`: remove `saveCharacterData()`, `saveCombatSlots()`, `saveActiveCharacter()`, all prefs fields. Callers that previously called these now call `saveManager.gatherAndSave(world)` instead (in `StatSystem`, `AbilitySystem`, `PartySystem.unlockCharacter()`).
-   - `ResourceSystem`: remove `saveResources()` and prefs field. Call sites (QuestSystem reward, ShopSystem) call `saveManager.gatherAndSave(world)`.
-   - `QuestSystem`: remove `saveState()`, `loadState()`, and prefs field. `handle()` calls `saveManager.gatherAndSave(world)` after state changes.
-   - Remove all `ktx.preferences` imports from these systems.
+## What Gets Modified
 
-4. **Part 4 — Strip prefs from `MapSystem` + `SpawnerSystem`**
-   - `MapSystem`: remove prefs field and all inline `preferences.flush {}` calls. `saveCurrentMapData()` → `saveManager.gatherAndSave(world)`. Spawner state is gathered via `collectSpawnerSaveData()` already added in Part 1.
-   - `SpawnerSystem`: remove prefs field. On `MapChangeEvent`, read initial `isSpawned` / `currentTime` from `saveManager.findSpawnerState(spawnerId, mapId)` (null = default unspawned). On `onTickEntity` spawn, do NOT write prefs; `saveManager` will capture state on the next `gatherAndSave` call.
-   - Remove all `ktx.preferences` imports from both systems.
+### Part 1 — `events/Events.kt`
+Remove 4 dead events that are never fired (or whose only firer is being deleted):
+- `EntityAttackEvent` — only fired by `AttackSystem` (deleted)
+- `EntityDeathEvent` — only fired by `LifeSystem` (deleted)
+- `EntityRespawnEvent` — only fired by `DeathSystem` (deleted)
+- `EntityTakeDamageEvent` — only fired by `LifeSystem` (deleted)
 
-5. **Part 5 — `InventorySystem` persistence + `SettingsViewModel` + `MenuViewModel`**
-   - Add `fun restoreInventory(data: InventorySaveData)` to `InventorySystem` to populate lists from saved `ItemEntrySaveData` entries (looks up item config by ID and restores quantity).
-   - `SettingsViewModel.save()`: remove raw prefs call; call `saveManager.saveSettings(SettingsSaveData(...))` instead.
-   - `MenuViewModel`: remove dead `planetaryIdlePrefs` field; add `saveManager: SaveManager` constructor param; wire the save game action to `saveManager.gatherAndSave(world)`.
-   - Update `GameScreen` to pass `saveManager` to `MenuViewModel`.
-   - Remove `ktx.preferences` imports from `SettingsViewModel` and `MenuViewModel`.
+### Part 2 — `screens/GameScreen.kt`
+- Remove `add<AttackSystem>()`, `add<DeathSystem>()`, `add<LifeSystem>()` from ECS world setup
+- Remove `AttackSystem::class` from `overworldDisabledSystems` (keep `AiSystem::class` — the set remains valid with one entry)
+- Remove `attackMapper` field (`by lazy { entityWorld.mapper<AttackComponent>() }`)
+- Remove the attack state reset block in `exitBattleMode()` (the `playerFamily.forEach` block that clears `doAttack`/`AttackState.READY`) and its comment
+- Remove imports: `AttackSystem`, `DeathSystem`, `LifeSystem`, `AttackComponent`, `AttackState`
+
+### Part 3 — `systems/EntityCreationSystem.kt`
+Remove `LifeComponent` additions from NPC entity creation. There are 3 `add<LifeComponent> { ... }` blocks — all in the NPC/non-player creation paths. These set `maxHealth` and `health` fields that `LifeSystem` never read.
+- Remove all 3 `add<LifeComponent> { ... }` blocks
+- Remove `LifeComponent` import
+- `AttackComponent` additions are **kept** (used by `AiEntity` for future AI logic)
+
+### Part 4 — `ui/viewmodels/MainGameViewModel.kt`
+The view model listened to events that are now removed, and held properties that are already commented out in the view.
+- Remove `lifeComponents` mapper field
+- Remove `EntityTakeDamageEvent` handler block
+- Remove `EntityRespawnEvent` handler block
+- Remove `playerLife` and `enemyLife` `propertyNotify` fields (the `MainGameView` binding to `playerLife` is already commented out; `enemyLife` is never bound)
+- Remove imports: `LifeComponent`, `EntityTakeDamageEvent`, `EntityRespawnEvent`
+
+### Part 5 — `systems/AudioSystem.kt`
+Remove the two dead event handlers whose source events are being deleted:
+- Remove `EntityAttackEvent` handler (`queueSound(..._attack.wav)`)
+- Remove `EntityDeathEvent` handler (`queueSound(..._death.wav)`)
+- Remove imports: `EntityAttackEvent`, `EntityDeathEvent`
 
 ---
 
@@ -121,19 +109,10 @@ Remove all `Preferences`-based saving in favor of a central `SaveManager` class 
 | File | Path |
 |------|------|
 | GameScreen | `core/src/main/kotlin/.../screens/GameScreen.kt` |
-| SaveManager | `core/src/main/kotlin/.../saveManager/SaveManager.kt` |
-| SaveData | `core/src/main/kotlin/.../saveManager/SaveData.kt` |
-| CharacterData | `core/src/main/kotlin/.../saveManager/CharacterData.kt` |
-| InitializeGameSystem | `core/src/main/kotlin/.../systems/InitializeGameSystem.kt` |
-| PartySystem | `core/src/main/kotlin/.../systems/PartySystem.kt` |
-| ResourceSystem | `core/src/main/kotlin/.../systems/ResourceSystem.kt` |
-| QuestSystem | `core/src/main/kotlin/.../systems/QuestSystem.kt` |
-| MapSystem | `core/src/main/kotlin/.../systems/MapSystem.kt` |
-| SpawnerSystem | `core/src/main/kotlin/.../systems/SpawnerSystem.kt` |
-| InventorySystem | `core/src/main/kotlin/.../systems/InventorySystem.kt` |
-| SettingsViewModel | `core/src/main/kotlin/.../ui/viewmodels/SettingsViewModel.kt` |
-| MenuViewModel | `core/src/main/kotlin/.../ui/viewmodels/MenuViewModel.kt` |
-| RolePlayingGame | `core/src/main/kotlin/.../RolePlayingGame.kt` |
+| Events | `core/src/main/kotlin/.../events/Events.kt` |
+| EntityCreationSystem | `core/src/main/kotlin/.../systems/EntityCreationSystem.kt` |
+| MainGameViewModel | `core/src/main/kotlin/.../ui/viewmodels/MainGameViewModel.kt` |
+| AudioSystem | `core/src/main/kotlin/.../systems/AudioSystem.kt` |
 
 ## Verification
 

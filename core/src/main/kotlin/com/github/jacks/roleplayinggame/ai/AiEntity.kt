@@ -9,8 +9,6 @@ import com.github.jacks.roleplayinggame.components.AnimationComponent
 import com.github.jacks.roleplayinggame.components.AnimationDirection
 import com.github.jacks.roleplayinggame.components.AnimationType
 import com.github.jacks.roleplayinggame.components.AttackComponent
-import com.github.jacks.roleplayinggame.components.DeathComponent
-import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.MoveComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
@@ -32,8 +30,6 @@ data class AiEntity(
     private val moveComponents : ComponentMapper<MoveComponent> = world.mapper(),
     private val attackComponents : ComponentMapper<AttackComponent> = world.mapper(),
     private val stateComponents : ComponentMapper<StateComponent> = world.mapper(),
-    private val deathComponents : ComponentMapper<DeathComponent> = world.mapper(),
-    private val lifeComponents : ComponentMapper<LifeComponent> = world.mapper(),
     private val statComponents : ComponentMapper<StatComponent> = world.mapper(),
     private val physicsComponents : ComponentMapper<PhysicsComponent> = world.mapper(),
     private val aiComponents : ComponentMapper<AiComponent> = world.mapper(),

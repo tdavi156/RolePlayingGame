@@ -247,13 +247,9 @@ class MainGameView(
         }
 
         // data binding
-        model.onPropertyChange(MainGameViewModel::playerLife) { playerLife ->
-        //    playerLife(playerLife)
-        }
         model.onPropertyChange(MainGameViewModel::lootText) { lootText ->
             //popup(lootText)
         }
-        model.onPropertyChange(MainGameViewModel::expAmount) { expAmount -> expAmountChanged(expAmount) }
     }
 
 //    fun playerLife(percentage : Float) {
@@ -284,10 +280,6 @@ class MainGameView(
         }
     }
 
-    private fun expAmountChanged(expAmount : Int) {
-        // calculate the exp amount, or perhaps recieve it as a percentage
-        experienceBar.scaleX = 0.5f
-    }
 
 //    fun popup(infoText : String) {
 //        popupLabel.txt = infoText

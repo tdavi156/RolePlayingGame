@@ -5,8 +5,6 @@ import com.badlogic.gdx.audio.Music
 import com.badlogic.gdx.audio.Sound
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
-import com.github.jacks.roleplayinggame.events.EntityAttackEvent
-import com.github.jacks.roleplayinggame.events.EntityDeathEvent
 import com.github.jacks.roleplayinggame.events.EntityLootEvent
 import com.github.jacks.roleplayinggame.events.GamePauseEvent
 import com.github.jacks.roleplayinggame.events.GameResumeEvent
@@ -52,8 +50,6 @@ class AudioSystem : EventListener, IntervalSystem() {
                 return true
             }
              */
-            is EntityAttackEvent -> queueSound("assets/audio/${event.model.atlasKey}_attack.wav")
-            is EntityDeathEvent -> queueSound("assets/audio/${event.model.atlasKey}_death.wav")
             is EntityLootEvent -> queueSound("assets/audio/${event.model.atlasKey}_open.wav")
             is GamePauseEvent -> {
                 music?.pause()

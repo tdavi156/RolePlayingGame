@@ -335,4 +335,28 @@ Removes all `SharedPreferences`-based saving scattered across 8+ systems and rep
 
 ---
 
-*End of roadmap report. 22 major features scoped and implemented, covering foundational framework setup, map design, turn-based combat, character progression, inventory, shops, quests, multi-enemy encounters, a full multi-character party system, a stat system redesign, and a complete save system overhaul.*
+## Feature 23 — Remove Dead Life/Death/Attack Systems
+
+Removed all overworld real-time combat infrastructure that became dead code when turn-based battle replaced direct overworld combat. All five systems/components were still registered and running each tick but processing nothing — `AttackSystem` was permanently disabled, `LifeSystem` ran but `takeDamage` was never set, and `DeathSystem` iterated zero entities. All meaningful death and damage logic already lived exclusively in `BattleSystem`.
+
+**Deleted entirely:**
+- `LifeSystem` — ran each tick but processed nothing (`takeDamage` always zero, `isDead` never true in overworld)
+- `DeathSystem` — iterated zero entities (`DeathComponent` never added)
+- `AttackSystem` — permanently disabled via `overworldDisabledSystems`, never ran
+- `LifeComponent` — only `takeDamage` was ever relevant; all other fields (`health`, `maxHealth`, `attack`, `defense`, `healthRegeneration`) were superseded by `StatsProvider` and unused
+- `DeathComponent` — never added to any entity
+
+**Cleaned up across 7 files:**
+- `Events.kt`: removed 4 dead events — `EntityAttackEvent`, `EntityDeathEvent`, `EntityTakeDamageEvent`, `EntityRespawnEvent`
+- `GameScreen.kt`: removed system registrations, `attackMapper`, the post-battle attack state reset block, and `AttackSystem::class` from `overworldDisabledSystems`
+- `EntityCreationSystem.kt`: removed all 3 `add<LifeComponent>` blocks and the unused `DEFAULT_LIFE` constant import
+- `MainGameViewModel.kt`: removed `lifeComponents` mapper, dead event handlers, and the never-updated `playerLife`/`enemyLife` properties; corresponding dead bindings removed from `MainGameView`
+- `AudioSystem.kt`: removed `EntityAttackEvent` and `EntityDeathEvent` handlers (attack/death audio will be re-wired to `BattleSystem` in a future audio feature)
+- `AiSystem.kt` / `AiEntity.kt`: removed `@NoneOf([DeathComponent::class])` annotation and unused `DeathComponent`/`LifeComponent` mapper references; logic otherwise preserved intact for future complex battle AI use
+- `DebugSystem.kt`: removed `AttackSystem.AABB_RECT` reference used to visualize the old attack hitbox
+
+**Preserved:** `AttackComponent` and all `AiEntity`/`AiSystem` logic retained for future AI development.
+
+---
+
+*End of roadmap report. 23 major features scoped and implemented, covering foundational framework setup, map design, turn-based combat, character progression, inventory, shops, quests, multi-enemy encounters, a full multi-character party system, a stat system redesign, a complete save system overhaul, and a dead code cleanup of the overworld combat infrastructure.*

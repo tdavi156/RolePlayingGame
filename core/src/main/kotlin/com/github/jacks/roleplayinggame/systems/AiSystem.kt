@@ -1,12 +1,10 @@
 package com.github.jacks.roleplayinggame.systems
 
 import com.github.jacks.roleplayinggame.components.AiComponent
-import com.github.jacks.roleplayinggame.components.DeathComponent
 import com.github.quillraven.fleks.AllOf
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
-import com.github.quillraven.fleks.NoneOf
 
 /**
  * Steps the behavior tree AI each tick for overworld entities.
@@ -18,7 +16,6 @@ import com.github.quillraven.fleks.NoneOf
  * have no effect on them.
  */
 @AllOf([AiComponent::class])
-@NoneOf([DeathComponent::class])
 class AiSystem(
     private val aiComponents : ComponentMapper<AiComponent>
 ) : IteratingSystem() {

@@ -38,13 +38,11 @@ import com.github.jacks.roleplayinggame.components.AttackComponent
 import com.github.jacks.roleplayinggame.components.BattleComponent
 import com.github.jacks.roleplayinggame.components.CollisionComponent
 import com.github.jacks.roleplayinggame.components.DEFAULT_ATTACK_DAMAGE
-import com.github.jacks.roleplayinggame.components.DEFAULT_LIFE
 import com.github.jacks.roleplayinggame.components.DEFAULT_SPEED
 import com.github.jacks.roleplayinggame.components.DialogComponent
 import com.github.jacks.roleplayinggame.components.EnemyStats
 import com.github.jacks.roleplayinggame.components.InventoryComponent
 import com.github.jacks.roleplayinggame.configurations.DialogId
-import com.github.jacks.roleplayinggame.components.LifeComponent
 import com.github.jacks.roleplayinggame.components.MoveComponent
 import com.github.jacks.roleplayinggame.components.NonPlayerComponent
 import com.github.jacks.roleplayinggame.components.NonPlayerConfiguration
@@ -109,12 +107,6 @@ class EntityCreationSystem(
                                 maxDelay = config.attackDelay
                                 damage = (DEFAULT_ATTACK_DAMAGE * config.attackScaling).roundToInt()
                                 extraRange = config.attackRange
-                            }
-                        }
-                        if (config.lifeScaling > 0f) {
-                            add<LifeComponent> {
-                                maxHealth = DEFAULT_LIFE * config.lifeScaling
-                                health = maxHealth
                             }
                         }
                         add<CollisionComponent>()
@@ -188,10 +180,6 @@ class EntityCreationSystem(
                 damage = (DEFAULT_ATTACK_DAMAGE * config.attackScaling).roundToInt()
                 extraRange = config.attackRange
             }
-            add<LifeComponent> {
-                maxHealth = DEFAULT_LIFE * config.lifeScaling
-                health = maxHealth
-            }
             add<StatComponent> {
                 stats = charData
             }
@@ -235,12 +223,6 @@ class EntityCreationSystem(
             if (config.speedScaling > 0f) {
                 add<MoveComponent> {
                     speed = DEFAULT_SPEED * config.speedScaling
-                }
-            }
-            if (config.lifeScaling > 0f) {
-                add<LifeComponent> {
-                    maxHealth = DEFAULT_LIFE * config.lifeScaling
-                    health = maxHealth
                 }
             }
             add<StatComponent> {

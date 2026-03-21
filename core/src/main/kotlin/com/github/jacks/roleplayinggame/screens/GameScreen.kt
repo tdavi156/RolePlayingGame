@@ -12,8 +12,6 @@ import com.github.jacks.roleplayinggame.components.FloatingTextComponent.Compani
 import com.github.jacks.roleplayinggame.components.ImageComponent.Companion.ImageComponentListener
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.PhysicsComponentListener
 import com.github.jacks.roleplayinggame.components.StateComponent.Companion.StateComponentListener
-import com.github.jacks.roleplayinggame.components.AttackComponent
-import com.github.jacks.roleplayinggame.components.AttackState
 import com.github.jacks.roleplayinggame.components.BattleEndReason
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
@@ -40,7 +38,6 @@ import com.github.jacks.roleplayinggame.systems.AbilitySystem
 import com.github.jacks.roleplayinggame.systems.AiSystem
 import com.github.jacks.roleplayinggame.systems.PartySystem
 import com.github.jacks.roleplayinggame.systems.AnimationSystem
-import com.github.jacks.roleplayinggame.systems.AttackSystem
 import com.github.jacks.roleplayinggame.systems.BattleSystem
 import com.github.jacks.roleplayinggame.systems.ResourceSystem
 import com.github.jacks.roleplayinggame.systems.SettingsSystem
@@ -49,7 +46,6 @@ import com.github.jacks.roleplayinggame.systems.ShopSystem
 import com.github.jacks.roleplayinggame.systems.CameraSystem
 import com.github.jacks.roleplayinggame.systems.CollisionDespawnSystem
 import com.github.jacks.roleplayinggame.systems.CollisionSpawnSystem
-import com.github.jacks.roleplayinggame.systems.DeathSystem
 import com.github.jacks.roleplayinggame.systems.DebugSystem
 import com.github.jacks.roleplayinggame.systems.DialogSystem
 import com.github.jacks.roleplayinggame.systems.InteractionSystem
@@ -58,7 +54,6 @@ import com.github.jacks.roleplayinggame.systems.FloatingTextSystem
 import com.github.jacks.roleplayinggame.systems.InitializeGameSystem
 import com.github.jacks.roleplayinggame.systems.InventorySystem
 import com.github.jacks.roleplayinggame.systems.StatSystem
-import com.github.jacks.roleplayinggame.systems.LifeSystem
 import com.github.jacks.roleplayinggame.systems.LootSystem
 import com.github.jacks.roleplayinggame.systems.MapSystem
 import com.github.jacks.roleplayinggame.systems.MoveSystem
@@ -159,15 +154,12 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
             add<StatSystem>()
             add<PortalSystem>()
             add<MoveSystem>()
-            add<AttackSystem>()
             add<BattleSystem>()
             add<QuestSystem>()
             add<LootSystem>()
             add<DialogSystem>()
             add<InteractionSystem>()
             add<ShopSystem>()
-            add<DeathSystem>()
-            add<LifeSystem>()
             add<PhysicsSystem>()
             add<AnimationSystem>()
             add<StateSystem>()
@@ -181,7 +173,6 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
     }
 
     private val playerFamily   by lazy { entityWorld.family(allOf = arrayOf(PlayerComponent::class)) }
-    private val attackMapper   by lazy { entityWorld.mapper<AttackComponent>() }
     private val physicsMapper  by lazy { entityWorld.mapper<PhysicsComponent>() }
     private val playerMapper   by lazy { entityWorld.mapper<PlayerComponent>() }
     private val settingsViewModel      = SettingsViewModel(uiStage, entityWorld.system<SettingsSystem>(), saveManager)
@@ -423,14 +414,6 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
                 currentBattleEnemy = null
                 entityWorld.systems.forEach { it.enabled = true }
                 disableOverworldSystems()
-                // Step 11: clear any queued real-time attack so the player doesn't
-                // immediately swing when returning to the overworld
-                playerFamily.forEach { playerEntity ->
-                    attackMapper.getOrNull(playerEntity)?.let { attack ->
-                        attack.doAttack = false
-                        attack.state = AttackState.READY
-                    }
-                }
                 uiStage.actors.filterIsInstance<BattleView>().first().isVisible = false
                 uiStage.actors.filterIsInstance<MainGameView>().first().isVisible = true
             },
@@ -470,7 +453,6 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
         )
         private val overworldDisabledSystems = setOf(
             AiSystem::class,
-            AttackSystem::class,
         )
 
         // Systems that must stay active while a shop is open (all others are paused)
