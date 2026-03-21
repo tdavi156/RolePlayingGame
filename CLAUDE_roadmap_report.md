@@ -1,12 +1,106 @@
 # Android RPG Game — Feature Roadmap Report
 
-A summary of the 10 features scoped out for the project. Each entry covers the major implementations, any systems that were reworked or refactored, and what new systems were introduced.
+A summary of all major features scoped out and implemented for the project. Each entry covers the major implementations, any systems that were reworked or refactored, and what new systems were introduced.
 
 ---
 
-## Feature 1 — Items, Loot, and Gold Reward System
+## Feature 0.1 — LibGDX Tutorial
 
-The first feature lays the economic and item foundation for the game. It introduces a gold currency tracked independently of any character (account-scoped), a flexible item configuration system, and a post-battle reward screen.
+Initial project setup and framework orientation. Establishes the technical foundation the entire project builds on.
+
+**Major implementations:**
+- LibGDX project scaffolded with Gradle, targeting Desktop (lwjgl3) and Android
+- KTX extensions integrated for idiomatic Kotlin wrappers over LibGDX APIs
+- Fleks ECS wired as the entity/component/system backbone
+- Scene2D stage hierarchy established: `gameStage` (FitViewport, world units) and `uiStage` (ScreenViewport, pixels)
+- Basic player entity with movement, sprite rendering, and a test map loaded via Tiled
+
+**Added:** Core project structure, `GameScreen`, `RolePlayingGame`, initial system stubs
+
+---
+
+## Feature 0.2 — Map Redesign
+
+Redesigns the game world layout and map infrastructure to support multiple connected zones.
+
+**Major implementations:**
+- Multi-map architecture: overworld map, interior maps (house), and a dedicated battle map
+- Tiled `.tmx` files drive all map data — entity spawn properties, portal destinations, and collision shapes defined in map data
+- `MapSystem` introduced to load and unload maps; portal triggers teleport the player between zones
+- `SpawnerSystem` introduced to manage enemy spawn state per map, respecting per-spawner timers
+
+**Added:** `MapSystem`, `SpawnerSystem`, `PortalSystem`, multi-zone `.tmx` map files
+
+---
+
+## Feature 0.3 — Recolor Slime for Enemy Variation
+
+Adds a second enemy type using the existing slime sprite sheet recolored, establishing the pattern for adding new enemy variants.
+
+**Major implementations:**
+- Blue slime added as a distinct enemy type with higher stats than the green slime
+- Enemy type enum extended; `EnemyConfigurations` defines per-type stat and reward values
+- Spawners on existing maps updated to include blue slime spawn points
+
+**Reworked:** `EnemyConfigurations` extended to be the canonical enemy stat registry.
+
+---
+
+## Features 1–7 — Refactor Battle System to Turn Based
+
+A multi-feature effort refactoring the real-time collision-based combat into a full turn-based RPG battle system. This is the largest architectural investment in the project.
+
+**Major implementations:**
+- Battle triggered on enemy contact — player and enemy teleported to a dedicated `battle.tmx` arena via `BattleEvent`
+- `BattleSystem` drives the complete turn loop: player action selection → animation → damage resolution → enemy AI turn → repeat
+- Action buttons: Attack, Escape, Items (stub), Spells (stub)
+- HP and mana bars rendered per entity in battle UI; floating hit numbers on damage
+- Enemy AI selects attack actions automatically
+- Escape attempt with configurable success chance
+- Battle end: victory (enemy HP = 0) or defeat (player HP = 0) triggers return to overworld via `BattleEndEvent`
+- `BattleView` and `BattleViewModel` built as the battle UI layer following the MVVM pattern
+- `LifeSystem` tracks HP changes; `StatSystem` stub owns stat fields on `StatComponent`
+- `CharacterInfoView` first introduced to display player stats during overworld
+
+**Added:** `BattleSystem`, `BattleView`, `BattleViewModel`, `LifeSystem`, `StatSystem`, `StatComponent`, `BattleEvent`, `BattleEndEvent`, `BattleTransitionStartEvent`, `BattleEndTransitionStartEvent`
+
+---
+
+## Features 8–9 — Overhaul Character Info UI
+
+Rebuilds the character info panel into a clean MVVM-pattern view and introduces map and menu view infrastructure.
+
+**Major implementations:**
+- `CharacterInfoView` reworked with a proper layout: HP bar, mana bar, stat labels, level/EXP display
+- `CharacterInfoViewModel` introduced, binding live `StatComponent` values to the view via `propertyNotify`
+- Map view added as a placeholder overlay
+- Menu view skeleton introduced with a Save button stub
+- Fade transition system established in `GameScreen` for smooth map/battle transitions
+
+**Reworked:** `CharacterInfoView` fully rebuilt from placeholder. `GameScreen` extended with fade overlay logic.
+
+**Added:** `CharacterInfoViewModel`, `MapView`, `MenuView`, `FadeInOutView`
+
+---
+
+## Feature 10 — Settings
+
+Adds a fully functional settings panel for audio and gameplay preferences, persisted across sessions.
+
+**Major implementations:**
+- `SettingsSystem` singleton owns all runtime settings values: master volume, music volume, effects volume, combat animation speed, auto-clear text flag
+- `SettingsViewModel` binds settings to the UI; `save()` persists values to SharedPreferences
+- `SettingsView` built with sliders and toggles for each setting
+- Settings loaded on startup in `InitializeGameSystem`; defaults written on first launch
+- Audio system integration stubbed (volume sliders wired but audio system disabled)
+
+**Added:** `SettingsSystem`, `SettingsViewModel`, `SettingsView`
+
+---
+
+## Feature 11 — Loot and Gold
+
+The first feature laying the economic and item foundation for the game. Introduces a gold currency tracked independently of any character (account-scoped), a flexible item configuration system, and a post-battle reward screen.
 
 **Major implementations:**
 - Gold tracked in a new `ResourceSystem` singleton, persisted to prefs
@@ -21,9 +115,9 @@ The first feature lays the economic and item foundation for the game. It introdu
 
 ---
 
-## Feature 2 — Inventory Rework
+## Feature 12 — Inventory Redesign
 
-A full replacement of the existing drag-and-drop inventory with a tabbed, text-based system inspired by the Pokémon Bag layout. This feature also formally separates item types into their own config files and introduces a standalone inventory data structure.
+A full replacement of the existing drag-and-drop inventory with a tabbed, text-based system inspired by the Pokémon Bag layout. Also formally separates item types into their own config files and introduces a standalone inventory data structure.
 
 **Major implementations:**
 - New tabbed inventory UI: Equipment, Consumables, Quest Items, and Battle Enchantments tabs
@@ -41,9 +135,9 @@ A full replacement of the existing drag-and-drop inventory with a tabbed, text-b
 
 ---
 
-## Feature 3 — Shops, Buying and Selling Items
+## Feature 13 — Shops and Items
 
-Introduces NPC shop interactions, a shop UI, and full buy/sell functionality built on the item and gold systems from Features 1 and 2.
+Introduces NPC shop interactions, a shop UI, and full buy/sell functionality built on the item and gold systems from Features 11 and 12.
 
 **Major implementations:**
 - Shop interactions triggered via the existing `InteractionSystem` — a new `ShopComponent` on NPC entities routes to the new `ShopSystem`
@@ -60,7 +154,7 @@ Introduces NPC shop interactions, a shop UI, and full buy/sell functionality bui
 
 ---
 
-## Feature 4 — Consumable Items in Combat
+## Feature 14 — Integrate Items into Battle
 
 Enables the previously disabled Items button in battle, reusing the existing inventory UI locked to the Consumables tab, and integrates consumable use into the combat turn flow.
 
@@ -77,7 +171,7 @@ Enables the previously disabled Items button in battle, reusing the existing inv
 
 ---
 
-## Feature 5 — Floating Text Refactor and Expansion
+## Feature 15 — Update the FloatingTextSystem
 
 Decouples floating text creation from `LifeSystem` and establishes a clean event-driven pattern for all future floating text triggers.
 
@@ -95,7 +189,7 @@ Decouples floating text creation from `LifeSystem` and establishes a clean event
 
 ---
 
-## Feature 6 — EXP, Level Ups, Skill Points, and Ability Points
+## Feature 16 — EXP, Levels, and Skill Point System
 
 Reworks the placeholder EXP/level system into a meaningful progression system and introduces two new point currencies for future character customization.
 
@@ -105,8 +199,8 @@ Reworks the placeholder EXP/level system into a meaningful progression system an
 - Skill points and ability points tracked in `StatComponent`, saved as part of character data
 - `GainSkillPointEvent` and `GainAbilityPointEvent` are decoupled from level-up — any future source (quests, items) can fire them independently
 - `SkillView` fully implemented: stat rows with `[-][pts][+]` controls, resulting value preview, save/cancel confirm flows. Invested points tracked separately from raw stats to preserve investment history for a future respec feature
-- `AbilityView` and `AbilityViewModel` created as stubs (ability spending deferred to Feature 7)
-- `"LEVEL UP!"` floating text fires on level up following the established pattern from Feature 5
+- `AbilityView` and `AbilityViewModel` created as stubs (ability spending deferred to Feature 17)
+- `"LEVEL UP!"` floating text fires on level up following the established pattern from Feature 15
 
 **Reworked:** `StatSystem` extended with EXP formula, level-up logic, and skill point save handling. Existing passive stat boosts on level up removed.
 
@@ -114,7 +208,7 @@ Reworks the placeholder EXP/level system into a meaningful progression system an
 
 ---
 
-## Feature 7 — Ability Points and Spells in Battle
+## Feature 17 — Ability Point System
 
 Implements the ability tree system, the `AbilityView` UI for spending ability points, and wires unlocked abilities as usable spells in combat.
 
@@ -135,7 +229,7 @@ Implements the ability tree system, the `AbilityView` UI for spending ability po
 
 ---
 
-## Feature 8 — Dialog System Refactor and Quest System
+## Feature 18 — Update DialogSystem and QuestSystem
 
 Cleans up the dialog architecture and builds a full quest system on top of it, including a recruitable NPC quest, quest tracking, and a `QuestView` UI.
 
@@ -155,7 +249,7 @@ Cleans up the dialog architecture and builds a full quest system on top of it, i
 
 ---
 
-## Feature 9 — Multiple Enemy Battles
+## Feature 19 — Multiple Enemy in Battles
 
 Extends the battle system to support multi-enemy encounters with flexible composition, per-kill rewards, dynamic turn order, and enemy targeting UI.
 
@@ -175,7 +269,7 @@ Extends the battle system to support multi-enemy encounters with flexible compos
 
 ---
 
-## Feature 10 — Multiple Player Characters
+## Feature 20 — Multiple Player Characters in Battles
 
 The largest and most architecturally significant feature — introduces a full party system with up to 6 characters, overworld character switching, multi-character combat, and a complete decoupling of character data from entity lifecycle.
 
@@ -198,4 +292,47 @@ The largest and most architecturally significant feature — introduces a full p
 
 ---
 
-*End of roadmap report. 10 features scoped, covering economic systems, inventory, shops, combat abilities, dialog, quests, multi-enemy encounters, and a full multi-character party system.*
+## Feature 21 — New Stat Types
+
+A foundational architectural refactor and expansion. Redesigns how stats are stored and accessed across all entity types, introduces a richer set of stats organized into logical groups, wires skill point investment into derived battle stat effects, and implements proper combat calculations for accuracy/evasion, attack/spell damage, and defense/resistance.
+
+**Major implementations:**
+- `StatComponent` redesigned as a **pure reference holder**: holds a single `val stats: StatsProvider` — systems dereference through `stats`, never reading fields directly from `StatComponent`
+- `StatsProvider` introduced as a sealed class with two subtypes: `CharacterData` (mutable, persistent, full stat set) and `EnemyStats` (mostly static, only `currentHealth` mutable mid-combat)
+- `CharacterData` reorganized into clearly commented stat groups: Overworld Stats, Skill Stats (stamina/strength/agility/intelligence/wisdom), Base Battle Stats (from config, read-only), and Derived Battle Stats (computed at runtime)
+- `EnemyConfigurations.kt` extended — each enemy now has a fully populated `EnemyStats` instance with real values for all battle stat fields
+- `recalculateDerivedStats()` function added to `CharacterData`: computes all derived stats from base values plus skill investment (e.g. `maxHealth = baseMaxHealth + stamina * 10f`, `attackDamage = baseAttackDamage + strength * 3f`)
+- `SkillView` redesigned with 5 investable skill stats (Stamina, Strength, Agility, Intelligence, Wisdom), each showing a derived effect description
+- `BattleSystem` gains three combat calculation helpers: `resolveHitChance()` (accuracy − evasion roll for Attack), `resolvePhysicalDamage()` (raw damage × percent − defense × percent, floored), `resolveSpellDamage()` (raw spell damage − resistance, floored)
+- Spells bypass accuracy/evasion check entirely; `"Missed!"` floating text shown on Attack misses
+- All HP and damage values stored as `Float` internally — `toInt()` applied only at the display boundary
+
+**Reworked:** `StatComponent` fully redesigned. `CharacterData` reorganized and extended. `SkillView` and `SkillViewModel` redesigned for 5 skill stats. `BattleSystem` combat calculations replaced with proper formula-based helpers.
+
+**Added:** `StatsProvider.kt`, `EnemyStats`, `EnemyConfigurations.kt`, `recalculateDerivedStats()`
+
+---
+
+## Feature 22 — Save with Serialization
+
+Removes all `SharedPreferences`-based saving scattered across 8+ systems and replaces it with a central `SaveManager` that serializes game state to JSON files using LibGDX's built-in `Json` serializer. Also fixes the existing gap where `InventorySystem` had no persistence at all.
+
+**Major implementations:**
+- New `saveManager/` package: `SaveData.kt` (all `*SaveData` data classes with LibGDX Json-compatible defaults), `SaveManager.kt` (central file I/O), `CharacterData.kt` (moved from `systems/`)
+- Two save files: `save/game_save.json` (all game state: party, resources, inventory, quests, map/spawners) and `save/settings.json` (user preferences — preserved across new games)
+- `SaveManager` API: `hasSave()`, `gatherAndSave(world)`, `saveFull(data)`, `load()`, `saveSettings(data)`, `loadSettings()`, `findSpawnerState(spawnerId, mapId)` for fast in-memory spawner lookups
+- `InitializeGameSystem` fully rewritten: `hasSave()` branches to new-game seeding vs. full state restore; settings loaded on both paths
+- `InventorySystem.restoreInventory()` added — resolves the longstanding gap where inventory always reseeded from hardcoded defaults on every boot
+- `MapSystem` tracks `currentMapName` directly (updated on every `setMap()`/`setBattleMap()`/`returnToOverworld()`) and exposes `collectSpawnerSaveData()` for `gatherAndSave()`
+- `SpawnerSystem` reads initial spawner state from `saveManager.findSpawnerState()` on `MapChangeEvent` instead of prefs
+- `SettingsViewModel.save()` writes `settings.json` via `saveManager.saveSettings()`
+- `MenuViewModel` save action wired to `saveManager.gatherAndSave(world)`
+- All dead prefs code removed from `RolePlayingGame`, `GameScreen`, `EntityCreationSystem`, and `MainGameView`
+
+**Reworked:** `InitializeGameSystem` completely rewritten. `PartySystem`, `ResourceSystem`, `QuestSystem`, `MapSystem`, `SpawnerSystem` all stripped of individual prefs fields and save methods. `StatSystem`, `ShopSystem`, `BattleSystem` call sites updated. `SettingsViewModel` and `MenuViewModel` migrated.
+
+**Added:** `SaveManager`, `SaveData.kt` (all `*SaveData` data classes), `InventorySystem.restoreInventory()`
+
+---
+
+*End of roadmap report. 22 major features scoped and implemented, covering foundational framework setup, map design, turn-based combat, character progression, inventory, shops, quests, multi-enemy encounters, a full multi-character party system, a stat system redesign, and a complete save system overhaul.*

@@ -10,6 +10,7 @@ import ktx.assets.disposeSafely
 import ktx.scene2d.Scene2DSkin
 import ktx.style.SkinDsl
 import ktx.style.label
+import ktx.style.scrollPane
 import ktx.style.set
 import ktx.style.skin
 import ktx.style.textButton
@@ -209,6 +210,7 @@ fun loadSkin() {
         loadFonts(skin)
         loadLabels(skin)
         loadButtons(skin)
+        scrollPane("default") { /* no scrollbar drawables — pane scrolls without visible bars */ }
     }
 }
 
