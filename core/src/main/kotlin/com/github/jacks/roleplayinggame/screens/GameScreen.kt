@@ -65,6 +65,7 @@ import com.github.jacks.roleplayinggame.systems.MoveSystem
 import com.github.jacks.roleplayinggame.systems.PhysicsSystem
 import com.github.jacks.roleplayinggame.systems.PortalSystem
 import com.github.jacks.roleplayinggame.systems.RenderSystem
+import com.github.jacks.roleplayinggame.saveManager.SaveManager
 import com.github.jacks.roleplayinggame.systems.SpawnerSystem
 import com.github.jacks.roleplayinggame.systems.StateSystem
 import com.github.jacks.roleplayinggame.ui.viewmodels.BattleViewModel
@@ -113,11 +114,9 @@ import ktx.assets.disposeSafely
 import ktx.box2d.createWorld
 import ktx.log.logger
 import ktx.math.vec2
-import ktx.preferences.get
 import ktx.scene2d.actors
 
 class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
-    private val preferences = game.preferences
     private val gameStage = game.gameStage
     private val uiStage = game.uiStage
     private val textureAtlas : TextureAtlas = TextureAtlas("assets/graphics/gameObjects.atlas")
@@ -125,12 +124,16 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
     private lateinit var fadeView: FadeInOutView
     private var currentBattleEnemy: Entity? = null
 
+    /** Central save/load manager — injected into the ECS world so any system can receive it. */
+    val saveManager = SaveManager()
+
     private val entityWorld : World = world {
         injectables {
             add(gameStage)
             add("uiStage", uiStage)
             add(textureAtlas)
             add(physicsWorld)
+            add(saveManager)
         }
 
         components {
@@ -181,7 +184,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
     private val attackMapper   by lazy { entityWorld.mapper<AttackComponent>() }
     private val physicsMapper  by lazy { entityWorld.mapper<PhysicsComponent>() }
     private val playerMapper   by lazy { entityWorld.mapper<PlayerComponent>() }
-    private val settingsViewModel      = SettingsViewModel(uiStage, entityWorld.system<SettingsSystem>())
+    private val settingsViewModel      = SettingsViewModel(uiStage, entityWorld.system<SettingsSystem>(), saveManager)
     private val characterInfoViewModel = com.github.jacks.roleplayinggame.ui.viewmodels.CharacterInfoViewModel(entityWorld, gameStage)
     private val rewardViewModel        = RewardViewModel(gameStage)
     private val shopViewModel          = ShopViewModel(entityWorld, gameStage)
@@ -228,7 +231,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
             mapView(MapViewModel(entityWorld, gameStage)) { isVisible = false }
 
             // menu UI, actor.get(11)
-            menuView(MenuViewModel(stage)) { isVisible = false }
+            menuView(MenuViewModel(stage, saveManager, entityWorld)) { isVisible = false }
 
             // settings UI, actor.get(12)
             settingsView(settingsViewModel) { isVisible = false }
@@ -372,7 +375,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
                 // Update party state
                 val partySystem = entityWorld.system<com.github.jacks.roleplayinggame.systems.PartySystem>()
                 partySystem.activeOverworldCharacterId = newCharacterId
-                partySystem.saveActiveCharacter()
+                saveManager.gatherAndSave(entityWorld)
 
                 // Spawn the new character at the old position
                 entityWorld.system<com.github.jacks.roleplayinggame.systems.EntityCreationSystem>()

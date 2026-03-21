@@ -1,7 +1,5 @@
 package com.github.jacks.roleplayinggame.ui.views
 
-import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.InputListener
@@ -27,7 +25,6 @@ import com.github.jacks.roleplayinggame.ui.Labels
 import com.github.jacks.roleplayinggame.ui.get
 import com.github.jacks.roleplayinggame.ui.viewmodels.MainGameViewModel
 import ktx.actors.txt
-import ktx.preferences.get
 import ktx.scene2d.KTable
 import ktx.scene2d.KWidget
 import ktx.scene2d.Scene2DSkin
@@ -46,13 +43,6 @@ class MainGameView(
     private val gameStage: Stage,
     skin : Skin
 ) : Table(skin), KTable {
-
-    private val preferences : Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
-
-    // initial values from preferences
-    private var playerHealth = preferences["player_health", 1.0]
-    private var playerMana = preferences["player_mana", 1.0]
-    private var playerExperience = preferences["player_experience", 0]
 
     // buttons
     private lateinit var characterInfoButton : TextButton

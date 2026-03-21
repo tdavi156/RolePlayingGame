@@ -1,7 +1,5 @@
 package com.github.jacks.roleplayinggame.systems
 
-import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
@@ -10,15 +8,13 @@ import com.github.jacks.roleplayinggame.components.SpawnerComponent
 import com.github.jacks.roleplayinggame.configurations.Configurations.Companion.getConfiguration
 import com.github.jacks.roleplayinggame.configurations.Configurations.Companion.getConfigurationType
 import com.github.jacks.roleplayinggame.events.MapChangeEvent
+import com.github.jacks.roleplayinggame.saveManager.SaveManager
 import com.github.quillraven.fleks.AllOf
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.Fixed
 import com.github.quillraven.fleks.IteratingSystem
 import ktx.app.gdxError
-import ktx.preferences.flush
-import ktx.preferences.get
-import ktx.preferences.set
 import ktx.tiled.layer
 import ktx.tiled.propertyOrNull
 import ktx.tiled.x
@@ -26,10 +22,9 @@ import ktx.tiled.y
 
 @AllOf([SpawnerComponent::class])
 class SpawnerSystem(
-    private val spawnerComponents : ComponentMapper<SpawnerComponent>
+    private val spawnerComponents : ComponentMapper<SpawnerComponent>,
+    private val saveManager: SaveManager,
 ) : IteratingSystem(interval = Fixed(1f)), EventListener {
-
-    private val preferences : Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
 
     override fun onTickEntity(entity: Entity) {
         val spawnerComp = spawnerComponents[entity]
@@ -49,7 +44,7 @@ class SpawnerSystem(
             }
             spawnerComp.currentTime = 0f
             spawnerComp.isSpawned = true
-            preferences.flush { this["spawner_${spawnerComp.spawnerId}_map_${spawnerComp.mapId}_is_Spawned"] = spawnerComp.isSpawned }
+            // Spawn state will be captured on the next gatherAndSave call — no immediate write needed
         }
     }
 
@@ -63,8 +58,7 @@ class SpawnerSystem(
                     val mapId = spawner.propertyOrNull<Int>("mapId") ?: gdxError("Map Object $spawner has no Map ID")
                     val entityToSpawn = spawner.propertyOrNull<String>("entityToSpawn") ?: gdxError("Map Object $spawner has no Entity To Spawn")
                     val spawnTimer = spawner.propertyOrNull<Float>("spawnTimer") ?: gdxError("Map Object $spawner has no Spawn Timer")
-                    val isSpawned = preferences["spawner_${spawnerId}_map_${mapId}_is_Spawned", false]
-                    val currentTime = preferences["spawner_${spawnerId}_map_${mapId}_current_time", 0f]
+                    val savedState = saveManager.findSpawnerState(spawnerId, mapId)
                     world.entity {
                         add<SpawnerComponent> {
                             this.spawnerId = spawnerId
@@ -72,11 +66,11 @@ class SpawnerSystem(
                             this.entityToSpawn = entityToSpawn
                             this.spawnTimer = spawnTimer
                             this.location.set(spawner.x, spawner.y)
-                            this.currentTime = currentTime
-                            this.isSpawned = isSpawned
+                            this.currentTime = savedState?.currentTime ?: 0f
+                            this.isSpawned = savedState?.isSpawned ?: false
                         }
                     }
-                    if (isSpawned && entityToSpawn != "player") {
+                    if ((savedState?.isSpawned ?: false) && entityToSpawn != "player") {
                         world.entity {
                             add<EntityCreationComponent> {
                                 this.configurationType = getConfigurationType(entityToSpawn)

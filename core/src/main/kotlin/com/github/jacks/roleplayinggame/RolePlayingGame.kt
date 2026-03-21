@@ -2,7 +2,6 @@ package com.github.jacks.roleplayinggame
 
 import com.badlogic.gdx.Application
 import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.graphics.g2d.Batch
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.scenes.scene2d.Event
@@ -19,24 +18,16 @@ import ktx.app.KtxGame
 import ktx.app.KtxScreen
 import ktx.app.clearScreen
 import ktx.assets.disposeSafely
-import ktx.preferences.flush
 
 class RolePlayingGame : KtxGame<KtxScreen>(), EventListener{
 
     private val batch : Batch by lazy { SpriteBatch() }
     val gameStage : Stage by lazy { Stage(FitViewport(16f * CAMERA_ZOOM, 9f * CAMERA_ZOOM), batch) }
     val uiStage : Stage by lazy { Stage(ScreenViewport(), batch) }
-    val preferences : Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
     private var paused = false
-    private val resetOnStart : Boolean = true // used for testing
 
     override fun create() {
         Gdx.app.logLevel = Application.LOG_DEBUG
-        if (resetOnStart) {
-            preferences.flush {
-                this.clear()
-            }
-        }
         loadSkin()
         gameStage.addListener(this)
         addScreen(GameScreen(this))

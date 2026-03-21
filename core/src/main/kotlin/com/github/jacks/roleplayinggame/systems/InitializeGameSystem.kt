@@ -1,41 +1,42 @@
 package com.github.jacks.roleplayinggame.systems
 
-import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.github.jacks.roleplayinggame.components.InitializeGameComponent
 import com.github.jacks.roleplayinggame.configurations.CHARACTER_CONFIGS
 import com.github.jacks.roleplayinggame.configurations.CombatAnimationSpeed
+import com.github.jacks.roleplayinggame.configurations.ItemCategory
 import com.github.jacks.roleplayinggame.configurations.Settings
 import com.github.jacks.roleplayinggame.configurations.battleEnchantmentItemById
 import com.github.jacks.roleplayinggame.configurations.consumableItemById
 import com.github.jacks.roleplayinggame.configurations.equipmentItemById
 import com.github.jacks.roleplayinggame.configurations.questItemById
-import com.github.jacks.roleplayinggame.configurations.resources.Resources
 import com.github.jacks.roleplayinggame.events.InitializeGameEvent
+import com.github.jacks.roleplayinggame.saveManager.CharacterData
+import com.github.jacks.roleplayinggame.saveManager.PartySaveData
+import com.github.jacks.roleplayinggame.saveManager.QuestEntrySaveData
+import com.github.jacks.roleplayinggame.saveManager.SaveManager
 import com.github.quillraven.fleks.AllOf
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World
-import ktx.preferences.flush
-import ktx.preferences.get
-import ktx.preferences.set
 
 @AllOf([InitializeGameComponent::class])
 class InitializeGameSystem(
     private val entityWorld: World,
+    private val saveManager: SaveManager,
     private val initializeGameComponents: ComponentMapper<InitializeGameComponent>,
 ) : IteratingSystem(), EventListener {
 
-    private val preferences: Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
+    /** Set during handle() so onTickEntity knows which map to load. */
+    private var mapToLoad: String = "map_1"
 
     override fun onTickEntity(entity: Entity) {
         val initializeGameComponent = initializeGameComponents[entity]
         if (!initializeGameComponent.gameInitialized) {
             initializeGameComponent.gameInitialized = true
-            entityWorld.system<MapSystem>().setMap(preferences["current_map", "map_1"])
+            entityWorld.system<MapSystem>().setMap(mapToLoad)
         }
         world.family(allOf = arrayOf(InitializeGameComponent::class)).forEach { world.remove(it) }
     }
@@ -43,18 +44,26 @@ class InitializeGameSystem(
     override fun handle(event: Event): Boolean {
         when (event) {
             is InitializeGameEvent -> {
-                if (!preferences["is_game_initialized", false]) {
-                    preferences.clear()
-                    setupPreferences()
+                val saveData = saveManager.load()
+                if (saveData != null) {
+                    // Existing save found — restore all game state from disk
+                    loadCharacterDataFromSave(saveData.party)
+                    loadResourcesFromSave(saveData.resources.gold)
+                    loadQuestStateFromSave(saveData.quests)
+                    entityWorld.system<InventorySystem>().restoreInventory(saveData.inventory)
+                    mapToLoad = saveData.map.currentMap
+                } else {
+                    // New game — seed defaults and write initial save to disk
+                    seedCharacterDefaults()
+                    seedStartingInventory()
+                    mapToLoad = "map_1"
+                    saveManager.gatherAndSave(entityWorld)
                 }
-                loadCharacterData()
-                loadSettings()
-                loadResources()
-                loadQuestState()
-                seedStartingInventory()
+                // Settings are loaded independently — they survive a new game
+                loadSettingsFromSave()
                 world.entity {
-                    // eventually there may be a step before this that just loads the main menu and this doesn't
-                    // trigger until game start or game loaded
+                    // eventually there may be a step before this that just loads the main menu
+                    // and this doesn't trigger until game start or game loaded
                     add<InitializeGameComponent>()
                 }
                 return true
@@ -63,58 +72,40 @@ class InitializeGameSystem(
         }
     }
 
-    private fun loadCharacterData() {
-        val partySystem = world.system<PartySystem>()
+    // ── New game seeding ───────────────────────────────────────────────────────
 
-        // Seed character names from configs so loadCharacterData can read them back
+    private fun seedCharacterDefaults() {
+        val partySystem = entityWorld.system<PartySystem>()
         CHARACTER_CONFIGS.forEach { (id, config) ->
+            val bs = config.baseStats
             partySystem.characterDataMap[id] = CharacterData(
-                characterId = id,
-                characterName = config.characterName,
-                currentHp = config.baseStats.maxHp.toFloat(),
-                maxHp = config.baseStats.maxHp.toFloat(),
-                currentMana = config.baseStats.maxMana.toFloat(),
-                maxMana = config.baseStats.maxMana.toFloat(),
-                attack = config.baseStats.attack.toFloat(),
-                defense = config.baseStats.defense.toFloat(),
-                attackSpeed = config.baseStats.attackSpeed,
-                moveSpeed = config.baseStats.moveSpeed,
-                level = 1,
-                exp = 0,
-                skillPoints = 0,
-                abilityPoints = 3,
-                skillPointsInvestedAttack = 0,
-                skillPointsInvestedDefense = 0,
-                isUnlocked = (id == 1),
+                characterId             = id,
+                characterName           = config.characterName,
+                baseMaxHealth           = bs.baseMaxHealth,
+                baseMaxMana             = bs.baseMaxMana,
+                baseAttackSpeed         = bs.baseAttackSpeed,
+                baseAccuracy            = bs.baseAccuracy,
+                baseEvasion             = bs.baseEvasion,
+                baseAttackDamage        = bs.baseAttackDamage,
+                baseAttackDamagePercent = bs.baseAttackDamagePercent,
+                baseSpellDamage         = bs.baseSpellDamage,
+                baseSpellDamagePercent  = bs.baseSpellDamagePercent,
+                baseDefense             = bs.baseDefense,
+                baseDefensePercent      = bs.baseDefensePercent,
+                baseResistance          = bs.baseResistance,
+                baseResistancePercent   = bs.baseResistancePercent,
+                moveSpeed               = bs.moveSpeed,
+                currentAbilityPoints    = 0,
+                isUnlocked              = (id == 1),
             )
         }
-
-        // Try to load saved data for each character; fall back to the default just seeded
-        CHARACTER_CONFIGS.keys.forEach { id ->
-            val saved = partySystem.loadCharacterData(id)
-            if (saved != null) {
-                partySystem.characterDataMap[id] = saved
-            } else {
-                // First launch: persist defaults
-                partySystem.saveCharacterData(id)
-            }
-        }
-
-        // Load active overworld character
-        val rawActive = preferences.getInteger(PartySystem.KEY_ACTIVE_CHARACTER, 1)
-        partySystem.activeOverworldCharacterId = rawActive
-
-        // Load combat slots
-        val rawSlots = preferences.getString(PartySystem.KEY_COMBAT_SLOTS, "1")
         partySystem.combatSlots.clear()
-        rawSlots.split(",").mapNotNull { it.trim().toIntOrNull() }.forEach {
-            partySystem.combatSlots.add(it)
-        }
-        if (partySystem.combatSlots.isEmpty()) partySystem.combatSlots.add(1)
+        partySystem.combatSlots.add(1)
+        partySystem.activeOverworldCharacterId = 1
     }
 
     private fun seedStartingInventory() {
-        val inv = world.system<InventorySystem>()
+        val inv = entityWorld.system<InventorySystem>()
         // 5 equipment items
         inv.addItem(equipmentItemById(1001)!!) // Helmet
         inv.addItem(equipmentItemById(1002)!!) // Sword
@@ -132,48 +123,94 @@ class InitializeGameSystem(
         inv.addItem(battleEnchantmentItemById(4002)!!) // Iron Ward
     }
 
-    private fun setupPreferences() {
-        preferences.flush {
-            this["is_game_initialized"] = true
-            this["current_map"] = "map_1"
-        }
-    }
+    // ── Save restore helpers ───────────────────────────────────────────────────
 
-    private fun loadQuestState() {
-        world.system<QuestSystem>().loadState(preferences)
-    }
-
-    private fun loadResources() {
-        if (!preferences.contains(Resources.KEY_GOLD)) {
-            val defaults = Resources()
-            preferences.flush {
-                this[Resources.KEY_GOLD] = defaults.gold
+    private fun loadCharacterDataFromSave(partySave: PartySaveData) {
+        val partySystem = entityWorld.system<PartySystem>()
+        // Seed defaults first — provides a fallback for any character missing from the save
+        // (e.g. a new character config added after the save was written)
+        seedCharacterDefaults()
+        // Overlay each saved character on top of the defaults
+        partySave.characters.forEach { saved ->
+            val config = CHARACTER_CONFIGS[saved.characterId] ?: return@forEach
+            val bs     = config.baseStats
+            val abilities: MutableSet<Int> =
+                if (saved.unlockedAbilityIdsRaw.isBlank()) mutableSetOf()
+                else saved.unlockedAbilityIdsRaw.split(",")
+                    .mapNotNull { it.trim().toIntOrNull() }
+                    .toMutableSet()
+            val data = CharacterData(
+                characterId             = saved.characterId,
+                characterName           = config.characterName,
+                currentLevel            = saved.currentLevel,
+                currentEXP              = saved.currentEXP,
+                totalEXP                = saved.totalEXP,
+                moveSpeed               = saved.moveSpeed,
+                currentSkillPoints      = saved.currentSkillPoints,
+                totalSkillPoints        = saved.totalSkillPoints,
+                currentAbilityPoints    = saved.currentAbilityPoints,
+                totalAbilityPoints      = saved.totalAbilityPoints,
+                stamina                 = saved.stamina,
+                strength                = saved.strength,
+                agility                 = saved.agility,
+                intelligence            = saved.intelligence,
+                wisdom                  = saved.wisdom,
+                baseMaxHealth           = bs.baseMaxHealth,
+                baseMaxMana             = bs.baseMaxMana,
+                baseAttackSpeed         = bs.baseAttackSpeed,
+                baseAccuracy            = bs.baseAccuracy,
+                baseEvasion             = bs.baseEvasion,
+                baseAttackDamage        = bs.baseAttackDamage,
+                baseAttackDamagePercent = bs.baseAttackDamagePercent,
+                baseSpellDamage         = bs.baseSpellDamage,
+                baseSpellDamagePercent  = bs.baseSpellDamagePercent,
+                baseDefense             = bs.baseDefense,
+                baseDefensePercent      = bs.baseDefensePercent,
+                baseResistance          = bs.baseResistance,
+                baseResistancePercent   = bs.baseResistancePercent,
+                unlockedAbilityIds      = abilities,
+                equippedItems           = mutableMapOf(
+                    ItemCategory.HELMET to saved.equippedHelmet.takeIf { it >= 0 },
+                    ItemCategory.WEAPON to saved.equippedWeapon.takeIf { it >= 0 },
+                    ItemCategory.ARMOR  to saved.equippedArmor.takeIf  { it >= 0 },
+                    ItemCategory.BOOTS  to saved.equippedBoots.takeIf  { it >= 0 },
+                ),
+                isUnlocked              = saved.isUnlocked,
+            ).also { charData ->
+                charData.recalculateDerivedStats()
+                charData.currentHealth = saved.currentHealth.coerceIn(0f, charData.maxHealth)
+                charData.currentMana   = saved.currentMana.coerceIn(0f, charData.maxMana)
             }
-        } else {
-            world.system<ResourceSystem>().resources = Resources(
-                gold = preferences[Resources.KEY_GOLD, 0]
-            )
+            partySystem.characterDataMap[saved.characterId] = data
+        }
+        // Restore active character and combat slot order
+        partySystem.activeOverworldCharacterId = partySave.activeCharacterId
+        partySystem.combatSlots.clear()
+        partySave.combatSlotsRaw.split(",").mapNotNull { it.trim().toIntOrNull() }
+            .forEach { partySystem.combatSlots.add(it) }
+        if (partySystem.combatSlots.isEmpty()) partySystem.combatSlots.add(1)
+    }
+
+    private fun loadResourcesFromSave(gold: Int) {
+        entityWorld.system<ResourceSystem>().resources.gold = gold
+    }
+
+    private fun loadQuestStateFromSave(quests: ArrayList<QuestEntrySaveData>) {
+        val questSystem = entityWorld.system<QuestSystem>()
+        quests.forEach { entry ->
+            val status = QuestStatus.entries[entry.statusOrdinal]
+            questSystem.questStates[entry.questId] = QuestState(entry.questId, entry.progress, status)
         }
     }
 
-    private fun loadSettings() {
-        if (!preferences.contains(Settings.KEY_MASTER_VOLUME)) {
-            val defaults = Settings()
-            preferences.flush {
-                this[Settings.KEY_MASTER_VOLUME] = defaults.masterVolume
-                this[Settings.KEY_MUSIC_VOLUME] = defaults.musicVolume
-                this[Settings.KEY_EFFECTS_VOLUME] = defaults.effectsVolume
-                this[Settings.KEY_COMBAT_ANIMATION_SPEED] = defaults.combatAnimationSpeed.ordinal
-                this[Settings.KEY_AUTO_CLEAR_TEXT] = defaults.autoClearText
-            }
-        } else {
-            world.system<SettingsSystem>().settings = Settings(
-                masterVolume = preferences[Settings.KEY_MASTER_VOLUME, 100],
-                musicVolume = preferences[Settings.KEY_MUSIC_VOLUME, 100],
-                effectsVolume = preferences[Settings.KEY_EFFECTS_VOLUME, 100],
-                combatAnimationSpeed = CombatAnimationSpeed.entries[preferences[Settings.KEY_COMBAT_ANIMATION_SPEED, 0]],
-                autoClearText = preferences[Settings.KEY_AUTO_CLEAR_TEXT, false]
-            )
-        }
+    private fun loadSettingsFromSave() {
+        val settingsData = saveManager.loadSettings() ?: return
+        entityWorld.system<SettingsSystem>().settings = Settings(
+            masterVolume         = settingsData.masterVolume,
+            musicVolume          = settingsData.musicVolume,
+            effectsVolume        = settingsData.effectsVolume,
+            combatAnimationSpeed = CombatAnimationSpeed.entries[settingsData.combatAnimationSpeedOrdinal],
+            autoClearText        = settingsData.autoClearText,
+        )
     }
 }

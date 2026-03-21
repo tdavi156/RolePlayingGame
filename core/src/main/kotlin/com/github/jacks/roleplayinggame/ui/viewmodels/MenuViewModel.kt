@@ -1,20 +1,24 @@
 package com.github.jacks.roleplayinggame.ui.viewmodels
 
-import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
+import com.github.jacks.roleplayinggame.saveManager.SaveManager
+import com.github.quillraven.fleks.World
 import ktx.log.logger
 
 class MenuViewModel(
-    stage : Stage
+    stage: Stage,
+    private val saveManager: SaveManager,
+    private val entityWorld: World,
 ) : PropertyChangeSource(), EventListener {
-
-    private val preferences : Preferences by lazy { Gdx.app.getPreferences("planetaryIdlePrefs") }
 
     init {
         stage.addListener(this)
+    }
+
+    fun saveGame() {
+        saveManager.gatherAndSave(entityWorld)
     }
 
     override fun handle(event: Event): Boolean {

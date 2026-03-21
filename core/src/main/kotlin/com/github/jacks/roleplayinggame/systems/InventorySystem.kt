@@ -9,6 +9,11 @@ import com.github.jacks.roleplayinggame.components.InventoryComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.configurations.ItemCategory
 import com.github.jacks.roleplayinggame.configurations.QuestItemData
+import com.github.jacks.roleplayinggame.configurations.battleEnchantmentItemById
+import com.github.jacks.roleplayinggame.configurations.consumableItemById
+import com.github.jacks.roleplayinggame.configurations.equipmentItemById
+import com.github.jacks.roleplayinggame.configurations.questItemById
+import com.github.jacks.roleplayinggame.saveManager.InventorySaveData
 import com.github.quillraven.fleks.IntervalSystem
 
 class InventorySystem : IntervalSystem(), EventListener {
@@ -42,6 +47,22 @@ class InventorySystem : IntervalSystem(), EventListener {
     fun addItem(item: BattleEnchantmentItemData) {
         val entry = enchantments.find { it.item.id == item.id }
         if (entry != null) entry.quantity++ else enchantments += InventoryEntry(item, 1)
+    }
+
+    /**
+     * Clears all inventory lists and repopulates them from [data].
+     * Called by [InitializeGameSystem] when loading an existing save.
+     * Items whose IDs are not found in the config are silently skipped (forward-compat).
+     */
+    fun restoreInventory(data: InventorySaveData) {
+        equipment.clear()
+        consumables.clear()
+        questItems.clear()
+        enchantments.clear()
+        data.equipment.forEach    { e -> equipmentItemById(e.id)?.let          { equipment    += InventoryEntry(it, e.quantity) } }
+        data.consumables.forEach  { e -> consumableItemById(e.id)?.let         { consumables  += InventoryEntry(it, e.quantity) } }
+        data.questItems.forEach   { e -> questItemById(e.id)?.let              { questItems   += InventoryEntry(it, e.quantity) } }
+        data.enchantments.forEach { e -> battleEnchantmentItemById(e.id)?.let  { enchantments += InventoryEntry(it, e.quantity) } }
     }
 
     fun removeItem(id: Int) {

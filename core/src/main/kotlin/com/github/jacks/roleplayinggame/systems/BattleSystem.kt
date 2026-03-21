@@ -1,7 +1,5 @@
 package com.github.jacks.roleplayinggame.systems
 
-import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
@@ -31,13 +29,15 @@ import com.github.jacks.roleplayinggame.components.BattlePhase
 import com.github.jacks.roleplayinggame.components.ImageComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.physicsComponentFromShape2D
 import com.github.jacks.roleplayinggame.components.AbilityComponent
+import com.github.jacks.roleplayinggame.saveManager.CharacterData
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.PortalComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
-import com.github.jacks.roleplayinggame.components.NonPlayerConfiguration
+import com.github.jacks.roleplayinggame.components.StatsProvider
 import com.github.jacks.roleplayinggame.configurations.BattleComp
 import com.github.jacks.roleplayinggame.configurations.BATTLE_COMPS
 import com.github.jacks.roleplayinggame.configurations.Configurations
+import com.github.jacks.roleplayinggame.configurations.EnemyConfiguration
 import com.github.jacks.roleplayinggame.configurations.EnemyType
 import com.github.jacks.roleplayinggame.configurations.RANDOM_COMPS
 import com.github.jacks.roleplayinggame.configurations.rollForDrop
@@ -81,9 +81,8 @@ import com.github.quillraven.fleks.AllOf
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
+import com.github.jacks.roleplayinggame.saveManager.SaveManager
 import ktx.app.gdxError
-import ktx.preferences.flush
-import ktx.preferences.set
 import ktx.tiled.height
 import ktx.tiled.id
 import ktx.tiled.layer
@@ -102,9 +101,8 @@ class BattleSystem(
     private val statComponents: ComponentMapper<StatComponent>,
     private val animationComponents: ComponentMapper<AnimationComponent>,
     private val imageComponents: ComponentMapper<ImageComponent>,
+    private val saveManager: SaveManager,
 ) : IteratingSystem(), EventListener {
-
-    private val preferences: Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
     private val playerFamily by lazy { world.family(allOf = arrayOf(PlayerComponent::class)) }
     private val resourceSystem by lazy { world.system<ResourceSystem>() }
     private val inventorySystem by lazy { world.system<InventorySystem>() }
@@ -120,19 +118,18 @@ class BattleSystem(
     private var currentPlayerEntity: Entity? = null
 
     private var savedEnemyModel: AnimationModel = AnimationModel.UNDEFINED
-    private var savedEnemyStats: StatComponent? = null
     private var savedEnemyImageWidth: Float = 0f
     private var savedEnemyImageHeight: Float = 0f
     private var savedSpawnerId: Int = -1
     private var savedSpawnerMapId: Int = -1
-    private var savedNonPlayerConfig: NonPlayerConfiguration? = null
+    private var savedEnemyConfig: EnemyConfiguration? = null
 
     // -------------------------------------------------------------------------
     // Multi-enemy session state
     // -------------------------------------------------------------------------
 
     private val allEnemyEntities = mutableListOf<Entity>()
-    private val enemyConfigs = mutableMapOf<Entity, NonPlayerConfiguration>()
+    private val enemyConfigs = mutableMapOf<Entity, EnemyConfiguration>()
     /** Bottom-left image position of each enemy (same coordinate system as Image.x/y). */
     private val enemyOrigins = mutableListOf<Vector2>()
     /** Enemies whose kill rewards have already been awarded this battle. */
@@ -182,13 +179,12 @@ class BattleSystem(
             battleComponent.triggerEntities.clear()
 
             savedEnemyModel       = animationComponents.getOrNull(entity)?.model ?: AnimationModel.UNDEFINED
-            savedEnemyStats       = statComponents.getOrNull(entity)?.copy()
             val img               = imageComponents.getOrNull(entity)?.image
             savedEnemyImageWidth  = img?.width  ?: 1f
             savedEnemyImageHeight = img?.height ?: 1f
             savedSpawnerId        = battleComponent.spawnerId
             savedSpawnerMapId     = battleComponent.spawnerMapId
-            savedNonPlayerConfig  = Configurations.getNonPlayerConfig(savedEnemyModel)
+            savedEnemyConfig      = Configurations.getEnemyConfig(savedEnemyModel)
 
             gameStage.fire(BattleTransitionStartEvent(entity))
             return
@@ -280,10 +276,9 @@ class BattleSystem(
                     // Restore all party members to at least 1 HP
                     allCombatPlayerEntities.forEach { pe ->
                         val pStat = statComponents.getOrNull(pe) ?: return@forEach
-                        pStat.currentHealth = pStat.currentHealth.coerceAtLeast(1f)
-                        val charId = playerMapper.getOrNull(pe)?.characterId ?: return@forEach
-                        partySystem.updateCharacterData(charId) { currentHp = pStat.currentHealth }
+                        pStat.stats.currentHealth = pStat.stats.currentHealth.coerceAtLeast(1f)
                     }
+                    saveManager.gatherAndSave(world)
                     gameStage.fire(BattleLogEvent("You were defeated...\nReturning to last save point."))
                 }
                 BattleEndReason.FLEE -> {
@@ -296,14 +291,6 @@ class BattleSystem(
 
         if (battleComponent.waitingForEndDismiss) return
 
-        // Cleanup spawner prefs
-        if (savedSpawnerId >= 0 && savedSpawnerMapId >= 0) {
-            preferences.flush {
-                this["spawner_${savedSpawnerId}_map_${savedSpawnerMapId}_is_Spawned"] = false
-                this["spawner_${savedSpawnerId}_map_${savedSpawnerMapId}_current_time"] = 0f
-            }
-        }
-
         val reason = battleComponent.endReason
         battleComponent.battleInProgress     = false
         battleComponent.phase                = BattlePhase.PLAYER_TURN
@@ -313,21 +300,16 @@ class BattleSystem(
         currentPlayerEntity                  = null
         savedSpawnerId                       = -1
         savedSpawnerMapId                    = -1
-        savedNonPlayerConfig                 = null
+        savedEnemyConfig                     = null
 
         hideSelectionIndicator()
 
         if (reason == BattleEndReason.WIN) {
             // Release escrow to systems
             resourceSystem.resources.gold += pendingGold
-            resourceSystem.saveResources()
             pendingLoot.filterNotNull().forEach { item -> inventorySystem.addItem(item) }
             val rewardData = BattleRewardData(totalXpGained, pendingGold, pendingLoot.filterNotNull())
-            // Save CharacterData for all combat party members
-            allCombatPlayerEntities.forEach { pe ->
-                val charId = playerMapper.getOrNull(pe)?.characterId ?: return@forEach
-                partySystem.saveCharacterData(charId)
-            }
+            saveManager.gatherAndSave(world)
             clearEscrow()
             clearSessionState()
             gameStage.fire(BattleRewardEvent(rewardData))
@@ -358,8 +340,8 @@ class BattleSystem(
     private fun sortTurnOrder(preserveActive: Boolean) {
         val activeEntity = if (preserveActive) turnOrder.getOrNull(currentTurnIndex) else null
         turnOrder.sortWith { a, b ->
-            val sA = statComponents.getOrNull(a)?.attackSpeed ?: 0f
-            val sB = statComponents.getOrNull(b)?.attackSpeed ?: 0f
+            val sA = statComponents.getOrNull(a)?.stats?.attackSpeed ?: 0f
+            val sB = statComponents.getOrNull(b)?.stats?.attackSpeed ?: 0f
             when {
                 sB > sA -> 1
                 sA > sB -> -1
@@ -544,14 +526,7 @@ class BattleSystem(
                     nextAnimation(AnimationModel.PLAYER, AnimationType.IDLE, AnimationDirection.SIDE)
                 }
                 add<StatComponent> {
-                    maxHealth  = charData.maxHp
-                    currentHealth = charData.currentHp
-                    maxMana    = charData.maxMana
-                    currentMana = charData.currentMana
-                    attackDamage = charData.attack
-                    defense    = charData.defense
-                    attackSpeed = charData.attackSpeed
-                    moveSpeed  = charData.moveSpeed
+                    stats = charData
                 }
                 add<PlayerComponent> {
                     characterId = charId
@@ -568,8 +543,7 @@ class BattleSystem(
         val units = listOfNotNull(comp.unit1, comp.unit2, comp.unit3)
         units.forEachIndexed { index, enemyType ->
             val spawner = enemySpawners.getOrNull(index) ?: return@forEachIndexed
-            val config  = Configurations.getNonPlayerConfig(enemyType.animationModel) ?: return@forEachIndexed
-            val stats   = config.stats
+            val config  = Configurations.getEnemyConfig(enemyType.animationModel) ?: return@forEachIndexed
 
             // Bottom-left image position (same as original single-enemy code)
             val imgX = spawner.x * UNIT_SCALE - savedEnemyImageWidth * 0.5f + spawner.width * 0.5f * UNIT_SCALE
@@ -588,18 +562,7 @@ class BattleSystem(
                     nextAnimation(enemyType.animationModel, AnimationType.IDLE)
                 }
                 add<StatComponent> {
-                    prefsName      = stats.prefsName
-                    currentHealth  = stats.currentHealth
-                    maxHealth      = stats.maxHealth
-                    currentMana    = stats.currentMana
-                    maxMana        = stats.maxMana
-                    attackDamage   = stats.attackDamage
-                    attackPercent  = stats.attackPercent
-                    attackSpeed    = stats.attackSpeed
-                    defense        = stats.defense
-                    defensePercent = stats.defensePercent
-                    moveSpeed      = stats.moveSpeed
-                    xpReward       = config.xpReward
+                    stats = config.stats.copy()
                 }
                 add<BattleComponent> {
                     battleInProgress = true
@@ -627,7 +590,7 @@ class BattleSystem(
     }
 
     private fun resolveBattleComp(): BattleComp? {
-        val compId = savedNonPlayerConfig?.battleCompId
+        val compId = savedEnemyConfig?.battleCompId
         if (compId != null) {
             return BATTLE_COMPS[compId]
                 ?: gdxError("battleCompId=$compId not found in BATTLE_COMPS")
@@ -648,24 +611,21 @@ class BattleSystem(
         if (enemyEntity in killedEnemiesRewarded) return
         killedEnemiesRewarded.add(enemyEntity)
 
-        val playerStat = statComponents.getOrNull(playerEntity)
-        val enemyStat  = statComponents.getOrNull(enemyEntity)
+        val playerStat   = statComponents.getOrNull(playerEntity)
+        val playerData   = playerStat?.stats as? CharacterData
+        val enemyConfig  = enemyConfigs[enemyEntity]
+        val xpReward     = enemyConfig?.xpReward ?: 0
 
-        if (playerStat != null && enemyStat != null && enemyStat.xpReward > 0) {
-            val xp     = enemyStat.xpReward
-            totalXpGained += xp
-            val levels = playerStat.gainExperience(xp)
+        if (playerData != null && xpReward > 0) {
+            totalXpGained += xpReward
+            val levels = playerData.gainExperience(xpReward)
             if (levels > 0) {
                 totalLevelsGained += levels
-                finalPlayerLevel   = playerStat.level
+                finalPlayerLevel   = playerData.currentLevel
                 repeat(levels) {
-                    gameStage.fire(LevelUpEvent(playerEntity, playerStat.level))
+                    gameStage.fire(LevelUpEvent(playerEntity, playerData.currentLevel))
                     gameStage.fire(GainSkillPointEvent(playerEntity))
                     gameStage.fire(GainAbilityPointEvent(playerEntity))
-                }
-                preferences.flush {
-                    this["player_level"]      = playerStat.level
-                    this["player_experience"] = playerStat.experience
                 }
             }
         }
@@ -723,8 +683,11 @@ class BattleSystem(
         val enemyName      = enemyDisplayName(enemyEntity)
         val eOrigin        = getEnemyOrigin(enemyEntity)   // bottom-left of enemy image
 
-        val peekDmg  = peekDamage(playerEntity, enemyEntity)
-        val isLethal = (statComponents.getOrNull(enemyEntity)?.currentHealth ?: 0f) - peekDmg <= 0f
+        val attackerStats = statComponents.getOrNull(playerEntity)?.stats ?: return
+        val defenderStats = statComponents.getOrNull(enemyEntity)?.stats  ?: return
+        val hit      = resolveHitChance(attackerStats, defenderStats)
+        val peekDmg  = if (hit) resolvePhysicalDamage(attackerStats, defenderStats) else 0f
+        val isLethal = hit && (defenderStats.currentHealth - peekDmg <= 0f)
         val dispDmg  = peekDmg.toInt()
 
         sequenceRunning = true
@@ -742,10 +705,10 @@ class BattleSystem(
             Actions.delay(HIT_FLASH_DELAY),
             Actions.run {
                 enemyImg.useWhiteShader = true
-                // Floating text at enemy centre
+                val floatText = if (hit) dispDmg.toString() else "Missed!"
                 gameStage.fire(FloatingTextEvent(
                     Vector2(eOrigin.x + savedEnemyImageWidth * 0.5f, eOrigin.y + savedEnemyImageHeight * 0.5f),
-                    dispDmg.toString(), Fonts.DAMAGE
+                    floatText, Fonts.DAMAGE
                 ))
                 if (isLethal) {
                     enemyAnimComp.nextAnimation(AnimationType.DEATH)
@@ -758,9 +721,13 @@ class BattleSystem(
 
             waitUntil { playerAnimComp.isAnimationDone },
             Actions.run {
-                val dmg = applyDamage(attacker = playerEntity, target = enemyEntity)
-                fireHealthUpdate()
-                gameStage.fire(BattleLogEvent("You attack for ${dmg.toInt()} damage!"))
+                if (hit) {
+                    val dmg = applyDamage(attacker = playerEntity, target = enemyEntity)
+                    fireHealthUpdate()
+                    gameStage.fire(BattleLogEvent("You attack for ${dmg.toInt()} damage!"))
+                } else {
+                    gameStage.fire(BattleLogEvent("You missed!"))
+                }
             },
 
             Actions.run { playerAnimComp.nextAnimation(AnimationType.MOVE, AnimationDirection.SIDE) },
@@ -797,8 +764,11 @@ class BattleSystem(
         val enemyName      = enemyDisplayName(enemyEntity)
         val eOrigin        = getEnemyOrigin(enemyEntity)
 
-        val peekDmg  = peekDamage(enemyEntity, playerEntity)
-        val isLethal = (statComponents.getOrNull(playerEntity)?.currentHealth ?: 0f) - peekDmg <= 0f
+        val attackerStats = statComponents.getOrNull(enemyEntity)?.stats  ?: return
+        val defenderStats = statComponents.getOrNull(playerEntity)?.stats ?: return
+        val hit      = resolveHitChance(attackerStats, defenderStats)
+        val peekDmg  = if (hit) resolvePhysicalDamage(attackerStats, defenderStats) else 0f
+        val isLethal = hit && (defenderStats.currentHealth - peekDmg <= 0f)
         val dispDmg  = peekDmg.toInt()
 
         sequenceRunning = true
@@ -824,7 +794,8 @@ class BattleSystem(
             Actions.delay(HIT_FLASH_DELAY),
             Actions.run {
                 playerImg.useWhiteShader = true
-                gameStage.fire(FloatingTextEvent(Vector2(playerOriginX, playerOriginY), dispDmg.toString(), Fonts.DAMAGE))
+                val floatText = if (hit) dispDmg.toString() else "Missed!"
+                gameStage.fire(FloatingTextEvent(Vector2(playerOriginX, playerOriginY), floatText, Fonts.DAMAGE))
                 if (isLethal) {
                     playerAnimComp.nextAnimation(AnimationType.DEATH)
                     playerAnimComp.playMode = Animation.PlayMode.NORMAL
@@ -836,9 +807,13 @@ class BattleSystem(
 
             waitUntil { enemyAnimComp.isAnimationDone },
             Actions.run {
-                val dmg = applyDamage(attacker = enemyEntity, target = playerEntity)
-                fireHealthUpdate()
-                gameStage.fire(BattleLogEvent("$enemyName attacks for ${dmg.toInt()} damage!"))
+                if (hit) {
+                    val dmg = applyDamage(attacker = enemyEntity, target = playerEntity)
+                    fireHealthUpdate()
+                    gameStage.fire(BattleLogEvent("$enemyName attacks for ${dmg.toInt()} damage!"))
+                } else {
+                    gameStage.fire(BattleLogEvent("$enemyName missed!"))
+                }
             },
 
             Actions.run {
@@ -889,26 +864,26 @@ class BattleSystem(
     private fun applyDamage(attacker: Entity, target: Entity): Float {
         val aS  = statComponents.getOrNull(attacker) ?: return 0f
         val tS  = statComponents.getOrNull(target)   ?: return 0f
-        val dmg = (aS.attackDamage - tS.defense).coerceAtLeast(1f)
-        tS.currentHealth = (tS.currentHealth - dmg).coerceAtLeast(0f)
+        val dmg = resolvePhysicalDamage(aS.stats, tS.stats)
+        tS.stats.currentHealth = (tS.stats.currentHealth - dmg).coerceAtLeast(0f)
         return dmg
     }
 
     private fun peekDamage(attacker: Entity, target: Entity): Float {
         val aS = statComponents.getOrNull(attacker) ?: return 0f
         val tS = statComponents.getOrNull(target)   ?: return 0f
-        return (aS.attackDamage - tS.defense).coerceAtLeast(1f)
+        return resolvePhysicalDamage(aS.stats, tS.stats)
     }
 
     private fun fireHealthUpdate() {
         val playerEntity = currentPlayerEntity ?: return
         val pStat        = statComponents.getOrNull(playerEntity)
-        val playerPct    = if (pStat != null && pStat.maxHealth > 0f)
-            (pStat.currentHealth / pStat.maxHealth).coerceIn(0f, 1f) else 1f
+        val playerPct    = if (pStat != null && pStat.stats.maxHealth > 0f)
+            (pStat.stats.currentHealth / pStat.stats.maxHealth).coerceIn(0f, 1f) else 1f
         val enemyPcts = allEnemyEntities.map { e ->
             val eStat = statComponents.getOrNull(e)
-            if (eStat != null && eStat.maxHealth > 0f)
-                (eStat.currentHealth / eStat.maxHealth).coerceIn(0f, 1f) else 0f
+            if (eStat != null && eStat.stats.maxHealth > 0f)
+                (eStat.stats.currentHealth / eStat.stats.maxHealth).coerceIn(0f, 1f) else 0f
         }
         gameStage.fire(BattleHealthUpdateEvent(playerPct, enemyPcts))
     }
@@ -928,6 +903,46 @@ class BattleSystem(
     private fun getTargetEntity(targetIndex: Int): Entity? {
         val living = allEnemyEntities.filter { !(statComponents.getOrNull(it)?.isDead ?: true) }
         return living.getOrNull(targetIndex) ?: living.firstOrNull()
+    }
+
+    // ── Part 5: Accuracy / Evasion ────────────────────────────────────────────
+
+    /**
+     * Returns true if the attack lands.
+     * hitChance = attacker.accuracy - defender.evasion, clamped to [0, 1].
+     * Always applied for basic Attack; never for spells.
+     */
+    private fun resolveHitChance(attacker: StatsProvider, defender: StatsProvider): Boolean {
+        val hitChance = (attacker.accuracy - defender.evasion).coerceIn(0f, 1f)
+        return Random.nextFloat() < hitChance
+    }
+
+    // ── Part 6: Physical Damage / Defense ────────────────────────────────────
+
+    /**
+     * Calculates final physical damage after defense reduction.
+     * rawDamage = attackDamage * attackDamagePercent
+     * finalDamage = max(0, rawDamage - (defense * defensePercent))
+     * // TODO: If finalDamage == 0f after defense reduction, consider showing "Blocked!" message instead of "0" in a future update
+     */
+    private fun resolvePhysicalDamage(attacker: StatsProvider, defender: StatsProvider): Float {
+        val rawDamage   = attacker.attackDamage * attacker.attackDamagePercent
+        val finalDamage = rawDamage - (defender.defense * defender.defensePercent)
+        return finalDamage.coerceAtLeast(0f)
+    }
+
+    // ── Part 7: Spell Damage / Resistance ────────────────────────────────────
+
+    /**
+     * Calculates final spell damage after resistance reduction.
+     * rawDamage = spellDamage * spellDamagePercent
+     * finalDamage = max(0, rawDamage - (resistance * resistancePercent))
+     * Accuracy/evasion is NOT applied to spells — they always attempt damage resolution.
+     */
+    private fun resolveSpellDamage(caster: StatsProvider, defender: StatsProvider): Float {
+        val rawDamage   = caster.spellDamage * caster.spellDamagePercent
+        val finalDamage = rawDamage - (defender.resistance * defender.resistancePercent)
+        return finalDamage.coerceAtLeast(0f)
     }
 
     // -------------------------------------------------------------------------
@@ -979,7 +994,7 @@ class BattleSystem(
                 val node  = tree.nodes.find { it.id == event.abilityId } ?: return false
                 val cStat = statComponents.getOrNull(event.casterEntity) ?: return false
 
-                cStat.currentMana = (cStat.currentMana - node.manaCost).coerceAtLeast(0f)
+                cStat.stats.currentMana = (cStat.stats.currentMana - node.manaCost).coerceAtLeast(0f)
                 fireHealthUpdate()
 
                 val effectLine: String
@@ -987,8 +1002,8 @@ class BattleSystem(
                     is AbilityEffect.DamageEnemy -> {
                         val target  = getTargetEntity(event.targetIndex) ?: return false
                         val tStat   = statComponents.getOrNull(target) ?: return false
-                        val dmg     = effect.amount.toFloat()
-                        tStat.currentHealth = (tStat.currentHealth - dmg).coerceAtLeast(0f)
+                        val dmg     = resolveSpellDamage(cStat.stats, tStat.stats)
+                        tStat.stats.currentHealth = (tStat.stats.currentHealth - dmg).coerceAtLeast(0f)
                         fireHealthUpdate()
                         val tOrigin = getEnemyOrigin(target)
                         gameStage.fire(FloatingTextEvent(
@@ -1006,7 +1021,7 @@ class BattleSystem(
                     }
                     is AbilityEffect.HealSelf -> {
                         val heal = effect.amount.toFloat()
-                        cStat.currentHealth = (cStat.currentHealth + heal).coerceAtMost(cStat.maxHealth)
+                        cStat.stats.currentHealth = (cStat.stats.currentHealth + heal).coerceAtMost(cStat.stats.maxHealth)
                         fireHealthUpdate()
                         gameStage.fire(FloatingTextEvent(
                             Vector2(playerOriginX, playerOriginY), "+${heal.toInt()} HP", Fonts.DAMAGE
@@ -1070,7 +1085,7 @@ class BattleSystem(
                 }
                 currentBattleEntity  = null
                 currentPlayerEntity  = null
-                savedNonPlayerConfig = null
+                savedEnemyConfig     = null
                 hideSelectionIndicator()
                 clearEscrow()
                 clearSessionState()

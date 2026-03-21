@@ -1,21 +1,20 @@
 package com.github.jacks.roleplayinggame.ui.viewmodels
 
-import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.configurations.CombatAnimationSpeed
-import com.github.jacks.roleplayinggame.configurations.Settings
 import com.github.jacks.roleplayinggame.events.SettingsClosedEvent
 import com.github.jacks.roleplayinggame.events.SettingsOpenEvent
 import com.github.jacks.roleplayinggame.events.fire
+import com.github.jacks.roleplayinggame.saveManager.SaveManager
+import com.github.jacks.roleplayinggame.saveManager.SettingsSaveData
 import com.github.jacks.roleplayinggame.systems.SettingsSystem
-import ktx.preferences.flush
-import ktx.preferences.set
 
 class SettingsViewModel(
     private val uiStage: Stage,
-    private val settingsSystem: SettingsSystem
+    private val settingsSystem: SettingsSystem,
+    private val saveManager: SaveManager,
 ) : PropertyChangeSource(), EventListener {
 
     var masterVolume by propertyNotify(100)
@@ -80,14 +79,13 @@ class SettingsViewModel(
         settingsSystem.settings.effectsVolume = effectsVolume
         settingsSystem.settings.combatAnimationSpeed = combatAnimationSpeed
         settingsSystem.settings.autoClearText = autoClearText
-        val prefs = Gdx.app.getPreferences("rolePlayingGamePrefs")
-        prefs.flush {
-            this[Settings.KEY_MASTER_VOLUME] = masterVolume
-            this[Settings.KEY_MUSIC_VOLUME] = musicVolume
-            this[Settings.KEY_EFFECTS_VOLUME] = effectsVolume
-            this[Settings.KEY_COMBAT_ANIMATION_SPEED] = combatAnimationSpeed.ordinal
-            this[Settings.KEY_AUTO_CLEAR_TEXT] = autoClearText
-        }
+        saveManager.saveSettings(SettingsSaveData(
+            masterVolume                = masterVolume,
+            musicVolume                 = musicVolume,
+            effectsVolume               = effectsVolume,
+            combatAnimationSpeedOrdinal = combatAnimationSpeed.ordinal,
+            autoClearText               = autoClearText,
+        ))
         uiStage.fire(SettingsClosedEvent())
     }
 

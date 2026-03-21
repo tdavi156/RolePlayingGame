@@ -1,7 +1,5 @@
 package com.github.jacks.roleplayinggame.systems
 
-import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
@@ -13,9 +11,8 @@ import com.github.jacks.roleplayinggame.events.CompleteQuestEvent
 import com.github.jacks.roleplayinggame.events.EnemyKilledEvent
 import com.github.jacks.roleplayinggame.events.QuestStateChangedEvent
 import com.github.jacks.roleplayinggame.events.fire
+import com.github.jacks.roleplayinggame.saveManager.SaveManager
 import com.github.quillraven.fleks.IntervalSystem
-import ktx.preferences.flush
-import ktx.preferences.set
 
 enum class QuestStatus { NOT_STARTED, ACTIVE, CONDITIONS_MET, COMPLETED }
 
@@ -26,16 +23,12 @@ data class QuestState(
 )
 
 class QuestSystem(
-    private val gameStage: Stage
+    private val gameStage: Stage,
+    private val saveManager: SaveManager,
 ) : IntervalSystem(), EventListener {
 
     val questStates: MutableMap<Int, QuestState> = mutableMapOf()
     private val resourceSystem by lazy { world.system<ResourceSystem>() }
-    private val preferences: Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
-
-    companion object {
-        const val KEY_QUEST_PREFIX = "quest_"
-    }
 
     override fun onTick() { /* driven entirely by events */ }
 
@@ -45,7 +38,7 @@ class QuestSystem(
                 val state = questStates.getOrPut(event.questId) { QuestState(event.questId) }
                 state.status = QuestStatus.ACTIVE
                 state.progress = 0
-                saveState()
+                saveManager.gatherAndSave(world)
                 gameStage.fire(QuestStateChangedEvent(event.questId))
                 return true
             }
@@ -60,7 +53,7 @@ class QuestSystem(
                             state.status = QuestStatus.CONDITIONS_MET
                         }
                         anyUpdated = true
-                        saveState()
+                        saveManager.gatherAndSave(world)
                         gameStage.fire(QuestStateChangedEvent(state.questId))
                     }
                 }
@@ -72,9 +65,8 @@ class QuestSystem(
                 val config = QUESTS[event.questId]
                 if (config != null) {
                     resourceSystem.resources.gold += config.reward.goldAmount
-                    resourceSystem.saveResources()
                 }
-                saveState()
+                saveManager.gatherAndSave(world)
                 gameStage.fire(QuestStateChangedEvent(event.questId))
                 return true
             }
@@ -84,26 +76,5 @@ class QuestSystem(
 
     fun getState(questId: Int): QuestState {
         return questStates.getOrPut(questId) { QuestState(questId) }
-    }
-
-    fun saveState() {
-        preferences.flush {
-            questStates.forEach { (id, state) ->
-                this["${KEY_QUEST_PREFIX}${id}_status"] = state.status.ordinal
-                this["${KEY_QUEST_PREFIX}${id}_progress"] = state.progress
-            }
-        }
-    }
-
-    fun loadState(prefs: Preferences) {
-        QUESTS.keys.forEach { id ->
-            val statusOrdinal = prefs.getInteger("${KEY_QUEST_PREFIX}${id}_status", -1)
-            if (statusOrdinal >= 0) {
-                val status = QuestStatus.entries[statusOrdinal]
-                val progress = prefs.getInteger("${KEY_QUEST_PREFIX}${id}_progress", 0)
-                questStates[id] = QuestState(id, progress, status)
-                gameStage.fire(QuestStateChangedEvent(id))
-            }
-        }
     }
 }

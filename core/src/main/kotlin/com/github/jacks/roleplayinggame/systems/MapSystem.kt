@@ -1,7 +1,5 @@
 package com.github.jacks.roleplayinggame.systems
 
-import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.maps.MapObject
 import com.badlogic.gdx.maps.tiled.TiledMap
 import com.badlogic.gdx.maps.tiled.TmxMapLoader
@@ -13,13 +11,13 @@ import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.actions.Actions.*
 import com.badlogic.gdx.scenes.scene2d.actions.SequenceAction
 import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
+import com.github.jacks.roleplayinggame.saveManager.SpawnerEntrySaveData
 import com.github.jacks.roleplayinggame.components.BattleComponent
 import com.github.jacks.roleplayinggame.components.ImageComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.PhysicsComponent.Companion.bodyFromImageAndConfiguration
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.SpawnerComponent
-import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.configurations.Configurations.Companion.PLAYER_CONFIGURATION
 import com.github.jacks.roleplayinggame.events.BattleEndEvent
 import com.github.jacks.roleplayinggame.events.BattleEvent
@@ -31,11 +29,9 @@ import com.github.jacks.roleplayinggame.ui.views.FadeInOutView
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.IntervalSystem
 import com.github.quillraven.fleks.Qualifier
+import com.github.jacks.roleplayinggame.saveManager.SaveManager
 import ktx.app.gdxError
 import ktx.assets.disposeSafely
-import ktx.preferences.flush
-import ktx.preferences.get
-import ktx.preferences.set
 import ktx.tiled.height
 import ktx.tiled.id
 import ktx.tiled.layer
@@ -46,19 +42,41 @@ import ktx.tiled.y
 class MapSystem(
     private val physicsWorld : World,
     private val gameStage : Stage,
-    private val statComponents : ComponentMapper<StatComponent>,
     private val physicsComponents : ComponentMapper<PhysicsComponent>,
     private val imageComponents : ComponentMapper<ImageComponent>,
     private val spawnerComponents : ComponentMapper<SpawnerComponent>,
     private val battleComponents : ComponentMapper<BattleComponent>,
+    private val playerComponents : ComponentMapper<PlayerComponent>,
+    private val saveManager: SaveManager,
 ) : IntervalSystem(), EventListener {
 
-    private val preferences : Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
     private var currentMap : TiledMap? = null
     // Overworld state saved when entering a battle map
     private var preBattleMapName: String? = null
     private var preBattlePlayerX: Float = 0f
     private var preBattlePlayerY: Float = 0f
+
+    /** Name of the map currently loaded. Updated on every map transition. Used by SaveManager. */
+    var currentMapName: String = "map_1"
+        private set
+
+    /**
+     * Collects the current spawner state from all active [SpawnerComponent] entities.
+     * Called by [SaveManager.gatherAndSave] to capture spawner persistence data.
+     */
+    fun collectSpawnerSaveData(): ArrayList<SpawnerEntrySaveData> {
+        val list = arrayListOf<SpawnerEntrySaveData>()
+        world.family(allOf = arrayOf(SpawnerComponent::class)).forEach { spawnerEntity ->
+            val sc = spawnerComponents[spawnerEntity]
+            list.add(SpawnerEntrySaveData(
+                spawnerId   = sc.spawnerId,
+                mapId       = sc.mapId,
+                isSpawned   = sc.isSpawned,
+                currentTime = sc.currentTime,
+            ))
+        }
+        return list
+    }
 
     override fun onTick() = Unit
 
@@ -70,7 +88,7 @@ class MapSystem(
             }
             is BattleEvent -> {
                 // Save overworld map name and player position before switching
-                preBattleMapName = preferences["current_map", "map_1"]
+                preBattleMapName = currentMapName
                 world.family(allOf = arrayOf(PlayerComponent::class)).forEach { playerEntity ->
                     val playerImage = imageComponents[playerEntity].image
                     preBattlePlayerX = playerImage.x
@@ -88,12 +106,12 @@ class MapSystem(
     }
 
     fun setMap(mapName : String, targetPortalId : Int = -1) {
-        if (currentMap != null) { saveCurrentMapData() }
+        if (currentMap != null) { saveManager.gatherAndSave(world) }
         val newMap = TmxMapLoader().load("maps/$mapName.tmx")
         currentMap?.disposeSafely()
         currentMap = newMap
+        currentMapName = mapName
         world.family(noneOf = arrayOf(PlayerComponent::class)).forEach { world.remove(it) }
-        preferences.flush { this["current_map"] = mapName }
 
         val mapObject = if (targetPortalId != -1) {
             targetPortalById(newMap, targetPortalId)
@@ -123,15 +141,12 @@ class MapSystem(
     }
 
     fun setBattleMap(mapName : String) {
-        if (currentMap != null) { saveCurrentMapData() }
+        if (currentMap != null) { saveManager.gatherAndSave(world) }
         currentMap?.disposeSafely()
         world.family(noneOf = arrayOf(PlayerComponent::class)).forEach { world.remove(it) }
         val newMap = TmxMapLoader().load("maps/$mapName.tmx")
         currentMap = newMap
-        preferences.flush {
-            this["previous_map"] = preferences["current_map", "map_1"]
-            this["current_map"] = mapName
-        }
+        currentMapName = mapName
 
         world.family(allOf = arrayOf(PlayerComponent::class)).forEach { playerEntity ->
             val playerSpawner = newMap.layer("spawners").objects.get("player_spawner")
@@ -156,12 +171,12 @@ class MapSystem(
     }
 
     private fun returnToOverworld() {
-        val mapName = preBattleMapName ?: preferences["previous_map", "map_1"]
+        val mapName = preBattleMapName ?: "map_1"
         currentMap?.disposeSafely()
         world.family(noneOf = arrayOf(PlayerComponent::class)).forEach { world.remove(it) }
         val newMap = TmxMapLoader().load("maps/$mapName.tmx")
         currentMap = newMap
-        preferences.flush { this["current_map"] = mapName }
+        currentMapName = mapName
 
         world.family(allOf = arrayOf(PlayerComponent::class)).forEach { playerEntity ->
             val playerImage = imageComponents[playerEntity].image
@@ -185,27 +200,6 @@ class MapSystem(
     private fun targetPortalById(map : TiledMap, portalId : Int) : MapObject {
         return map.layer("portals").objects.first { it.id == portalId }
             ?: gdxError("There is no portal with id: $portalId")
-    }
-
-    private fun saveCurrentMapData() {
-        world.family(allOf = arrayOf(PlayerComponent::class)).forEach { playerEntity ->
-            val statComponent = statComponents[playerEntity]
-            preferences.flush {
-                // player data such as health, exp, mana, level
-                // eventually we need to include the player id when there are multiple characters
-                this["player_current_health"] = statComponent.currentHealth
-                this["player_current_mana"] = statComponent.currentMana
-                this["player_level"] = statComponent.level
-                this["player_experience"] = statComponent.experience
-            }
-        }
-        world.family(allOf = arrayOf(SpawnerComponent::class)).forEach { spawnerEntity ->
-            val spawnerComponent = spawnerComponents[spawnerEntity]
-            preferences.flush {
-                this["spawner_${spawnerComponent.spawnerId}_map_${spawnerComponent.mapId}_current_time"] = spawnerComponent.currentTime
-                this["spawner_${spawnerComponent.spawnerId}_map_${spawnerComponent.mapId}_is_Spawned"] = spawnerComponent.isSpawned
-            }
-        }
     }
 
     override fun onDispose() {

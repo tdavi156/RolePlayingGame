@@ -5,6 +5,7 @@ import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.InventoryComponent
+import com.github.jacks.roleplayinggame.saveManager.CharacterData
 import com.github.jacks.roleplayinggame.components.PhysicsComponent
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
@@ -23,11 +24,13 @@ import com.github.jacks.roleplayinggame.events.SkillViewClosedEvent
 import com.github.jacks.roleplayinggame.events.UseConsumableEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.ui.Fonts
+import com.github.jacks.roleplayinggame.saveManager.SaveManager
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IntervalSystem
 
 class StatSystem(
     private val gameStage: Stage,
+    private val saveManager: SaveManager,
 ) : IntervalSystem(), EventListener {
 
     private val playerFamily      by lazy { world.family(allOf = arrayOf(PlayerComponent::class)) }
@@ -35,9 +38,6 @@ class StatSystem(
     private val inventoryMapper   by lazy { world.mapper<InventoryComponent>() }
     private val physicsComponents by lazy { world.mapper<PhysicsComponent>() }
     private val playerMapper      by lazy { world.mapper<PlayerComponent>() }
-
-    /** Guard flag — set true while writing CharacterData to prevent cascading save loops. */
-    private var isSyncing = false
 
     override fun onTick() = Unit
 
@@ -49,48 +49,12 @@ class StatSystem(
         playerMapper.getOrNull(entity)?.characterId
 
     /**
-     * Writes HP and mana from [stat] back to the matching CharacterData.
-     * No-op if isSyncing is already true (prevents cascading writes).
+     * Saves the CharacterData (HP, mana, skills, etc.) back to preferences.
+     * Since StatComponent.stats IS CharacterData, no data copy is needed.
      */
-    fun syncHpMana(entity: Entity, stat: StatComponent) {
-        if (isSyncing) return
+    fun syncHpMana(entity: Entity) {
         val id = characterIdOf(entity) ?: return
-        isSyncing = true
-        try {
-            partySystem().updateCharacterData(id) {
-                currentHp   = stat.currentHealth
-                currentMana = stat.currentMana
-            }
-        } finally {
-            isSyncing = false
-        }
-    }
-
-    /** Writes full stat snapshot back to CharacterData after a recalc. */
-    private fun syncFullStats(entity: Entity, stat: StatComponent) {
-        if (isSyncing) return
-        val id = characterIdOf(entity) ?: return
-        isSyncing = true
-        try {
-            partySystem().updateCharacterData(id) {
-                currentHp                  = stat.currentHealth
-                maxHp                      = stat.maxHealth
-                currentMana                = stat.currentMana
-                maxMana                    = stat.maxMana
-                attack                     = stat.attackDamage
-                defense                    = stat.defense
-                attackSpeed                = stat.attackSpeed
-                moveSpeed                  = stat.moveSpeed
-                this.level                 = stat.level
-                exp                        = stat.experience
-                skillPoints                = stat.skillPoints
-                abilityPoints              = stat.abilityPoints
-                skillPointsInvestedAttack  = stat.skillPointsInvestedAttack
-                skillPointsInvestedDefense = stat.skillPointsInvestedDefense
-            }
-        } finally {
-            isSyncing = false
-        }
+        saveManager.gatherAndSave(world)
     }
 
     // ── Public stat helpers (used by ShopSystem / InventorySystem) ─────────────
@@ -99,8 +63,8 @@ class StatSystem(
         val entity = playerFamily.firstOrNull() ?: return true
         val stat = statMapper.getOrNull(entity) ?: return true
         return when (statType) {
-            ConsumableStatType.HEALTH -> stat.currentHealth >= stat.maxHealth
-            ConsumableStatType.MANA   -> stat.currentMana   >= stat.maxMana
+            ConsumableStatType.HEALTH -> stat.stats.currentHealth >= stat.stats.maxHealth
+            ConsumableStatType.MANA   -> stat.stats.currentMana   >= stat.stats.maxMana
         }
     }
 
@@ -109,9 +73,9 @@ class StatSystem(
         val stat = statMapper.getOrNull(entity) ?: return 0
         return when (item.statType) {
             ConsumableStatType.HEALTH ->
-                item.statValue.toFloat().coerceAtMost(stat.maxHealth - stat.currentHealth).toInt()
+                item.statValue.toFloat().coerceAtMost(stat.stats.maxHealth - stat.stats.currentHealth).toInt()
             ConsumableStatType.MANA ->
-                item.statValue.toFloat().coerceAtMost(stat.maxMana - stat.currentMana).toInt()
+                item.statValue.toFloat().coerceAtMost(stat.stats.maxMana - stat.stats.currentMana).toInt()
         }
     }
 
@@ -120,42 +84,35 @@ class StatSystem(
     override fun handle(event: Event): Boolean {
         when (event) {
             is EquipItemEvent -> {
-                val entity  = playerFamily.firstOrNull() ?: return false
-                val stat    = statMapper.getOrNull(entity) ?: return false
-                val inv     = inventoryMapper.getOrNull(entity) ?: return false
-                val newItem = equipmentItemById(event.itemId) ?: return false
+                val entity   = playerFamily.firstOrNull() ?: return false
+                val stat     = statMapper.getOrNull(entity) ?: return false
+                val charData = stat.stats as? CharacterData ?: return false
+                val inv      = inventoryMapper.getOrNull(entity) ?: return false
+                val newItem  = equipmentItemById(event.itemId) ?: return false
 
                 val oldId = inv.equippedItems[newItem.category]
-                val speedBefore = stat.attackSpeed
+                val speedBefore = charData.attackSpeed
                 if (oldId != null) {
                     equipmentItemById(oldId)?.stats?.forEach { (statType, value) ->
-                        stat.decreaseStat(statType.toStatType(), value.toFloat())
+                        charData.decreaseStat(statType.toStatType(), value.toFloat())
                     }
                 }
 
                 inv.equippedItems[newItem.category] = newItem.id
+                charData.equippedItems[newItem.category] = newItem.id
                 newItem.stats.forEach { (statType, value) ->
-                    stat.increaseStat(statType.toStatType(), value.toFloat())
+                    charData.increaseStat(statType.toStatType(), value.toFloat())
                 }
 
-                stat.currentHealth = stat.currentHealth.coerceAtMost(stat.maxHealth)
-                stat.currentMana   = stat.currentMana.coerceAtMost(stat.maxMana)
+                charData.currentHealth = charData.currentHealth.coerceAtMost(charData.maxHealth)
+                charData.currentMana   = charData.currentMana.coerceAtMost(charData.maxMana)
 
-                // Write back full stats + equipped items
-                syncFullStats(entity, stat)
                 val charId = characterIdOf(entity)
-                if (charId != null && !isSyncing) {
-                    isSyncing = true
-                    try {
-                        partySystem().updateCharacterData(charId) {
-                            equippedItems[newItem.category] = newItem.id
-                        }
-                    } finally {
-                        isSyncing = false
-                    }
+                if (charId != null) {
+                    saveManager.gatherAndSave(world)
                 }
 
-                if (stat.attackSpeed != speedBefore) {
+                if (charData.attackSpeed != speedBefore) {
                     gameStage.fire(CombatSpeedChangedEvent(entity))
                 }
                 return true
@@ -169,18 +126,18 @@ class StatSystem(
                 val pos = physicsComponents.getOrNull(entity)?.body?.position
                 when (item.statType) {
                     ConsumableStatType.HEALTH -> {
-                        val actual = item.statValue.toFloat().coerceAtMost(stat.maxHealth - stat.currentHealth).toInt()
-                        stat.currentHealth = (stat.currentHealth + item.statValue).coerceAtMost(stat.maxHealth)
+                        val actual = item.statValue.toFloat().coerceAtMost(stat.stats.maxHealth - stat.stats.currentHealth).toInt()
+                        stat.stats.currentHealth = (stat.stats.currentHealth + item.statValue).coerceAtMost(stat.stats.maxHealth)
                         if (pos != null) gameStage.fire(FloatingTextEvent(pos, "+$actual HP", Fonts.DAMAGE))
                     }
                     ConsumableStatType.MANA -> {
-                        val actual = item.statValue.toFloat().coerceAtMost(stat.maxMana - stat.currentMana).toInt()
-                        stat.currentMana = (stat.currentMana + item.statValue).coerceAtMost(stat.maxMana)
+                        val actual = item.statValue.toFloat().coerceAtMost(stat.stats.maxMana - stat.stats.currentMana).toInt()
+                        stat.stats.currentMana = (stat.stats.currentMana + item.statValue).coerceAtMost(stat.stats.maxMana)
                         if (pos != null) gameStage.fire(FloatingTextEvent(pos, "+$actual MP", Fonts.DAMAGE))
                     }
                 }
 
-                syncHpMana(entity, stat)
+                syncHpMana(entity)
                 world.system<InventorySystem>().removeItem(event.itemId)
                 return true
             }
@@ -190,50 +147,45 @@ class StatSystem(
                 if (pos != null) {
                     gameStage.fire(FloatingTextEvent(Vector2(pos), "LEVEL UP!", Fonts.DAMAGE))
                 }
-                val stat = statMapper.getOrNull(event.entity) ?: return true
-                syncFullStats(event.entity, stat)
+                val id = characterIdOf(event.entity) ?: return true
+                saveManager.gatherAndSave(world)
                 return true
             }
 
             is GainSkillPointEvent -> {
-                val stat = statMapper.getOrNull(event.entity) ?: return false
-                stat.skillPoints++
+                val stat     = statMapper.getOrNull(event.entity) ?: return false
+                val charData = stat.stats as? CharacterData ?: return false
+                charData.currentSkillPoints++
+                charData.totalSkillPoints++
                 val id = characterIdOf(event.entity) ?: return true
-                if (!isSyncing) {
-                    isSyncing = true
-                    try {
-                        partySystem().updateCharacterData(id) { skillPoints = stat.skillPoints }
-                    } finally {
-                        isSyncing = false
-                    }
-                }
+                saveManager.gatherAndSave(world)
                 return true
             }
 
             is GainAbilityPointEvent -> {
-                val stat = statMapper.getOrNull(event.entity) ?: return false
-                stat.abilityPoints++
+                val stat     = statMapper.getOrNull(event.entity) ?: return false
+                val charData = stat.stats as? CharacterData ?: return false
+                charData.currentAbilityPoints++
+                charData.totalAbilityPoints++
                 val id = characterIdOf(event.entity) ?: return true
-                if (!isSyncing) {
-                    isSyncing = true
-                    try {
-                        partySystem().updateCharacterData(id) { abilityPoints = stat.abilityPoints }
-                    } finally {
-                        isSyncing = false
-                    }
-                }
+                saveManager.gatherAndSave(world)
                 return true
             }
 
             is SkillPointsSaveEvent -> {
-                val stat = statMapper.getOrNull(event.entity) ?: return false
-                stat.skillPointsInvestedAttack  += event.pendingAttackPoints
-                stat.skillPointsInvestedDefense += event.pendingDefensePoints
-                stat.skillPoints -= (event.pendingAttackPoints + event.pendingDefensePoints)
-                stat.attackDamage += event.pendingAttackPoints * 2f
-                stat.defense      += event.pendingDefensePoints * 1f
-
-                syncFullStats(event.entity, stat)
+                val stat     = statMapper.getOrNull(event.entity) ?: return false
+                val charData = stat.stats as? CharacterData ?: return false
+                val totalPending = event.pendingStamina + event.pendingStrength + event.pendingAgility +
+                                   event.pendingIntelligence + event.pendingWisdom
+                charData.stamina      += event.pendingStamina
+                charData.strength     += event.pendingStrength
+                charData.agility      += event.pendingAgility
+                charData.intelligence += event.pendingIntelligence
+                charData.wisdom       += event.pendingWisdom
+                charData.currentSkillPoints -= totalPending
+                charData.recalculateDerivedStats()
+                val id = characterIdOf(event.entity) ?: return true
+                saveManager.gatherAndSave(world)
                 gameStage.fire(SkillPointsChangedEvent(event.entity))
                 gameStage.fire(SkillViewClosedEvent())
                 return true

@@ -1,14 +1,14 @@
 package com.github.jacks.roleplayinggame.systems
 
-import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.graphics.g2d.TextureAtlas
 import com.badlogic.gdx.math.Vector2
+import com.badlogic.gdx.physics.box2d.BodyDef
 import com.badlogic.gdx.physics.box2d.World
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.utils.Scaling
 import com.github.jacks.roleplayinggame.RolePlayingGame.Companion.UNIT_SCALE
+import com.github.jacks.roleplayinggame.saveManager.CharacterData
 import com.github.jacks.roleplayinggame.components.AnimationComponent
 import com.github.jacks.roleplayinggame.components.AnimationModel
 import com.github.jacks.roleplayinggame.components.AnimationType
@@ -27,6 +27,7 @@ import ktx.app.gdxError
 import ktx.math.vec2
 import ktx.tiled.*
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType.StaticBody
+import com.badlogic.gdx.physics.box2d.BodyDef.BodyType.DynamicBody
 import com.badlogic.gdx.scenes.scene2d.Action
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.utils.Array
@@ -40,6 +41,7 @@ import com.github.jacks.roleplayinggame.components.DEFAULT_ATTACK_DAMAGE
 import com.github.jacks.roleplayinggame.components.DEFAULT_LIFE
 import com.github.jacks.roleplayinggame.components.DEFAULT_SPEED
 import com.github.jacks.roleplayinggame.components.DialogComponent
+import com.github.jacks.roleplayinggame.components.EnemyStats
 import com.github.jacks.roleplayinggame.components.InventoryComponent
 import com.github.jacks.roleplayinggame.configurations.DialogId
 import com.github.jacks.roleplayinggame.components.LifeComponent
@@ -54,6 +56,7 @@ import com.github.jacks.roleplayinggame.components.ShopComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.components.StateComponent
 import com.github.jacks.roleplayinggame.configurations.ConfigurationType
+import com.github.jacks.roleplayinggame.configurations.EnemyConfiguration
 import ktx.actors.alpha
 import ktx.box2d.circle
 import ktx.log.logger
@@ -66,7 +69,6 @@ class EntityCreationSystem(
     private val entityCreationComponents : ComponentMapper<EntityCreationComponent>,
 ) : EventListener, IteratingSystem() {
 
-    private val preferences : Preferences by lazy { Gdx.app.getPreferences("rolePlayingGamePrefs") }
     private val cachedConfigurations = mutableMapOf<String, SpawnConfiguration>()
     private val cachedSizes = mutableMapOf<AnimationModel, Vector2>()
     private val playerEntities = world.family(allOf = arrayOf(PlayerComponent::class))
@@ -115,21 +117,6 @@ class EntityCreationSystem(
                                 health = maxHealth
                             }
                         }
-                        if (config.hasStats) {
-                            add<StatComponent> {
-                                currentHealth = config.stats.currentHealth
-                                maxHealth = config.stats.maxHealth
-                                currentMana = config.stats.currentMana
-                                maxMana = config.stats.maxMana
-                                attackDamage = config.stats.attackDamage
-                                attackPercent = config.stats.attackPercent
-                                attackSpeed = config.stats.attackSpeed
-                                defense = config.stats.defense
-                                defensePercent = config.stats.defensePercent
-                                moveSpeed = config.stats.moveSpeed
-                                xpReward = config.xpReward
-                            }
-                        }
                         add<CollisionComponent>()
                         add<NonPlayerComponent>()
                         if (config.hasAiBehavior) {
@@ -154,7 +141,11 @@ class EntityCreationSystem(
                         }
                     }
                 }
-                else -> { gdxError("Entity has no configuration.") }
+                ConfigurationType.ENEMY -> {
+                    val config = configuration as EnemyConfiguration
+                    createEnemyEntity(config, location, this.spawnerId, this.spawnerMapId)
+                }
+                else -> { gdxError("Entity has no configuration: $configurationType") }
             }
         }
         world.remove(entity)
@@ -202,20 +193,7 @@ class EntityCreationSystem(
                 health = maxHealth
             }
             add<StatComponent> {
-                currentHealth              = charData.currentHp
-                maxHealth                  = charData.maxHp
-                currentMana                = charData.currentMana
-                maxMana                    = charData.maxMana
-                attackDamage               = charData.attack
-                attackSpeed                = charData.attackSpeed
-                defense                    = charData.defense
-                moveSpeed                  = charData.moveSpeed
-                level                      = charData.level
-                experience                 = charData.exp
-                skillPoints                = charData.skillPoints
-                abilityPoints              = charData.abilityPoints
-                skillPointsInvestedAttack  = charData.skillPointsInvestedAttack
-                skillPointsInvestedDefense = charData.skillPointsInvestedDefense
+                stats = charData
             }
             add<PlayerComponent> { characterId = charId }
             add<StateComponent>()
@@ -227,6 +205,62 @@ class EntityCreationSystem(
             add<CollisionComponent>()
             add<AbilityComponent> {
                 charData.unlockedAbilityIds.forEach { unlockedAbilityIds.add(it) }
+            }
+        }
+    }
+
+    private fun createEnemyEntity(
+        config: EnemyConfiguration,
+        location: Vector2,
+        spawnerId: Int,
+        spawnerMapId: Int,
+    ) {
+        world.entity {
+            val imageComponent = add<ImageComponent> {
+                image = FlipImage().apply {
+                    setPosition(location.x, location.y)
+                    setSize(size(config.animationModel).x, size(config.animationModel).y)
+                    setScaling(Scaling.fill)
+                    color = config.color
+                    alpha = 0f
+                    addAction(Actions.fadeIn(0.5f))
+                }
+            }
+            add<AnimationComponent> {
+                nextAnimation(config.animationModel, AnimationType.IDLE)
+            }
+            val physicsComponent = add<PhysicsComponent> {
+                body = bodyFromImageAndConfiguration(physicsWorld, imageComponent.image, DynamicBody, config.physicsScaling, config.physicsOffset)
+            }
+            if (config.speedScaling > 0f) {
+                add<MoveComponent> {
+                    speed = DEFAULT_SPEED * config.speedScaling
+                }
+            }
+            if (config.lifeScaling > 0f) {
+                add<LifeComponent> {
+                    maxHealth = DEFAULT_LIFE * config.lifeScaling
+                    health = maxHealth
+                }
+            }
+            add<StatComponent> {
+                stats = config.stats.copy()
+            }
+            add<CollisionComponent>()
+            add<NonPlayerComponent>()
+            if (config.hasAiBehavior) {
+                add<AiComponent> {
+                    treePath = config.aiTreePath
+                }
+            }
+            physicsComponent.body.circle(4f) {
+                isSensor = true
+                userData = AI_SENSOR
+            }
+            add<BattleComponent> {
+                toMap = config.battleMap
+                this.spawnerId    = spawnerId
+                this.spawnerMapId = spawnerMapId
             }
         }
     }

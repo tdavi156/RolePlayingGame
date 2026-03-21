@@ -4,6 +4,7 @@ import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.components.AbilityComponent
+import com.github.jacks.roleplayinggame.saveManager.CharacterData
 import com.github.jacks.roleplayinggame.components.PlayerComponent
 import com.github.jacks.roleplayinggame.components.StatComponent
 import com.github.jacks.roleplayinggame.events.AbilityPointsSaveEvent
@@ -30,20 +31,18 @@ class AbilitySystem(
             is AbilityPointsSaveEvent -> {
                 val charId = event.characterId
 
-                // 1. Update CharacterData via PartySystem (source of truth)
+                // 1. Update CharacterData via PartySystem (source of truth).
+                // Since stat.stats IS CharacterData, this also updates any live entity's stats automatically.
                 partySystem().updateCharacterData(charId) {
                     unlockedAbilityIds.addAll(event.pendingIds)
-                    abilityPoints -= event.pendingIds.size
+                    currentAbilityPoints = (currentAbilityPoints - event.pendingIds.size).coerceAtLeast(0)
                 }
 
-                // 2. If a live entity exists for this character, sync their components
+                // 2. Sync the live AbilityComponent (separate from CharacterData) and fire UI event.
                 var liveEntity: com.github.quillraven.fleks.Entity? = null
                 playerFamily.forEach { e -> if (playerMapper[e].characterId == charId) liveEntity = e }
                 liveEntity?.let { e ->
                     abilityMapper.getOrNull(e)?.unlockedAbilityIds?.addAll(event.pendingIds)
-                    statMapper.getOrNull(e)?.let { stat ->
-                        stat.abilityPoints -= event.pendingIds.size
-                    }
                     gameStage.fire(AbilitySkillChangedEvent(e))
                 }
 

@@ -15,11 +15,13 @@ import com.github.jacks.roleplayinggame.events.ShopInteractionEvent
 import com.github.jacks.roleplayinggame.events.ShopOpenEvent
 import com.github.jacks.roleplayinggame.events.ShopSellConfirmedEvent
 import com.github.jacks.roleplayinggame.events.fire
+import com.github.jacks.roleplayinggame.saveManager.SaveManager
 import com.github.quillraven.fleks.IntervalSystem
 import kotlin.math.ceil
 
 class ShopSystem(
     private val gameStage: Stage,
+    private val saveManager: SaveManager,
 ) : IntervalSystem(), EventListener {
 
     private var activeShopConfig: ShopConfig? = null
@@ -62,7 +64,7 @@ class ShopSystem(
                 if (resources.gold < totalCost) return
                 resources.gold -= totalCost
                 repeat(quantity) { inventorySystem.addItem(item) }
-                resourceSystem.saveResources()
+                saveManager.gatherAndSave(world)
             }
             in 2000..2999 -> {
                 val item = consumableItemById(itemId) ?: return
@@ -70,13 +72,13 @@ class ShopSystem(
                 if (resources.gold < totalCost) return
                 resources.gold -= totalCost
                 repeat(quantity) { inventorySystem.addItem(item) }
-                resourceSystem.saveResources()
+                saveManager.gatherAndSave(world)
             }
             in 3000..3999 -> {
                 val item = questItemById(itemId) ?: return
                 // Quest items have no goldValue — treat as free
                 repeat(quantity) { inventorySystem.addItem(item) }
-                resourceSystem.saveResources()
+                saveManager.gatherAndSave(world)
             }
             in 4000..4999 -> {
                 val item = battleEnchantmentItemById(itemId) ?: return
@@ -84,7 +86,7 @@ class ShopSystem(
                 if (resources.gold < totalCost) return
                 resources.gold -= totalCost
                 repeat(quantity) { inventorySystem.addItem(item) }
-                resourceSystem.saveResources()
+                saveManager.gatherAndSave(world)
             }
         }
     }
@@ -97,21 +99,21 @@ class ShopSystem(
                 val sellPrice = ceil(item.goldValue / 2f).toInt() * quantity
                 resources.gold += sellPrice
                 repeat(quantity) { inventorySystem.removeItem(itemId) }
-                resourceSystem.saveResources()
+                saveManager.gatherAndSave(world)
             }
             in 2000..2999 -> {
                 val item = consumableItemById(itemId) ?: return
                 val sellPrice = ceil(item.goldValue / 2f).toInt() * quantity
                 resources.gold += sellPrice
                 repeat(quantity) { inventorySystem.removeItem(itemId) }
-                resourceSystem.saveResources()
+                saveManager.gatherAndSave(world)
             }
             in 4000..4999 -> {
                 val item = battleEnchantmentItemById(itemId) ?: return
                 val sellPrice = ceil(item.goldValue / 2f).toInt() * quantity
                 resources.gold += sellPrice
                 repeat(quantity) { inventorySystem.removeItem(itemId) }
-                resourceSystem.saveResources()
+                saveManager.gatherAndSave(world)
             }
             // Quest items (3000–3999) are not sellable — no-op
         }
