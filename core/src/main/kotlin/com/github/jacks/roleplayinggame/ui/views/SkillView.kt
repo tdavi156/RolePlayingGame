@@ -29,19 +29,32 @@ class SkillView(
 
     private lateinit var availablePointsLabel: Label
 
-    // Attack row
-    private lateinit var attackMinusBtn: TextButton
-    private lateinit var attackPendingLabel: Label
-    private lateinit var attackPlusBtn: TextButton
-    private lateinit var attackPreviewLabel: Label
+    // Stamina row
+    private lateinit var staminaMinusBtn: TextButton
+    private lateinit var staminaPendingLabel: Label
+    private lateinit var staminaPlusBtn: TextButton
 
-    // Defense row
-    private lateinit var defenseMinusBtn: TextButton
-    private lateinit var defensePendingLabel: Label
-    private lateinit var defensePlusBtn: TextButton
-    private lateinit var defensePreviewLabel: Label
+    // Strength row
+    private lateinit var strengthMinusBtn: TextButton
+    private lateinit var strengthPendingLabel: Label
+    private lateinit var strengthPlusBtn: TextButton
 
-    // Footer sections (shown one at a time via visibility in a Stack)
+    // Agility row
+    private lateinit var agilityMinusBtn: TextButton
+    private lateinit var agilityPendingLabel: Label
+    private lateinit var agilityPlusBtn: TextButton
+
+    // Intelligence row
+    private lateinit var intelligenceMinusBtn: TextButton
+    private lateinit var intelligencePendingLabel: Label
+    private lateinit var intelligencePlusBtn: TextButton
+
+    // Wisdom row
+    private lateinit var wisdomMinusBtn: TextButton
+    private lateinit var wisdomPendingLabel: Label
+    private lateinit var wisdomPlusBtn: TextButton
+
+    // Footer sections
     private lateinit var normalFooter: Table
     private lateinit var saveConfirmFooter: Table
     private lateinit var cancelConfirmFooter: Table
@@ -63,47 +76,103 @@ class SkillView(
                 label("Skill Points Available: 0", Labels.SMALL.skinKey) { it.colspan(5).left().padBottom(10f) }
             row()
 
-            // ── Attack row ──────────────────────────────────────────────────────
-            label("Attack:", Labels.SMALL.skinKey) { it.left().expandX() }
-            this@SkillView.attackMinusBtn = textButton("-", Buttons.RED_BUTTON_SMALL.skinKey) { cell ->
+            // ── Stamina row ──────────────────────────────────────────────────
+            label("Stamina:", Labels.SMALL.skinKey) { it.left().expandX() }
+            this@SkillView.staminaMinusBtn = textButton("-", Buttons.RED_BUTTON_SMALL.skinKey) { cell ->
                 cell.width(30f).height(30f)
                 isDisabled = true
                 addListener(object : ChangeListener() {
-                    override fun changed(event: ChangeEvent, actor: Actor) { vm.removeAttackPoint() }
+                    override fun changed(event: ChangeEvent, actor: Actor) { vm.removeStamina() }
                 })
             }
-            this@SkillView.attackPendingLabel = label("0", Labels.SMALL.skinKey) { it.width(30f).center() }
-            this@SkillView.attackPlusBtn = textButton("+", Buttons.GREEN_BUTTON_SMALL.skinKey) { cell ->
+            this@SkillView.staminaPendingLabel = label("0", Labels.SMALL.skinKey) { it.width(30f).center() }
+            this@SkillView.staminaPlusBtn = textButton("+", Buttons.GREEN_BUTTON_SMALL.skinKey) { cell ->
                 cell.width(30f).height(30f)
                 addListener(object : ChangeListener() {
-                    override fun changed(event: ChangeEvent, actor: Actor) { vm.addAttackPoint() }
+                    override fun changed(event: ChangeEvent, actor: Actor) { vm.addStamina() }
                 })
             }
-            this@SkillView.attackPreviewLabel = label("→ 0 ATK", Labels.SMALL.skinKey) { it.width(90f).right() }
+            label("+10 Max HP per point", Labels.SMALL.skinKey) { it.width(140f).right() }
             row()
 
-            // ── Defense row ─────────────────────────────────────────────────────
-            label("Defense:", Labels.SMALL.skinKey) { it.left().expandX() }
-            this@SkillView.defenseMinusBtn = textButton("-", Buttons.RED_BUTTON_SMALL.skinKey) { cell ->
+            // ── Strength row ─────────────────────────────────────────────────
+            label("Strength:", Labels.SMALL.skinKey) { it.left().expandX() }
+            this@SkillView.strengthMinusBtn = textButton("-", Buttons.RED_BUTTON_SMALL.skinKey) { cell ->
                 cell.width(30f).height(30f)
                 isDisabled = true
                 addListener(object : ChangeListener() {
-                    override fun changed(event: ChangeEvent, actor: Actor) { vm.removeDefensePoint() }
+                    override fun changed(event: ChangeEvent, actor: Actor) { vm.removeStrength() }
                 })
             }
-            this@SkillView.defensePendingLabel = label("0", Labels.SMALL.skinKey) { it.width(30f).center() }
-            this@SkillView.defensePlusBtn = textButton("+", Buttons.GREEN_BUTTON_SMALL.skinKey) { cell ->
+            this@SkillView.strengthPendingLabel = label("0", Labels.SMALL.skinKey) { it.width(30f).center() }
+            this@SkillView.strengthPlusBtn = textButton("+", Buttons.GREEN_BUTTON_SMALL.skinKey) { cell ->
                 cell.width(30f).height(30f)
                 addListener(object : ChangeListener() {
-                    override fun changed(event: ChangeEvent, actor: Actor) { vm.addDefensePoint() }
+                    override fun changed(event: ChangeEvent, actor: Actor) { vm.addStrength() }
                 })
             }
-            this@SkillView.defensePreviewLabel = label("→ 0 DEF", Labels.SMALL.skinKey) { it.width(90f).right() }
+            label("+3 Attack Damage per point", Labels.SMALL.skinKey) { it.width(140f).right() }
             row()
 
-            // ── Footer — Stack holds three mutually exclusive sections ───────────
+            // ── Agility row ──────────────────────────────────────────────────
+            label("Agility:", Labels.SMALL.skinKey) { it.left().expandX() }
+            this@SkillView.agilityMinusBtn = textButton("-", Buttons.RED_BUTTON_SMALL.skinKey) { cell ->
+                cell.width(30f).height(30f)
+                isDisabled = true
+                addListener(object : ChangeListener() {
+                    override fun changed(event: ChangeEvent, actor: Actor) { vm.removeAgility() }
+                })
+            }
+            this@SkillView.agilityPendingLabel = label("0", Labels.SMALL.skinKey) { it.width(30f).center() }
+            this@SkillView.agilityPlusBtn = textButton("+", Buttons.GREEN_BUTTON_SMALL.skinKey) { cell ->
+                cell.width(30f).height(30f)
+                addListener(object : ChangeListener() {
+                    override fun changed(event: ChangeEvent, actor: Actor) { vm.addAgility() }
+                })
+            }
+            label("+Acc/Eva/Speed per point", Labels.SMALL.skinKey) { it.width(140f).right() }
+            row()
+
+            // ── Intelligence row ─────────────────────────────────────────────
+            label("Intelligence:", Labels.SMALL.skinKey) { it.left().expandX() }
+            this@SkillView.intelligenceMinusBtn = textButton("-", Buttons.RED_BUTTON_SMALL.skinKey) { cell ->
+                cell.width(30f).height(30f)
+                isDisabled = true
+                addListener(object : ChangeListener() {
+                    override fun changed(event: ChangeEvent, actor: Actor) { vm.removeIntelligence() }
+                })
+            }
+            this@SkillView.intelligencePendingLabel = label("0", Labels.SMALL.skinKey) { it.width(30f).center() }
+            this@SkillView.intelligencePlusBtn = textButton("+", Buttons.GREEN_BUTTON_SMALL.skinKey) { cell ->
+                cell.width(30f).height(30f)
+                addListener(object : ChangeListener() {
+                    override fun changed(event: ChangeEvent, actor: Actor) { vm.addIntelligence() }
+                })
+            }
+            label("+3 Spell Dmg, +5 Mana per point", Labels.SMALL.skinKey) { it.width(140f).right() }
+            row()
+
+            // ── Wisdom row ───────────────────────────────────────────────────
+            label("Wisdom:", Labels.SMALL.skinKey) { it.left().expandX() }
+            this@SkillView.wisdomMinusBtn = textButton("-", Buttons.RED_BUTTON_SMALL.skinKey) { cell ->
+                cell.width(30f).height(30f)
+                isDisabled = true
+                addListener(object : ChangeListener() {
+                    override fun changed(event: ChangeEvent, actor: Actor) { vm.removeWisdom() }
+                })
+            }
+            this@SkillView.wisdomPendingLabel = label("0", Labels.SMALL.skinKey) { it.width(30f).center() }
+            this@SkillView.wisdomPlusBtn = textButton("+", Buttons.GREEN_BUTTON_SMALL.skinKey) { cell ->
+                cell.width(30f).height(30f)
+                addListener(object : ChangeListener() {
+                    override fun changed(event: ChangeEvent, actor: Actor) { vm.addWisdom() }
+                })
+            }
+            label("+2 Resistance, +3 Mana per point", Labels.SMALL.skinKey) { it.width(140f).right() }
+            row()
+
+            // ── Footer ───────────────────────────────────────────────────────
             stack { stackCell ->
-                // Normal footer: Save + Cancel
                 this@SkillView.normalFooter = table {
                     textButton("Save", Buttons.GREEN_BUTTON_MEDIUM.skinKey) { cell ->
                         cell.width(100f).height(35f).padRight(10f)
@@ -119,7 +188,6 @@ class SkillView(
                     }
                 }
 
-                // Save confirmation footer
                 this@SkillView.saveConfirmFooter = table {
                     label("Stat changes cannot be undone. Confirm?", Labels.SMALL.skinKey) {
                         it.colspan(2).center().padBottom(4f)
@@ -140,7 +208,6 @@ class SkillView(
                     isVisible = false
                 }
 
-                // Cancel confirmation footer
                 this@SkillView.cancelConfirmFooter = table {
                     label("Discard unsaved changes?", Labels.SMALL.skinKey) {
                         it.colspan(2).center().padBottom(4f)
@@ -164,35 +231,39 @@ class SkillView(
                 stackCell.colspan(5).center().padTop(8f).height(70f)
             }
 
-            outerCell.expand().center().width(420f)
+            outerCell.expand().center().width(460f)
         }
 
-        // ── Data bindings ────────────────────────────────────────────────────────
+        // ── Data bindings ────────────────────────────────────────────────────
 
         model.onPropertyChange(SkillViewModel::availableSkillPoints) { pts ->
             availablePointsLabel.txt = "Skill Points Available: $pts"
-            attackPlusBtn.isDisabled  = pts <= 0
-            defensePlusBtn.isDisabled = pts <= 0
+            staminaPlusBtn.isDisabled      = pts <= 0
+            strengthPlusBtn.isDisabled     = pts <= 0
+            agilityPlusBtn.isDisabled      = pts <= 0
+            intelligencePlusBtn.isDisabled = pts <= 0
+            wisdomPlusBtn.isDisabled       = pts <= 0
         }
 
-        model.onPropertyChange(SkillViewModel::pendingAttackPoints) { pts ->
-            attackPendingLabel.txt  = "$pts"
-            attackMinusBtn.isDisabled = pts <= 0
-            attackPreviewLabel.txt  = "→ ${(model.baseAttackDamage + pts * 2).toInt()} ATK"
+        model.onPropertyChange(SkillViewModel::pendingStamina) { pts ->
+            staminaPendingLabel.txt        = "$pts"
+            staminaMinusBtn.isDisabled     = pts <= 0
         }
-
-        model.onPropertyChange(SkillViewModel::pendingDefensePoints) { pts ->
-            defensePendingLabel.txt  = "$pts"
-            defenseMinusBtn.isDisabled = pts <= 0
-            defensePreviewLabel.txt  = "→ ${(model.baseDefense + pts).toInt()} DEF"
+        model.onPropertyChange(SkillViewModel::pendingStrength) { pts ->
+            strengthPendingLabel.txt       = "$pts"
+            strengthMinusBtn.isDisabled    = pts <= 0
         }
-
-        model.onPropertyChange(SkillViewModel::baseAttackDamage) { base ->
-            attackPreviewLabel.txt = "→ ${(base + model.pendingAttackPoints * 2).toInt()} ATK"
+        model.onPropertyChange(SkillViewModel::pendingAgility) { pts ->
+            agilityPendingLabel.txt        = "$pts"
+            agilityMinusBtn.isDisabled     = pts <= 0
         }
-
-        model.onPropertyChange(SkillViewModel::baseDefense) { base ->
-            defensePreviewLabel.txt = "→ ${(base + model.pendingDefensePoints).toInt()} DEF"
+        model.onPropertyChange(SkillViewModel::pendingIntelligence) { pts ->
+            intelligencePendingLabel.txt   = "$pts"
+            intelligenceMinusBtn.isDisabled = pts <= 0
+        }
+        model.onPropertyChange(SkillViewModel::pendingWisdom) { pts ->
+            wisdomPendingLabel.txt         = "$pts"
+            wisdomMinusBtn.isDisabled      = pts <= 0
         }
 
         model.onPropertyChange(SkillViewModel::showSaveConfirm) { show ->

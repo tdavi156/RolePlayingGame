@@ -86,7 +86,14 @@ class ShopSellConfirmedEvent(val itemId: Int, val quantity: Int) : Event()
 class LevelUpEvent(val entity: Entity, val newLevel: Int) : Event()
 class GainSkillPointEvent(val entity: Entity) : Event()
 class GainAbilityPointEvent(val entity: Entity) : Event()
-class SkillPointsSaveEvent(val entity: Entity, val pendingAttackPoints: Int, val pendingDefensePoints: Int) : Event()
+class SkillPointsSaveEvent(
+    val entity: Entity,
+    val pendingStamina: Int,
+    val pendingStrength: Int,
+    val pendingAgility: Int,
+    val pendingIntelligence: Int,
+    val pendingWisdom: Int,
+) : Event()
 class SkillPointsChangedEvent(val entity: Entity) : Event()
 class SkillViewOpenEvent : Event()
 class SkillViewClosedEvent : Event()

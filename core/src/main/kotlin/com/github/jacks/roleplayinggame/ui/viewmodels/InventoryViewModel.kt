@@ -41,7 +41,7 @@ class InventoryViewModel(
         get() {
             val partySystem = world.system<PartySystem>()
             return partySystem.getUnlockedCharacters().map { char ->
-                val hpPct = if (char.maxHp > 0f) char.currentHp / char.maxHp else 0f
+                val hpPct = if (char.maxHealth > 0f) char.currentHealth / char.maxHealth else 0f
                 CharacterDisplayInfo(char.characterName, hpPct)
             }
         }

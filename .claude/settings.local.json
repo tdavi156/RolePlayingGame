@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep:*)",
+      "Bash(\"core/src/main/kotlin/com/github/jacks/roleplayinggame/events/Events.kt\")",
+      "Bash(printf 'class SettingsOpenEvent : Event\\(\\)\\\\nclass SettingsClosedEvent : Event\\(\\)\\\\n')",
+      "Bash(./gradlew :core:compileKotlin)",
+      "Bash(grep -v \"^$\")",
+      "Bash(./gradlew :core:compileKotlin --info)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(grep -rn \"EnemyType\\\\|getNonPlayerConfig\\\\|TIER_1_ITEMS\\\\|TIER_2_ITEMS\" /c/Users/tdavi/AndroidStudioProjects/RolePlayingGame/core/src/main/kotlin/com/github/jacks/roleplayinggame/configurations/ --include=*.kt)"
+    ]
+  }
+}

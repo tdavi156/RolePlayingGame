@@ -1,12 +1,24 @@
 package com.github.jacks.roleplayinggame.configurations
 
+/**
+ * Base battle stat template for each character, sourced from this config at init time.
+ * All values are Float. Accuracy defaults to 1f and evasion to 0f for all players per design decision.
+ */
 data class BaseStats(
-    val maxHp: Int,
-    val maxMana: Int,
-    val attack: Int,
-    val defense: Int,
-    val attackSpeed: Float,
-    val moveSpeed: Float,
+    val baseMaxHealth: Float,
+    val baseMaxMana: Float,
+    val baseAttackSpeed: Float,
+    val baseAccuracy: Float = 1f,
+    val baseEvasion: Float = 0f,
+    val baseAttackDamage: Float,
+    val baseAttackDamagePercent: Float = 1f,
+    val baseSpellDamage: Float = 0f,
+    val baseSpellDamagePercent: Float = 1f,
+    val baseDefense: Float,
+    val baseDefensePercent: Float = 1f,
+    val baseResistance: Float = 0f,
+    val baseResistancePercent: Float = 1f,
+    val moveSpeed: Float = 1f,
 )
 
 data class CharacterConfig(
@@ -22,7 +34,13 @@ val CHARACTER_1_CONFIG = CharacterConfig(
     characterId = 1,
     characterName = "Warrior",
     abilityTreeId = 1,
-    baseStats = BaseStats(maxHp = 30, maxMana = 20, attack = 5, defense = 1, attackSpeed = 1f, moveSpeed = 1f),
+    baseStats = BaseStats(
+        baseMaxHealth = 30f,
+        baseMaxMana = 20f,
+        baseAttackSpeed = 1f,
+        baseAttackDamage = 5f,
+        baseDefense = 1f,
+    ),
     atlasKey = "player",
     portraitKey = "portrait_1",
 )
@@ -31,7 +49,13 @@ val CHARACTER_2_CONFIG = CharacterConfig(
     characterId = 2,
     characterName = "Cleric",
     abilityTreeId = 2,
-    baseStats = BaseStats(maxHp = 20, maxMana = 40, attack = 3, defense = 1, attackSpeed = 1.5f, moveSpeed = 1f),
+    baseStats = BaseStats(
+        baseMaxHealth = 20f,
+        baseMaxMana = 40f,
+        baseAttackSpeed = 1.5f,
+        baseAttackDamage = 3f,
+        baseDefense = 1f,
+    ),
     atlasKey = "player",
     portraitKey = "portrait_2",
 )
@@ -40,7 +64,13 @@ val CHARACTER_3_CONFIG = CharacterConfig(
     characterId = 3,
     characterName = "Ranger",
     abilityTreeId = 3,
-    baseStats = BaseStats(maxHp = 50, maxMana = 10, attack = 4, defense = 3, attackSpeed = 0.8f, moveSpeed = 1f),
+    baseStats = BaseStats(
+        baseMaxHealth = 50f,
+        baseMaxMana = 10f,
+        baseAttackSpeed = 0.8f,
+        baseAttackDamage = 4f,
+        baseDefense = 3f,
+    ),
     atlasKey = "player",
     portraitKey = "portrait_3",
 )
@@ -49,12 +79,4 @@ val CHARACTER_CONFIGS: Map<Int, CharacterConfig> = mapOf(
     1 to CHARACTER_1_CONFIG,
     2 to CHARACTER_2_CONFIG,
     3 to CHARACTER_3_CONFIG,
-    // CharacterConfig(
-    //     characterId = 4,
-    //     characterName = "Character Name",
-    //     abilityTreeId = 4,
-    //     baseStats = BaseStats(maxHp=80, maxMana=30, attack=12, defense=8, attackSpeed=1f, moveSpeed=1f),
-    //     atlasKey = "character_4",
-    //     portraitKey = "portrait_4"
-    // ),
 )

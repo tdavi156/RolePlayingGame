@@ -7,7 +7,6 @@ import ktx.math.vec2
 
 data class PlayerConfiguration(
     val model : AnimationModel = AnimationModel.PLAYER,
-    val stats : StatComponent = StatComponent(),
     val speedScaling : Float = 1f,
     val canAttack : Boolean = true,
     val attackScaling : Float = 1f,

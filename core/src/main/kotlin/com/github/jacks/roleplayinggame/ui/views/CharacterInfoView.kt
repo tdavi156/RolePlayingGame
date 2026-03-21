@@ -5,7 +5,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Label
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane
 import com.badlogic.gdx.scenes.scene2d.ui.Skin
 import com.badlogic.gdx.scenes.scene2d.ui.Table
-import com.github.jacks.roleplayinggame.systems.CharacterData
+import com.github.jacks.roleplayinggame.saveManager.CharacterData
 import com.github.jacks.roleplayinggame.ui.Drawables
 import com.github.jacks.roleplayinggame.ui.Labels
 import com.github.jacks.roleplayinggame.ui.get
@@ -173,7 +173,7 @@ class CharacterInfoView(
         list.forEachIndexed { idx, char ->
             val marker = if (char.characterId == activeId) "► " else "  "
             val rowLabel = Label(
-                "$marker${char.characterName}  Lv${char.level}  ${char.currentHp.toInt()}/${char.maxHp.toInt()}",
+                "$marker${char.characterName}  Lv${char.currentLevel}  ${char.currentHealth.toInt()}/${char.maxHealth.toInt()}",
                 skin, Labels.SMALL.skinKey
             )
             rowLabels.add(rowLabel)

@@ -11,7 +11,7 @@ import com.github.jacks.roleplayinggame.events.AbilityViewClosedEvent
 import com.github.jacks.roleplayinggame.events.AbilityViewOpenEvent
 import com.github.jacks.roleplayinggame.events.PartyUpdatedEvent
 import com.github.jacks.roleplayinggame.events.fire
-import com.github.jacks.roleplayinggame.systems.CharacterData
+import com.github.jacks.roleplayinggame.saveManager.CharacterData
 import com.github.jacks.roleplayinggame.systems.PartySystem
 import com.github.quillraven.fleks.World
 
@@ -73,7 +73,7 @@ class AbilityViewModel(
 
     private fun loadCharacter(charData: CharacterData) {
         focusedCharacterId = charData.characterId
-        abilityPoints = charData.abilityPoints
+        abilityPoints = charData.currentAbilityPoints
         characterName = charData.characterName
         pendingUnlockIds = emptySet()
         hasUnsavedChanges = false

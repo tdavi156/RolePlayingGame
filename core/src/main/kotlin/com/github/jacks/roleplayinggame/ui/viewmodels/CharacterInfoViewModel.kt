@@ -5,7 +5,7 @@ import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.github.jacks.roleplayinggame.events.PartyUpdatedEvent
 import com.github.jacks.roleplayinggame.events.RewardDismissedEvent
-import com.github.jacks.roleplayinggame.systems.CharacterData
+import com.github.jacks.roleplayinggame.saveManager.CharacterData
 import com.github.jacks.roleplayinggame.systems.PartySystem
 import com.github.jacks.roleplayinggame.systems.ResourceSystem
 import com.github.quillraven.fleks.World
@@ -59,17 +59,15 @@ class CharacterInfoViewModel(
 
     private fun refreshDetail() {
         val char = partyList.getOrNull(focusedIndex) ?: return
-        // Compute XP-to-next using the same formula as StatComponent
-        val xpToNext = (char.level * 50 * Math.pow(1.15, char.level.toDouble())).toInt()
         detailName        = char.characterName
-        detailLevel       = char.level
-        detailExperience  = char.exp
-        detailExpToNext   = xpToNext
-        detailCurrentHp   = char.currentHp
-        detailMaxHp       = char.maxHp
+        detailLevel       = char.currentLevel
+        detailExperience  = char.currentEXP
+        detailExpToNext   = char.experienceToNextLevel
+        detailCurrentHp   = char.currentHealth
+        detailMaxHp       = char.maxHealth
         detailCurrentMana = char.currentMana
         detailMaxMana     = char.maxMana
-        detailAttack      = char.attack
+        detailAttack      = char.attackDamage
         detailDefense     = char.defense
         detailSpeed       = char.attackSpeed
     }

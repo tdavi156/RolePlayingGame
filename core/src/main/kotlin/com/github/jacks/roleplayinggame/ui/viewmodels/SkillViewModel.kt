@@ -10,6 +10,7 @@ import com.github.jacks.roleplayinggame.events.SkillPointsSaveEvent
 import com.github.jacks.roleplayinggame.events.SkillViewClosedEvent
 import com.github.jacks.roleplayinggame.events.SkillViewOpenEvent
 import com.github.jacks.roleplayinggame.events.fire
+import com.github.jacks.roleplayinggame.saveManager.CharacterData
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.World
 
@@ -22,15 +23,24 @@ class SkillViewModel(
     private val statMapper: ComponentMapper<StatComponent> by lazy { world.mapper() }
 
     var availableSkillPoints  by propertyNotify(0)
-    var pendingAttackPoints   by propertyNotify(0)
-    var pendingDefensePoints  by propertyNotify(0)
+
+    // Pending investment deltas (not yet saved)
+    var pendingStamina        by propertyNotify(0)
+    var pendingStrength       by propertyNotify(0)
+    var pendingAgility        by propertyNotify(0)
+    var pendingIntelligence   by propertyNotify(0)
+    var pendingWisdom         by propertyNotify(0)
+
+    // Current invested totals (read from CharacterData on open)
+    var investedStamina       by propertyNotify(0)
+    var investedStrength      by propertyNotify(0)
+    var investedAgility       by propertyNotify(0)
+    var investedIntelligence  by propertyNotify(0)
+    var investedWisdom        by propertyNotify(0)
+
     var hasUnsavedChanges     by propertyNotify(false)
     var showCancelConfirm     by propertyNotify(false)
     var showSaveConfirm       by propertyNotify(false)
-    var investedAttackPoints  by propertyNotify(0)
-    var investedDefensePoints by propertyNotify(0)
-    var baseAttackDamage      by propertyNotify(0f)
-    var baseDefense           by propertyNotify(0f)
 
     init {
         gameStage.addListener(this)
@@ -38,33 +48,33 @@ class SkillViewModel(
 
     // ── Actions called by SkillView ─────────────────────────────────────────
 
-    fun addAttackPoint() {
+    fun addStamina()          = addPoint { pendingStamina++ }
+    fun removeStamina()       = removePoint(pendingStamina) { pendingStamina-- }
+    fun addStrength()         = addPoint { pendingStrength++ }
+    fun removeStrength()      = removePoint(pendingStrength) { pendingStrength-- }
+    fun addAgility()          = addPoint { pendingAgility++ }
+    fun removeAgility()       = removePoint(pendingAgility) { pendingAgility-- }
+    fun addIntelligence()     = addPoint { pendingIntelligence++ }
+    fun removeIntelligence()  = removePoint(pendingIntelligence) { pendingIntelligence-- }
+    fun addWisdom()           = addPoint { pendingWisdom++ }
+    fun removeWisdom()        = removePoint(pendingWisdom) { pendingWisdom-- }
+
+    private inline fun addPoint(block: () -> Unit) {
         if (availableSkillPoints <= 0) return
         availableSkillPoints--
-        pendingAttackPoints++
+        block()
         hasUnsavedChanges = true
     }
 
-    fun removeAttackPoint() {
-        if (pendingAttackPoints <= 0) return
-        pendingAttackPoints--
+    private inline fun removePoint(pending: Int, block: () -> Unit) {
+        if (pending <= 0) return
+        block()
         availableSkillPoints++
-        hasUnsavedChanges = pendingAttackPoints > 0 || pendingDefensePoints > 0
+        hasUnsavedChanges = totalPending() > 0
     }
 
-    fun addDefensePoint() {
-        if (availableSkillPoints <= 0) return
-        availableSkillPoints--
-        pendingDefensePoints++
-        hasUnsavedChanges = true
-    }
-
-    fun removeDefensePoint() {
-        if (pendingDefensePoints <= 0) return
-        pendingDefensePoints--
-        availableSkillPoints++
-        hasUnsavedChanges = pendingAttackPoints > 0 || pendingDefensePoints > 0
-    }
+    private fun totalPending() =
+        pendingStamina + pendingStrength + pendingAgility + pendingIntelligence + pendingWisdom
 
     fun requestSave() {
         showSaveConfirm = true
@@ -72,7 +82,14 @@ class SkillViewModel(
 
     fun confirmSave() {
         val entity = playerFamily.firstOrNull() ?: return
-        gameStage.fire(SkillPointsSaveEvent(entity, pendingAttackPoints, pendingDefensePoints))
+        gameStage.fire(SkillPointsSaveEvent(
+            entity           = entity,
+            pendingStamina   = pendingStamina,
+            pendingStrength  = pendingStrength,
+            pendingAgility   = pendingAgility,
+            pendingIntelligence = pendingIntelligence,
+            pendingWisdom    = pendingWisdom,
+        ))
         showSaveConfirm = false
     }
 
@@ -89,11 +106,14 @@ class SkillViewModel(
     }
 
     fun confirmCancel() {
-        availableSkillPoints += pendingAttackPoints + pendingDefensePoints
-        pendingAttackPoints  = 0
-        pendingDefensePoints = 0
-        hasUnsavedChanges    = false
-        showCancelConfirm    = false
+        availableSkillPoints += totalPending()
+        pendingStamina      = 0
+        pendingStrength     = 0
+        pendingAgility      = 0
+        pendingIntelligence = 0
+        pendingWisdom       = 0
+        hasUnsavedChanges   = false
+        showCancelConfirm   = false
         gameStage.fire(SkillViewClosedEvent())
     }
 
@@ -104,18 +124,24 @@ class SkillViewModel(
     // ── Private helpers ─────────────────────────────────────────────────────
 
     private fun populateFromStat() {
-        val entity = playerFamily.firstOrNull() ?: return
-        val stat   = statMapper.getOrNull(entity) ?: return
-        availableSkillPoints  = stat.skillPoints
-        investedAttackPoints  = stat.skillPointsInvestedAttack
-        investedDefensePoints = stat.skillPointsInvestedDefense
-        baseAttackDamage      = stat.attackDamage
-        baseDefense           = stat.defense
-        pendingAttackPoints   = 0
-        pendingDefensePoints  = 0
-        hasUnsavedChanges     = false
-        showSaveConfirm       = false
-        showCancelConfirm     = false
+        val entity   = playerFamily.firstOrNull() ?: return
+        val stat     = statMapper.getOrNull(entity) ?: return
+        val charData = stat.stats as? CharacterData ?: return
+
+        availableSkillPoints = charData.currentSkillPoints
+        investedStamina      = charData.stamina
+        investedStrength     = charData.strength
+        investedAgility      = charData.agility
+        investedIntelligence = charData.intelligence
+        investedWisdom       = charData.wisdom
+        pendingStamina       = 0
+        pendingStrength      = 0
+        pendingAgility       = 0
+        pendingIntelligence  = 0
+        pendingWisdom        = 0
+        hasUnsavedChanges    = false
+        showSaveConfirm      = false
+        showCancelConfirm    = false
     }
 
     // ── Event handling ───────────────────────────────────────────────────────

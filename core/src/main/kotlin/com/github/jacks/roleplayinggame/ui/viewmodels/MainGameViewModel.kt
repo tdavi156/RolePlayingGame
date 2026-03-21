@@ -39,14 +39,13 @@ class MainGameViewModel(
                 val isPlayer = event.entity in playerComponents
                 val statComponent = statComponents[event.entity]
                 if(isPlayer) {
-                    playerLife = statComponent.currentHealth / statComponent.maxHealth
+                    playerLife = statComponent.stats.currentHealth / statComponent.stats.maxHealth
                 } else {
-                    enemyLife = statComponent.currentHealth / statComponent.maxHealth
+                    enemyLife = statComponent.stats.currentHealth / statComponent.stats.maxHealth
                 }
             }
             is EntityRespawnEvent -> {
-                val statComponent = statComponents[event.entity]
-                playerLife = statComponent.maxHealth
+                playerLife = 1f  // HP is restored to max on respawn
             }
             is EntityAddItemEvent -> {
                 lootText = "New Item found: [#4e557d]${event.itemName}[]"

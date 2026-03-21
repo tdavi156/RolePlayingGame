@@ -8,8 +8,6 @@ import ktx.math.vec2
 
 data class NonPlayerConfiguration(
     val model : AnimationModel = AnimationModel.SLIME_BLUE,
-    val hasStats : Boolean = true,
-    val stats : StatComponent = StatComponent(),
     val speedScaling : Float = 1f,
     val canAttack : Boolean = true,
     val canBattle : Boolean = true,

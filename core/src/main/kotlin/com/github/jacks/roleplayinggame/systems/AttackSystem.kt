@@ -147,7 +147,7 @@ class AttackSystem(
 
                 configureEntity(fixtureEntity) {
                     lifeComponents.getOrNull(it)?.let { lifeComponent ->
-                        lifeComponent.takeDamage += statComponent.attackDamage
+                        lifeComponent.takeDamage += statComponent.stats.attackDamage
                     }
 
                     if (isAttackerPlayer) {

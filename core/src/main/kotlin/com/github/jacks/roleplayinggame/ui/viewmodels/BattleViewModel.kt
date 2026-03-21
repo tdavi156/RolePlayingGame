@@ -31,6 +31,7 @@ import com.github.jacks.roleplayinggame.events.EnemySelectionModeEndedEvent
 import com.github.jacks.roleplayinggame.events.EnemySelectionModeStartedEvent
 import com.github.jacks.roleplayinggame.events.SpellCastDismissedEvent
 import com.github.jacks.roleplayinggame.events.fire
+import com.github.jacks.roleplayinggame.saveManager.CharacterData
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.World
@@ -126,8 +127,8 @@ class BattleViewModel(
     fun refreshPlayerMana() {
         val playerEntity = currentPlayerEntity ?: return
         val stat = statComponents.getOrNull(playerEntity) ?: return
-        playerCurrentMana = stat.currentMana
-        playerMaxMana = stat.maxMana
+        playerCurrentMana = stat.stats.currentMana
+        playerMaxMana = stat.stats.maxMana
     }
 
     // -- Event handling -------------------------------------------------------
@@ -144,11 +145,11 @@ class BattleViewModel(
                 currentPlayerEntity = event.playerEntity
                 val playerStat = statComponents.getOrNull(event.playerEntity)
                 if (playerStat != null) {
-                    playerLevel = playerStat.level
-                    playerMana  = if (playerStat.maxMana > 0f) playerStat.currentMana / playerStat.maxMana else 0f
-                    playerLife  = if (playerStat.maxHealth > 0f) playerStat.currentHealth / playerStat.maxHealth else 1f
-                    playerCurrentMana = playerStat.currentMana
-                    playerMaxMana = playerStat.maxMana
+                    playerLevel = (playerStat.stats as? CharacterData)?.currentLevel ?: 1
+                    playerMana  = if (playerStat.stats.maxMana > 0f) playerStat.stats.currentMana / playerStat.stats.maxMana else 0f
+                    playerLife  = if (playerStat.stats.maxHealth > 0f) playerStat.stats.currentHealth / playerStat.stats.maxHealth else 1f
+                    playerCurrentMana = playerStat.stats.currentMana
+                    playerMaxMana = playerStat.stats.maxMana
                 }
                 val abilityComp = abilityComponents.getOrNull(event.playerEntity)
                 spellsButtonEnabled = abilityComp?.unlockedAbilityIds?.isNotEmpty() == true
@@ -164,10 +165,10 @@ class BattleViewModel(
                     val name = anim.model.name
                         .split("_")
                         .joinToString(" ") { it.lowercase().replaceFirstChar { c -> c.uppercase() } }
-                    val lifePct = if (stat.maxHealth > 0f) stat.currentHealth / stat.maxHealth else 1f
-                    val manaPct = if (stat.maxMana > 0f) stat.currentMana / stat.maxMana else 0f
+                    val lifePct = if (stat.stats.maxHealth > 0f) stat.stats.currentHealth / stat.stats.maxHealth else 1f
+                    val manaPct = if (stat.stats.maxMana > 0f) stat.stats.currentMana / stat.stats.maxMana else 0f
                     lastEnemyHealthPcts.add(lifePct)
-                    EnemyStatInfo(name, stat.level, lifePct, manaPct)
+                    EnemyStatInfo(name, 1, lifePct, manaPct)
                 }
             }
             is BattlePhaseChangedEvent -> {

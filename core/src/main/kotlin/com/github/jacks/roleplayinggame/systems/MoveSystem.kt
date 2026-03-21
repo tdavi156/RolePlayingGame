@@ -36,8 +36,8 @@ class MoveSystem (
         }
 
         physicsComponent.impulse.set(
-            mass * (moveComponent.speed * statComponent.moveSpeed * moveComponent.cos - velocityX),
-            mass * (moveComponent.speed * statComponent.moveSpeed * moveComponent.sin - velocityY)
+            mass * (moveComponent.speed * statComponent.stats.moveSpeed * moveComponent.cos - velocityX),
+            mass * (moveComponent.speed * statComponent.stats.moveSpeed * moveComponent.sin - velocityY)
         )
 
         imageComponents.getOrNull(entity)?.let { imageComponent ->

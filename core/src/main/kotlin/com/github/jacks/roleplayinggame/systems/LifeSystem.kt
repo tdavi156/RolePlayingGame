@@ -36,11 +36,11 @@ class LifeSystem(
     override fun onTickEntity(entity: Entity) {
         val lifeComponent = lifeComponents[entity]
         val statComponent = statComponents[entity]
-        statComponent.currentHealth = statComponent.currentHealth.coerceAtMost(statComponent.maxHealth)
+        statComponent.stats.currentHealth = statComponent.stats.currentHealth.coerceAtMost(statComponent.stats.maxHealth)
 
         if (lifeComponent.takeDamage > 0f) {
-            val damageDealt = (lifeComponent.takeDamage - statComponent.defense).coerceAtLeast(1f)
-            statComponent.currentHealth -= damageDealt.coerceAtLeast(0f)
+            val damageDealt = (lifeComponent.takeDamage - statComponent.stats.defense).coerceAtLeast(1f)
+            statComponent.stats.currentHealth -= damageDealt.coerceAtLeast(0f)
             gameStage.fire(EntityTakeDamageEvent(entity))
             physicsComponents.getOrNull(entity)?.body?.position?.let { pos ->
                 gameStage.fire(FloatingTextEvent(pos, damageDealt.roundToInt().toString(), Fonts.DAMAGE))
