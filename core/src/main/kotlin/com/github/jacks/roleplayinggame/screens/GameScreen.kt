@@ -179,6 +179,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
     private val characterInfoViewModel = com.github.jacks.roleplayinggame.ui.viewmodels.CharacterInfoViewModel(entityWorld, gameStage)
     private val rewardViewModel        = RewardViewModel(gameStage)
     private val shopViewModel          = ShopViewModel(entityWorld, gameStage)
+    private val skillViewModel         = SkillViewModel(entityWorld, gameStage)
     private val abilityViewModel       = AbilityViewModel(entityWorld, gameStage)
 
     init {
@@ -213,7 +214,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
             inventoryView(InventoryViewModel(entityWorld, gameStage)) { isVisible = false }
 
             // skills UI, actor.get(8)
-            skillView(SkillViewModel(entityWorld, gameStage)) { isVisible = false }
+            skillView(skillViewModel) { isVisible = false }
 
             // quests UI, actor.get(9)
             questView(QuestViewModel(entityWorld, gameStage)) { isVisible = false }
@@ -249,7 +250,7 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
         gameStage.addListener(this)
 
         gameStage.fire(InitializeGameEvent())
-        PlayerKeyboardInputProcessor(entityWorld, gameStage, uiStage, settingsViewModel, characterInfoViewModel)
+        PlayerKeyboardInputProcessor(entityWorld, gameStage, uiStage, settingsViewModel, characterInfoViewModel, skillViewModel, abilityViewModel)
         gdxInputProcessor(uiStage)
         disableOverworldSystems()
     }

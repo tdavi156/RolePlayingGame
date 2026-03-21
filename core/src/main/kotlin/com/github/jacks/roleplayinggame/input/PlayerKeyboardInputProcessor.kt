@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input.Keys.*
 import com.badlogic.gdx.InputMultiplexer
 import com.badlogic.gdx.InputProcessor
+import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.EventListener
 import com.badlogic.gdx.scenes.scene2d.Stage
@@ -24,21 +25,24 @@ import com.github.jacks.roleplayinggame.events.InventoryClosedEvent
 import com.github.jacks.roleplayinggame.events.InventoryOpenEvent
 import com.github.jacks.roleplayinggame.events.UseConsumableEvent
 import com.github.jacks.roleplayinggame.events.SwitchActiveCharacterEvent
+import com.github.jacks.roleplayinggame.events.SkillViewOpenEvent
+import com.github.jacks.roleplayinggame.events.AbilityViewOpenEvent
 import com.github.jacks.roleplayinggame.events.fire
 import com.github.jacks.roleplayinggame.configurations.ConsumableItemData
 import com.github.jacks.roleplayinggame.configurations.EquipmentItemData
 import com.github.jacks.roleplayinggame.ui.viewmodels.InventoryContext
 import com.github.jacks.roleplayinggame.ui.viewmodels.InventoryTab
 import com.github.jacks.roleplayinggame.ui.viewmodels.PendingAction
-import com.github.jacks.roleplayinggame.events.AbilityViewOpenEvent
 import com.github.jacks.roleplayinggame.events.ShopBuyConfirmedEvent
 import com.github.jacks.roleplayinggame.events.ShopClosedEvent
 import com.github.jacks.roleplayinggame.events.ShopSellConfirmedEvent
-import com.github.jacks.roleplayinggame.events.SkillViewOpenEvent
+import com.github.jacks.roleplayinggame.ui.viewmodels.AbilityViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.CharacterInfoViewModel
 import com.github.jacks.roleplayinggame.ui.viewmodels.ShopMode
 import com.github.jacks.roleplayinggame.ui.viewmodels.ShopTab
 import com.github.jacks.roleplayinggame.ui.viewmodels.ShopViewModel
+import com.github.jacks.roleplayinggame.ui.viewmodels.SettingsViewModel
+import com.github.jacks.roleplayinggame.ui.viewmodels.SkillViewModel
 import com.github.jacks.roleplayinggame.ui.views.AbilityView
 import com.github.jacks.roleplayinggame.ui.views.BackgroundView
 import com.github.jacks.roleplayinggame.ui.views.CharacterInfoView
@@ -50,7 +54,6 @@ import com.github.jacks.roleplayinggame.ui.views.SettingsView
 import com.github.jacks.roleplayinggame.ui.views.ShopView
 import com.github.jacks.roleplayinggame.ui.views.SkillView
 import com.github.jacks.roleplayinggame.input.ViewType.*
-import com.github.jacks.roleplayinggame.ui.viewmodels.SettingsViewModel
 import com.github.quillraven.fleks.ComponentMapper
 import com.github.quillraven.fleks.World
 import ktx.app.KtxInputAdapter
@@ -82,6 +85,8 @@ class PlayerKeyboardInputProcessor(
     private val uiStage: Stage,
     private val settingsViewModel: SettingsViewModel? = null,
     private val characterInfoViewModel: CharacterInfoViewModel? = null,
+    private val skillViewModel: SkillViewModel? = null,
+    private val abilityViewModel: AbilityViewModel? = null,
     private val moveComponents: ComponentMapper<MoveComponent> = world.mapper(),
 ) : KtxInputAdapter, EventListener {
 
@@ -90,8 +95,6 @@ class PlayerKeyboardInputProcessor(
     private var normalizedVector = vec2()
     private var playerDirection = TO
     private val playerEntities = world.family(allOf = arrayOf(PlayerComponent::class))
-    private var pausedInventory = false
-    private var paused = false
     private var inBattleSelectionMode = false
 
     init {
@@ -132,12 +135,154 @@ class PlayerKeyboardInputProcessor(
         return this == UP || this == DOWN || this == LEFT || this == RIGHT || this == W || this == A || this == S || this == D
     }
 
-//    private fun Int.isMenuKey() : Boolean {
-//        return this == UP || this == DOWN || this == LEFT || this == RIGHT || this == W || this == A || this == S || this == D
-//    }
+    // ──────────────────────────────────────────────────────────────────────────
+    // View management helpers
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Returns the Actor for the given ViewType, or null if not found.
+     */
+    private fun getViewActor(viewType: ViewType): Actor? = when (viewType) {
+        CHARACTER -> uiStage.actors.filterIsInstance<CharacterInfoView>().firstOrNull()
+        SKILL     -> uiStage.actors.filterIsInstance<SkillView>().firstOrNull()
+        ABILITY   -> uiStage.actors.filterIsInstance<AbilityView>().firstOrNull()
+        MAP       -> uiStage.actors.filterIsInstance<MapView>().firstOrNull()
+        INVENTORY -> uiStage.actors.filterIsInstance<InventoryView>().firstOrNull()
+        QUEST     -> uiStage.actors.filterIsInstance<QuestView>().firstOrNull()
+        SETTINGS  -> uiStage.actors.filterIsInstance<SettingsView>().firstOrNull()
+        MAIN_MENU -> uiStage.actors.filterIsInstance<MenuView>().firstOrNull()
+        else      -> null
+    }
+
+    /**
+     * Shows the actor for [viewType] and fires its open event if applicable.
+     */
+    private fun openViewActor(viewType: ViewType) {
+        getViewActor(viewType)?.isVisible = true
+        when (viewType) {
+            SKILL     -> gameStage.fire(SkillViewOpenEvent())
+            ABILITY   -> gameStage.fire(AbilityViewOpenEvent())
+            INVENTORY -> gameStage.fire(InventoryOpenEvent())
+            else      -> {}
+        }
+    }
+
+    /**
+     * Force-hides the current view during a view switch (no close events / no GameResumeEvent).
+     * SETTINGS requires cancel() for ViewModel cleanup; MenuView handles hiding settingsView via
+     * SettingsClosedEvent on uiStage.
+     */
+    private fun forceHideCurrentView(viewType: ViewType) {
+        when (viewType) {
+            SETTINGS -> settingsViewModel?.cancel()  // SettingsClosedEvent on uiStage → MenuView hides settingsView
+            else     -> getViewActor(viewType)?.isVisible = false
+        }
+    }
+
+    /**
+     * Gracefully closes the current view in response to pressing its own toggle key or ESCAPE.
+     * - SKILL / ABILITY: delegate to ViewModel (may show confirm dialog).
+     * - SETTINGS: close via ViewModel + fix up background/resume since SettingsClosedEvent
+     *   fires on uiStage (not gameStage), so GameScreen never receives it.
+     * - Everything else: direct hide + GameResumeEvent.
+     */
+    private fun closeViewGracefully(viewType: ViewType) {
+        val bg = uiStage.actors.filterIsInstance<BackgroundView>().first()
+        when (viewType) {
+            SKILL   -> skillViewModel?.requestCancel()   // → SkillViewClosedEvent → GameScreen hides + resumes
+            ABILITY -> abilityViewModel?.requestCancel() // → AbilityViewClosedEvent → GameScreen hides + resumes
+            SETTINGS -> {
+                // SettingsClosedEvent fires on uiStage → MenuView hides settingsView (its own logic).
+                // If the menu was NOT visible (settings opened from overworld), we also need to
+                // hide the background and resume the game ourselves.
+                val menuVisible = uiStage.actors.filterIsInstance<MenuView>().firstOrNull()?.isVisible == true
+                settingsViewModel?.cancel()
+                if (!menuVisible) {
+                    bg.isVisible = false
+                    gameStage.fire(GameResumeEvent())
+                }
+            }
+            else -> {
+                bg.isVisible = false
+                getViewActor(viewType)?.isVisible = false
+                if (viewType == INVENTORY) gameStage.fire(InventoryClosedEvent())
+                gameStage.fire(GameResumeEvent())
+            }
+        }
+    }
+
+    /**
+     * Handles a view toggle key (C/K/L/M/I/J/O) uniformly:
+     *  - NO_VIEW      → pause + open target
+     *  - Same view    → close gracefully
+     *  - Other view   → force-hide current + open target (game stays paused)
+     * Returns true if the key was a view toggle key (and was consumed), false otherwise.
+     */
+    private fun handleViewToggle(keycode: Int): Boolean {
+        val targetType = when (keycode) {
+            C -> CHARACTER; K -> SKILL;    L -> ABILITY
+            M -> MAP;       I -> INVENTORY; J -> QUEST; O -> SETTINGS
+            else -> return false
+        }
+
+        val currentType = getActiveView()
+        val bg = uiStage.actors.filterIsInstance<BackgroundView>().first()
+
+        when {
+            currentType == NO_VIEW -> {
+                gameStage.fire(GamePauseEvent())
+                bg.isVisible = true
+                openViewActor(targetType)
+            }
+            currentType == targetType -> {
+                closeViewGracefully(targetType)
+            }
+            else -> {
+                // Switching from one open view to another — force-close current, open target.
+                // Game stays paused; background stays visible.
+                forceHideCurrentView(currentType)
+                bg.isVisible = true
+                openViewActor(targetType)
+            }
+        }
+        return true
+    }
+
+    /**
+     * Unified main-menu toggle used only for the ESCAPE key.
+     * - NO_VIEW   → pause game, show background + menu
+     * - MAIN_MENU → hide background + menu, resume game
+     * (All other views handle their own ESCAPE in their priority blocks.)
+     */
+    private fun toggleView(viewType: ViewType, view: Actor, onOpen: () -> Unit = {}) {
+        val bg = uiStage.actors.filterIsInstance<BackgroundView>().first()
+        when {
+            getActiveView() == NO_VIEW -> {
+                gameStage.fire(GamePauseEvent())
+                bg.isVisible = true
+                view.isVisible = true
+                onOpen()
+            }
+            getActiveView() == viewType -> {
+                bg.isVisible = false
+                view.isVisible = false
+                gameStage.fire(GameResumeEvent())
+            }
+            else -> {
+                clearActiveView()
+                bg.isVisible = true
+                view.isVisible = true
+                onOpen()
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // keyDown
+    // ──────────────────────────────────────────────────────────────────────────
 
     override fun keyDown(keycode: Int): Boolean {
-        // Enemy selection takes priority during multi-enemy targeting
+        // ── 1. Enemy selection mode (multi-enemy targeting) ──
         if (inBattleSelectionMode) {
             when (keycode) {
                 RIGHT, DOWN, D, S -> gameStage.fire(EnemySelectNextEvent())
@@ -148,299 +293,213 @@ class PlayerKeyboardInputProcessor(
             return true
         }
 
-        // Shop navigation takes priority when shop is open
+        // ── 2. Shop (fully modal — no view switching allowed from shop) ──
         if (getActiveView() == SHOP) {
             handleShopKeyDown(keycode)
             return true
         }
 
-        // Settings navigation takes priority over all other key handling
+        // ── 3. View toggle keys (C/K/L/M/I/J/O) — work from any non-shop context ──
+        //    Handles open, close-same, and switch-between-views uniformly.
+        if (handleViewToggle(keycode)) return true
+
+        // ── 4. Settings navigation ──
         if (getActiveView() == SETTINGS) {
             val model = settingsViewModel ?: return false
             when (keycode) {
-                UP -> model.moveFocusedRow(-1)
-                DOWN -> model.moveFocusedRow(1)
-                LEFT -> model.adjustCurrentValue(-10)
+                UP    -> model.moveFocusedRow(-1)
+                DOWN  -> model.moveFocusedRow(1)
+                LEFT  -> model.adjustCurrentValue(-10)
                 RIGHT -> model.adjustCurrentValue(10)
                 ENTER -> model.confirmCurrentRow()
-                ESCAPE -> model.cancel()
+                ESCAPE -> {
+                    // SettingsClosedEvent fires on uiStage → MenuView hides settingsView.
+                    // If the menu was not visible we also need to hide bg and resume the game.
+                    val menuVisible = uiStage.actors.filterIsInstance<MenuView>()
+                        .firstOrNull()?.isVisible == true
+                    model.cancel()
+                    if (!menuVisible) {
+                        uiStage.actors.filterIsInstance<BackgroundView>().first().isVisible = false
+                        gameStage.fire(GameResumeEvent())
+                    }
+                }
             }
             return true
         }
 
-        // Character info navigation when character view is open
+        // ── 5. Character info navigation ──
         if (getActiveView() == CHARACTER) {
             val model = characterInfoViewModel ?: return true
             when (keycode) {
                 UP, W   -> model.moveFocus(-1)
                 DOWN, S -> model.moveFocus(1)
+                ESCAPE  -> {
+                    uiStage.actors.filterIsInstance<BackgroundView>().first().isVisible = false
+                    uiStage.actors.filterIsInstance<CharacterInfoView>().first().isVisible = false
+                    gameStage.fire(GameResumeEvent())
+                }
             }
             return true
         }
 
-        // Quest navigation takes priority when quest view is open
+        // ── 6. Skill view (no keyboard nav — just block movement and handle ESCAPE) ──
+        if (getActiveView() == SKILL) {
+            val vm = skillViewModel ?: return true
+            if (keycode == ESCAPE) vm.requestCancel()
+            return true
+        }
+
+        // ── 7. Ability view ──
+        if (getActiveView() == ABILITY) {
+            val vm = abilityViewModel ?: return true
+            when (keycode) {
+                LEFT, A  -> vm.switchCharacter(-1)
+                RIGHT, D -> vm.switchCharacter(1)
+                ESCAPE   -> vm.requestCancel()
+            }
+            return true
+        }
+
+        // ── 8. Map view (block all — ESCAPE closes) ──
+        if (getActiveView() == MAP) {
+            if (keycode == ESCAPE) {
+                uiStage.actors.filterIsInstance<BackgroundView>().first().isVisible = false
+                uiStage.actors.filterIsInstance<MapView>().first().isVisible = false
+                gameStage.fire(GameResumeEvent())
+            }
+            return true
+        }
+
+        // ── 9. Quest view ──
         if (getActiveView() == QUEST) {
             handleQuestKeyDown(keycode)
             return true
         }
 
-        // Inventory navigation takes priority when inventory is open
+        // ── 10. Inventory ──
         if (getActiveView() == INVENTORY) {
             handleInventoryKeyDown(keycode)
             return true
         }
 
+        // ── 11. Overworld movement (only reached when no view is open) ──
         if (keycode.isMovementKey()) {
             when (keycode) {
-                UP -> {
-                    playerSin = 1f
-                    playerDirection = AWAY
-                }
-                W -> {
-                    playerSin = 1f
-                    playerDirection = AWAY
-                }
-                DOWN -> {
-                    playerSin = -1f
-                    playerDirection = TO
-                }
-                S -> {
-                    playerSin = -1f
-                    playerDirection = TO
-                }
-                LEFT -> {
-                    playerCos = -1f
-                    playerDirection = SIDE
-                }
-                A -> {
-                    playerCos = -1f
-                    playerDirection = SIDE
-                }
-                RIGHT -> {
-                    playerCos = 1f
-                    playerDirection = SIDE
-                }
-                D -> {
-                    playerCos = 1f
-                    playerDirection = SIDE
-                }
+                UP, W    -> { playerSin = 1f;  playerDirection = AWAY }
+                DOWN, S  -> { playerSin = -1f; playerDirection = TO   }
+                LEFT, A  -> { playerCos = -1f; playerDirection = SIDE }
+                RIGHT, D -> { playerCos = 1f;  playerDirection = SIDE }
             }
             updatePlayerMovement()
             updatePlayerDirection()
             log.debug { "key pressed: $keycode, cos: $playerCos, sin: $playerSin, direction: $playerDirection" }
             return true
-        } else {
-            // Alt+1 through Alt+6: switch active overworld character
-            if (Gdx.input.isKeyPressed(ALT_LEFT) || Gdx.input.isKeyPressed(ALT_RIGHT)) {
-                val charId = when (keycode) {
-                    NUM_1 -> 1; NUM_2 -> 2; NUM_3 -> 3
-                    NUM_4 -> 4; NUM_5 -> 5; NUM_6 -> 6
-                    else  -> -1
-                }
-                if (charId > 0) {
-                    gameStage.fire(SwitchActiveCharacterEvent(charId))
-                    return true
-                }
-            }
-
-            val backgroundView = uiStage.actors.filterIsInstance<BackgroundView>().first()
-            when (keycode) {
-                ESCAPE -> {
-                    val menuView = uiStage.actors.filterIsInstance<MenuView>().first()
-                    if (getActiveView() == NO_VIEW) {
-                        gameStage.fire(GamePauseEvent())
-                        backgroundView.isVisible = true
-                        menuView.isVisible = true
-                    } else if (getActiveView() == MAIN_MENU) {
-                        backgroundView.isVisible = false
-                        menuView.isVisible = false
-                        gameStage.fire(GameResumeEvent())
-                    } else {
-                        clearActiveView()
-                        gameStage.fire(GameResumeEvent())
-                    }
-                }
-                E -> {
-                    gameStage.fire(InteractionEvent())
-                }
-                C -> {
-                    val characterInfoView = uiStage.actors.filterIsInstance<CharacterInfoView>().first()
-                    if (getActiveView() == NO_VIEW) {
-                        gameStage.fire(GamePauseEvent())
-                        backgroundView.isVisible = true
-                        characterInfoView.isVisible = true
-                    } else if (getActiveView() == CHARACTER) {
-                        backgroundView.isVisible = false
-                        characterInfoView.isVisible = false
-                        gameStage.fire(GameResumeEvent())
-                    } else {
-                        clearActiveView()
-                        backgroundView.isVisible = true
-                        characterInfoView.isVisible = true
-                    }
-                }
-                L -> {
-                    val skillView = uiStage.actors.filterIsInstance<SkillView>().first()
-                    if (getActiveView() == NO_VIEW) {
-                        gameStage.fire(GamePauseEvent())
-                        gameStage.fire(SkillViewOpenEvent())
-                        backgroundView.isVisible = true
-                        skillView.isVisible = true
-                    } else if (getActiveView() == SKILL) {
-                        backgroundView.isVisible = false
-                        skillView.isVisible = false
-                        gameStage.fire(GameResumeEvent())
-                    } else {
-                        clearActiveView()
-                        gameStage.fire(SkillViewOpenEvent())
-                        backgroundView.isVisible = true
-                        skillView.isVisible = true
-                    }
-                }
-                J -> {
-                    val abilityView = uiStage.actors.filterIsInstance<AbilityView>().first()
-                    if (getActiveView() == NO_VIEW) {
-                        gameStage.fire(GamePauseEvent())
-                        gameStage.fire(AbilityViewOpenEvent())
-                        backgroundView.isVisible = true
-                        abilityView.isVisible = true
-                    } else if (getActiveView() == ABILITY) {
-                        backgroundView.isVisible = false
-                        abilityView.isVisible = false
-                        gameStage.fire(GameResumeEvent())
-                    } else {
-                        clearActiveView()
-                        gameStage.fire(AbilityViewOpenEvent())
-                        backgroundView.isVisible = true
-                        abilityView.isVisible = true
-                    }
-                }
-                M -> {
-                    val mapView = uiStage.actors.filterIsInstance<MapView>().first()
-                    if (getActiveView() == NO_VIEW) {
-                        gameStage.fire(GamePauseEvent())
-                        backgroundView.isVisible = true
-                        mapView.isVisible = true
-                    } else if (getActiveView() == MAP) {
-                        backgroundView.isVisible = false
-                        mapView.isVisible = false
-                        gameStage.fire(GameResumeEvent())
-                    } else {
-                        clearActiveView()
-                        backgroundView.isVisible = true
-                        mapView.isVisible = true
-                    }
-                }
-                I -> {
-                    val inventoryView = uiStage.actors.filterIsInstance<InventoryView>().first()
-                    if (getActiveView() == NO_VIEW) {
-                        gameStage.fire(GamePauseEvent())
-                        gameStage.fire(InventoryOpenEvent())
-                        backgroundView.isVisible = true
-                        inventoryView.isVisible = true
-                    } else if (getActiveView() == INVENTORY) {
-                        backgroundView.isVisible = false
-                        inventoryView.isVisible = false
-                        gameStage.fire(GameResumeEvent())
-                    } else {
-                        clearActiveView()
-                        gameStage.fire(InventoryOpenEvent())
-                        backgroundView.isVisible = true
-                        inventoryView.isVisible = true
-                    }
-                }
-                Q -> {
-                    val questView = uiStage.actors.filterIsInstance<QuestView>().first()
-                    if (getActiveView() == NO_VIEW) {
-                        gameStage.fire(GamePauseEvent())
-                        backgroundView.isVisible = true
-                        questView.isVisible = true
-                    } else if (getActiveView() == QUEST) {
-                        backgroundView.isVisible = false
-                        questView.isVisible = false
-                        gameStage.fire(GameResumeEvent())
-                    } else {
-                        clearActiveView()
-                        backgroundView.isVisible = true
-                        questView.isVisible = true
-                    }
-                }
-                X -> {
-                    // toggle the character selection, and set the context to this view
-                    // arrow keys and WASD now select which character to set, enter to set
-                }
-                P -> {
-                    if (!pausedInventory) {
-                        paused = !paused
-                        gameStage.fire(if (paused) GamePauseEvent() else GameResumeEvent())
-                    }
-                }
-            }
-            return true
         }
+
+        // ── 12. Alt+1–6: switch active overworld character ──
+        if (Gdx.input.isKeyPressed(ALT_LEFT) || Gdx.input.isKeyPressed(ALT_RIGHT)) {
+            val charId = when (keycode) {
+                NUM_1 -> 1; NUM_2 -> 2; NUM_3 -> 3
+                NUM_4 -> 4; NUM_5 -> 5; NUM_6 -> 6
+                else  -> -1
+            }
+            if (charId > 0) {
+                gameStage.fire(SwitchActiveCharacterEvent(charId))
+                return true
+            }
+        }
+
+        // ── 13. ESCAPE (menu toggle) + E (interaction) ──
+        when (keycode) {
+            ESCAPE -> {
+                if (getActiveView() == NO_VIEW || getActiveView() == MAIN_MENU) {
+                    toggleView(MAIN_MENU, uiStage.actors.filterIsInstance<MenuView>().first())
+                }
+                // All other views handle their own ESCAPE in their priority blocks above.
+            }
+            E -> gameStage.fire(InteractionEvent())
+        }
+        return true
     }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // keyUp
+    // ──────────────────────────────────────────────────────────────────────────
 
     override fun keyUp(keycode: Int): Boolean {
-        if (getActiveView() == SETTINGS) return true
+        // Always process movement key releases so vectors stay accurate even if a key
+        // is released while a view is open — prevents lurching on view close.
+        if (!keycode.isMovementKey()) return false
 
-        if (keycode.isMovementKey()) {
-            when (keycode) {
-                UP -> {
-                    if (Gdx.input.isKeyPressed(DOWN)) {
-                        playerSin = -1f
-                        playerDirection = TO
-                    } else playerSin = 0f
-                }
-                W -> {
-                    if (Gdx.input.isKeyPressed(S)) {
-                        playerSin = -1f
-                        playerDirection = TO
-                    } else playerSin = 0f
-                }
-                DOWN -> {
-                    if (Gdx.input.isKeyPressed(UP)) {
-                        playerSin = 1f
-                        playerDirection = AWAY
-                    } else playerSin = 0f
-                }
-                S -> {
-                    if (Gdx.input.isKeyPressed(W)) {
-                        playerSin = 1f
-                        playerDirection = AWAY
-                    } else playerSin = 0f
-                }
-                LEFT -> {
-                    if (Gdx.input.isKeyPressed(RIGHT)) {
-                        playerCos = 1f
-                        playerDirection = SIDE
-                    } else playerCos = 0f
-                }
-                A -> {
-                   if (Gdx.input.isKeyPressed(D)) {
-                        playerCos = 1f
-                        playerDirection = SIDE
-                    } else playerCos = 0f
-                }
-                RIGHT -> {
-                    if (Gdx.input.isKeyPressed(LEFT)) {
-                        playerCos = -1f
-                        playerDirection = SIDE
-                    } else playerCos = 0f
-                }
-                D -> {
-                    if (Gdx.input.isKeyPressed(A)) {
-                        playerCos = -1f
-                        playerDirection = SIDE
-                    } else playerCos = 0f
-                }
+        when (keycode) {
+            // ── Vertical: UP arrow ──
+            UP -> when {
+                Gdx.input.isKeyPressed(DOWN) -> { playerSin = -1f; playerDirection = TO }
+                Gdx.input.isKeyPressed(W)    -> { /* W still held — keep sin=1f */ }
+                else -> playerSin = 0f
             }
-            updatePlayerMovement()
-            updatePlayerDirection()
-            log.debug { "key released: $keycode, cos: $playerCos, sin: $playerSin, direction: $playerDirection" }
-            return true
+            // ── Vertical: W key ──
+            W -> when {
+                Gdx.input.isKeyPressed(S)    -> { playerSin = -1f; playerDirection = TO }
+                Gdx.input.isKeyPressed(UP)   -> { /* UP still held — keep sin=1f */ }
+                else -> playerSin = 0f
+            }
+            // ── Vertical: DOWN arrow ──
+            DOWN -> when {
+                Gdx.input.isKeyPressed(UP)   -> { playerSin = 1f;  playerDirection = AWAY }
+                Gdx.input.isKeyPressed(S)    -> { /* S still held — keep sin=-1f */ }
+                else -> playerSin = 0f
+            }
+            // ── Vertical: S key ──
+            S -> when {
+                Gdx.input.isKeyPressed(W)    -> { playerSin = 1f;  playerDirection = AWAY }
+                Gdx.input.isKeyPressed(DOWN) -> { /* DOWN still held — keep sin=-1f */ }
+                else -> playerSin = 0f
+            }
+            // ── Horizontal: LEFT arrow ──
+            LEFT -> when {
+                Gdx.input.isKeyPressed(RIGHT) || Gdx.input.isKeyPressed(D) -> { playerCos = 1f; playerDirection = SIDE }
+                Gdx.input.isKeyPressed(A)    -> { /* A still held — keep cos=-1f */ }
+                else -> playerCos = 0f
+            }
+            // ── Horizontal: A key ──
+            A -> when {
+                Gdx.input.isKeyPressed(D) || Gdx.input.isKeyPressed(RIGHT) -> { playerCos = 1f; playerDirection = SIDE }
+                Gdx.input.isKeyPressed(LEFT) -> { /* LEFT still held — keep cos=-1f */ }
+                else -> playerCos = 0f
+            }
+            // ── Horizontal: RIGHT arrow ──
+            RIGHT -> when {
+                Gdx.input.isKeyPressed(LEFT) || Gdx.input.isKeyPressed(A) -> { playerCos = -1f; playerDirection = SIDE }
+                Gdx.input.isKeyPressed(D)    -> { /* D still held — keep cos=1f */ }
+                else -> playerCos = 0f
+            }
+            // ── Horizontal: D key ──
+            D -> when {
+                Gdx.input.isKeyPressed(A) || Gdx.input.isKeyPressed(LEFT) -> { playerCos = -1f; playerDirection = SIDE }
+                Gdx.input.isKeyPressed(RIGHT) -> { /* RIGHT still held — keep cos=1f */ }
+                else -> playerCos = 0f
+            }
         }
-        return false
+
+        // After updating components, derive playerDirection from remaining movement so the
+        // character faces the right way when one of two held keys is released.
+        // (Only corrects when exactly one axis is active; diagonal stays as the last keyDown set it.)
+        when {
+            playerCos != 0f && playerSin == 0f -> playerDirection = SIDE
+            playerSin > 0f  && playerCos == 0f -> playerDirection = AWAY
+            playerSin < 0f  && playerCos == 0f -> playerDirection = TO
+        }
+
+        updatePlayerMovement()
+        updatePlayerDirection()
+        log.debug { "key released: $keycode, cos: $playerCos, sin: $playerSin, direction: $playerDirection" }
+        return true
     }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Per-view key handlers
+    // ──────────────────────────────────────────────────────────────────────────
 
     private fun handleShopKeyDown(keycode: Int) {
         val shopView = uiStage.actors.filterIsInstance<ShopView>().firstOrNull() ?: return
@@ -477,15 +536,15 @@ class PlayerKeyboardInputProcessor(
         when (keycode) {
             LEFT, A -> {
                 val newIdx = (model.activeTab.ordinal - 1 + tabs.size) % tabs.size
-                model.activeTab       = tabs[newIdx]
+                model.activeTab        = tabs[newIdx]
                 model.focusedItemIndex = 0
-                model.pendingItemId   = ShopViewModel.NO_PENDING
+                model.pendingItemId    = ShopViewModel.NO_PENDING
             }
             RIGHT, D -> {
                 val newIdx = (model.activeTab.ordinal + 1) % tabs.size
-                model.activeTab       = tabs[newIdx]
+                model.activeTab        = tabs[newIdx]
                 model.focusedItemIndex = 0
-                model.pendingItemId   = ShopViewModel.NO_PENDING
+                model.pendingItemId    = ShopViewModel.NO_PENDING
             }
             UP, W -> {
                 model.focusedItemIndex = (model.focusedItemIndex - 1).coerceAtLeast(0)
@@ -495,9 +554,9 @@ class PlayerKeyboardInputProcessor(
             }
             TAB -> {
                 // Toggle BUY / SELL mode
-                model.shopMode        = if (model.shopMode == ShopMode.BUY) ShopMode.SELL else ShopMode.BUY
+                model.shopMode         = if (model.shopMode == ShopMode.BUY) ShopMode.SELL else ShopMode.BUY
                 model.focusedItemIndex = 0
-                model.pendingItemId   = ShopViewModel.NO_PENDING
+                model.pendingItemId    = ShopViewModel.NO_PENDING
             }
             ENTER -> {
                 val safeIdx = model.focusedItemIndex.coerceIn(0, maxIndex)
@@ -533,39 +592,39 @@ class PlayerKeyboardInputProcessor(
     }
 
     private fun getActiveView(): ViewType {
-        val settingsView = uiStage.actors.filterIsInstance<SettingsView>().firstOrNull()
+        val settingsView      = uiStage.actors.filterIsInstance<SettingsView>().firstOrNull()
         val characterInfoView = uiStage.actors.filterIsInstance<CharacterInfoView>().first()
-        val inventoryView = uiStage.actors.filterIsInstance<InventoryView>().first()
-        val skillView = uiStage.actors.filterIsInstance<SkillView>().first()
-        val abilityView = uiStage.actors.filterIsInstance<AbilityView>().firstOrNull()
-        val questView = uiStage.actors.filterIsInstance<QuestView>().first()
-        val mapView = uiStage.actors.filterIsInstance<MapView>().first()
-        val menuView = uiStage.actors.filterIsInstance<MenuView>().first()
-        val shopView = uiStage.actors.filterIsInstance<ShopView>().firstOrNull()
+        val inventoryView     = uiStage.actors.filterIsInstance<InventoryView>().first()
+        val skillView         = uiStage.actors.filterIsInstance<SkillView>().first()
+        val abilityView       = uiStage.actors.filterIsInstance<AbilityView>().firstOrNull()
+        val questView         = uiStage.actors.filterIsInstance<QuestView>().first()
+        val mapView           = uiStage.actors.filterIsInstance<MapView>().first()
+        val menuView          = uiStage.actors.filterIsInstance<MenuView>().first()
+        val shopView          = uiStage.actors.filterIsInstance<ShopView>().firstOrNull()
 
-        if (shopView?.isVisible == true) { return SHOP }
-        if (settingsView?.isVisible == true) { return SETTINGS }
-        if (characterInfoView.isVisible) { return CHARACTER }
-        if (inventoryView.isVisible) { return INVENTORY }
-        if (skillView.isVisible) { return SKILL }
-        if (abilityView?.isVisible == true) { return ABILITY }
-        if (questView.isVisible) { return QUEST }
-        if (mapView.isVisible) { return MAP }
-        if (menuView.isVisible) { return MAIN_MENU }
+        if (shopView?.isVisible == true)        return SHOP
+        if (settingsView?.isVisible == true)    return SETTINGS
+        if (characterInfoView.isVisible)        return CHARACTER
+        if (inventoryView.isVisible)            return INVENTORY
+        if (skillView.isVisible)                return SKILL
+        if (abilityView?.isVisible == true)     return ABILITY
+        if (questView.isVisible)                return QUEST
+        if (mapView.isVisible)                  return MAP
+        if (menuView.isVisible)                 return MAIN_MENU
         return NO_VIEW
     }
 
     private fun clearActiveView() {
-        uiStage.actors.filterIsInstance<BackgroundView>().first().isVisible = false
+        uiStage.actors.filterIsInstance<BackgroundView>().first().isVisible      = false
         uiStage.actors.filterIsInstance<SettingsView>().firstOrNull()?.isVisible = false
-        uiStage.actors.filterIsInstance<CharacterInfoView>().first().isVisible = false
-        uiStage.actors.filterIsInstance<InventoryView>().first().isVisible = false
-        uiStage.actors.filterIsInstance<SkillView>().first().isVisible = false
-        uiStage.actors.filterIsInstance<AbilityView>().firstOrNull()?.isVisible = false
-        uiStage.actors.filterIsInstance<QuestView>().first().isVisible = false
-        uiStage.actors.filterIsInstance<MapView>().first().isVisible = false
-        uiStage.actors.filterIsInstance<MenuView>().first().isVisible = false
-        uiStage.actors.filterIsInstance<ShopView>().firstOrNull()?.isVisible = false
+        uiStage.actors.filterIsInstance<CharacterInfoView>().first().isVisible   = false
+        uiStage.actors.filterIsInstance<InventoryView>().first().isVisible       = false
+        uiStage.actors.filterIsInstance<SkillView>().first().isVisible           = false
+        uiStage.actors.filterIsInstance<AbilityView>().firstOrNull()?.isVisible  = false
+        uiStage.actors.filterIsInstance<QuestView>().first().isVisible           = false
+        uiStage.actors.filterIsInstance<MapView>().first().isVisible             = false
+        uiStage.actors.filterIsInstance<MenuView>().first().isVisible            = false
+        uiStage.actors.filterIsInstance<ShopView>().firstOrNull()?.isVisible     = false
     }
 
     private fun handleQuestKeyDown(keycode: Int) {
@@ -576,8 +635,7 @@ class PlayerKeyboardInputProcessor(
             UP, W    -> model.moveRowFocus(-1)
             DOWN, S  -> model.moveRowFocus(1)
             ESCAPE   -> {
-                val backgroundView = uiStage.actors.filterIsInstance<BackgroundView>().first()
-                backgroundView.isVisible = false
+                uiStage.actors.filterIsInstance<BackgroundView>().first().isVisible = false
                 uiStage.actors.filterIsInstance<QuestView>().first().isVisible = false
                 gameStage.fire(GameResumeEvent())
             }
@@ -647,10 +705,8 @@ class PlayerKeyboardInputProcessor(
                 ESCAPE -> {
                     if (model.isCombatMode) {
                         gameStage.fire(CombatInventoryClosedEvent())
-                        // GameScreen will hide the inventory overlay
                     } else {
-                        val backgroundView = uiStage.actors.filterIsInstance<BackgroundView>().first()
-                        backgroundView.isVisible = false
+                        uiStage.actors.filterIsInstance<BackgroundView>().first().isVisible = false
                         uiStage.actors.filterIsInstance<InventoryView>().first().isVisible = false
                         gameStage.fire(InventoryClosedEvent())
                         gameStage.fire(GameResumeEvent())
