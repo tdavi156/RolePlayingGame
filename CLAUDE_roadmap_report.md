@@ -400,4 +400,54 @@ Complete rewrite of `PlayerKeyboardInputProcessor` to unify key mappings, fix lo
 
 ---
 
-*End of roadmap report. 24 major features scoped and implemented, covering foundational framework setup, map design, turn-based combat, character progression, inventory, shops, quests, multi-enemy encounters, a full multi-character party system, a stat system redesign, a complete save system overhaul, a dead code cleanup of the overworld combat infrastructure, and a complete input processor overhaul with unified key mappings and view-switching architecture.*
+---
+
+## Feature 25 — UI Cleanup: Remove 9-Patch Inflation, Flatten Row Highlights, Fix Layouts
+
+A targeted pass across six views and widgets to eliminate a class of layout inflation bugs caused by using 9-patch button drawables in contexts that expect minimal-size backgrounds. Also fixes tab label overlapping in the inventory, description label overflow in the skill view, and full-screen inflation of the dialog box.
+
+**Root cause of the 9-patch inflation class:** LibGDX `NinePatchDrawable.getMinWidth()` / `getMinHeight()` return the NinePatch's total pixel size. When assigned as a `Table.background`, the table's minimum preferred size is forced up to match — overriding explicit `width()` / `height()` constraints and making panels, dialogs, and row highlights balloon to unexpected sizes.
+
+**Row highlight replacement:**
+- `Skin.kt`: Added `ROW_HIGHLIGHT` entry to `Drawables` enum. At skin load time a 1×1 `Pixmap` (semi-transparent grey, `RGBA8888`) is turned into a `Texture` → `TextureRegion` and registered in the skin under the `row_highlight` key. `TextureRegion` must be used (not `TextureRegionDrawable`) because `skin.getDrawable()` only checks specific type buckets; it wraps the region in a fresh `TextureRegionDrawable` with zero minimum-size constraints on retrieval. `disposeSkin()` extended to dispose the backing texture.
+- `SettingsView`, `InventoryLeftPanel`, `InventoryRightPanel`, `ShopView`: All `BACKGROUND_GREY` usages as row/focused-item backgrounds replaced with `ROW_HIGHLIGHT`.
+
+**Tab and mode highlight replacement:**
+- `InventoryRightPanel`: Tab labels (Equipment / Consumables / Quest Items / Enchants) and the action menu highlight (Use / Cancel) previously used `SMALL_WHITE_BGD` label styles whose 9-patch background inflated the right panel. Replaced with direct `label.color` tinting: `Colors.ORANGE` for the active/focused entry, `Color.WHITE` for inactive, `Color(1f,1f,1f,0.35f)` for faded (combat-mode non-consumable tabs).
+- `ShopView`: Buy/Sell mode labels and tab labels previously used `SMALL_WHITE_BGD` / `SMALL_GREY_BGD` styles for highlighting. Replaced with `label.color` tinting matching the same pattern. Unaffordable buy items and unsellable sell items changed from `SMALL_GREY_BGD` label style to `Color(0.5f, 0.5f, 0.5f, 1f)` tinting on the name and price labels directly.
+
+**DialogView — full-screen inflation fix:**
+- `BROWN_BUTTON_SMALL` buttons in `buttonArea` inflated the inner table's minimum size beyond the explicit `width(200f).height(130f)` constraint, causing the dialog background to fill the entire screen.
+- Fix: Added `defaults().minSize(0f)` to the outer `DialogView` table, the inner `table {}` block, and the `buttonArea`'s `defaults().expand()` chain.
+
+**InventoryView — tab label overlap fix:**
+- Both left and right panels used `expand().fill()`, giving each exactly half (320px) of the 640px inner table. Four tab labels in 320px (≈80px each) was too narrow for "Consumables" at the 16pt font.
+- Fix: Changed left panel to `fill().width(160f)` (fixed width matching its portrait + name + bar content). Right panel keeps `expand().fill()` and now receives the remaining ≈478px, giving each tab ≈119px — ample for all four labels.
+
+**SkillView — description label overflow fix:**
+- The five stat description labels (e.g. "+3 Spell Dmg, +5 Mana per point") were constrained to `width(140f)`, far too narrow for the longest strings (~230px at the 16pt font). Labels rendered outside the frame boundary.
+- Fix: All five description cell widths increased from `140f` → `200f` (via `replace_all`). The outer table width increased from `460f` → `520f` to absorb the additional width; the expandX stat-name column still receives a comfortable ~230px.
+
+**SkillView — button 9-patch inflation fix:**
+- `defaults().minSize(0f)` added to the inner `table { outerCell -> }` block so the `[-]` / `[+]` buttons' 9-patch minimums cannot inflate the stat rows.
+
+**Bugs fixed (separate from Feature 25):**
+
+*SaveManager — player not spawning on load from save:*
+- When a save file existed, `SpawnerSystem` restored the player spawner's `isSpawned = true` from disk. `onTickEntity` skips any spawner with `isSpawned = true`, and the immediate-respawn block already excluded `entityToSpawn == "player"` — so no player entity was ever created on load. Camera had nothing to follow.
+- Fix in `SpawnerSystem.handle(MapChangeEvent)`: For the player spawner, `isSpawned` is now set based on whether a `PlayerComponent` entity already exists in the world (runtime check) rather than the saved value. This ensures: (a) loading from save with no player entity → spawner fires normally; (b) portal/map transitions where the player entity already exists → spawner stays dormant to prevent duplicates.
+
+*Battle crash on enter:*
+- `MapSystem.setBattleMap()` looked up the battle map's player position with `objects.get("player_spawner")` but `map_1_battle_1.tmx` had the object named `player_spawner_1` (numbered for future multi-slot party support). The lookup returned null → NPE on `playerSpawner.x`.
+- Fix: Renamed `player_spawner_1` → `player_spawner` in the TMX. `player_spawner_2` and `player_spawner_3` retained for future party member positioning.
+
+**DevConfig — development quality-of-life flag:**
+- `DevConfig.kt` (new top-level file): single `const val CLEAR_SAVE_ON_START: Boolean` flag. When `true`, `SaveManager.clearSave()` is called before `InitializeGameEvent` fires in `GameScreen`, deleting `game_save.json` and clearing the in-memory cache so the game always boots into a clean new-game state. Settings file is intentionally preserved. Flip to `false` when testing save/load functionality.
+
+**Reworked:** `InventoryRightPanel`, `ShopView` (color tinting throughout). `InventoryView` (centered layout with fixed left panel). `SkillView` (wider cells). `DialogView` (minSize suppression). `SpawnerSystem` (player spawner runtime check).
+
+**Added:** `Drawables.ROW_HIGHLIGHT` + backing texture in `Skin.kt`. `DevConfig.kt`. `SaveManager.clearSave()`. `.gitignore` entries for `/save/` and `.claude/settings.local.json`.
+
+---
+
+*End of roadmap report. 25 major features scoped and implemented, covering foundational framework setup, map design, turn-based combat, character progression, inventory, shops, quests, multi-enemy encounters, a full multi-character party system, a stat system redesign, a complete save system overhaul, a dead code cleanup of the overworld combat infrastructure, a complete input processor overhaul with unified key mappings and view-switching architecture, and a UI cleanup pass eliminating 9-patch inflation across all major views.*
