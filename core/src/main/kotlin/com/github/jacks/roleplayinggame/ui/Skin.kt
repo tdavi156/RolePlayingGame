@@ -2,8 +2,11 @@ package com.github.jacks.roleplayinggame.ui
 
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.graphics.Pixmap
+import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.TextureAtlas
+import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.scenes.scene2d.ui.Skin
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import ktx.assets.disposeSafely
@@ -98,7 +101,10 @@ enum class Drawables(
     BUTTON_BLACK_OVER("button_black_over"),
     BUTTON_BLACK_DISABLED("button_black_disabled"),
 
-    BUTTON_GREY_UP("button_grey_up");
+    BUTTON_GREY_UP("button_grey_up"),
+
+    // Flat 1×1 drawable for row highlights — no 9-patch minimum-size inflation
+    ROW_HIGHLIGHT("row_highlight");
 }
 
 enum class Labels {
@@ -204,6 +210,9 @@ enum class Buttons {
 operator fun Skin.get(drawable : Drawables) : Drawable = this.getDrawable(drawable.atlasKey)
 operator fun Skin.get(font : Fonts) : BitmapFont = this.getFont(font.skinKey)
 
+// Backing texture for the flat row-highlight drawable; disposed in disposeSkin()
+private var rowHighlightTexture: Texture? = null
+
 fun loadSkin() {
     // figure out how to remove the assets part, it should be inherit
     Scene2DSkin.defaultSkin = skin(TextureAtlas("assets/ui/ui_objects.atlas")) { skin ->
@@ -211,6 +220,16 @@ fun loadSkin() {
         loadLabels(skin)
         loadButtons(skin)
         scrollPane("default") { /* no scrollbar drawables — pane scrolls without visible bars */ }
+
+        // Create a flat 1×1 semi-transparent grey drawable for row highlights.
+        // Store as TextureRegion so skin.getDrawable() finds it and wraps it in a
+        // TextureRegionDrawable (no 9-patch min-size constraints).
+        val hlPixmap = Pixmap(1, 1, Pixmap.Format.RGBA8888)
+        hlPixmap.setColor(Color(0.75f, 0.75f, 0.75f, 0.35f))
+        hlPixmap.fill()
+        rowHighlightTexture = Texture(hlPixmap)
+        hlPixmap.dispose()
+        skin.add(Drawables.ROW_HIGHLIGHT.atlasKey, TextureRegion(rowHighlightTexture!!))
     }
 }
 
@@ -601,4 +620,6 @@ private fun @SkinDsl Skin.loadButtons(skin: Skin) {
 
 fun disposeSkin() {
     Scene2DSkin.defaultSkin.disposeSafely()
+    rowHighlightTexture?.disposeSafely()
+    rowHighlightTexture = null
 }

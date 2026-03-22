@@ -359,4 +359,45 @@ Removed all overworld real-time combat infrastructure that became dead code when
 
 ---
 
-*End of roadmap report. 23 major features scoped and implemented, covering foundational framework setup, map design, turn-based combat, character progression, inventory, shops, quests, multi-enemy encounters, a full multi-character party system, a stat system redesign, a complete save system overhaul, and a dead code cleanup of the overworld combat infrastructure.*
+## Feature 24 — PlayerKeyboardInputProcessor Overhaul
+
+Complete rewrite of `PlayerKeyboardInputProcessor` to unify key mappings, fix longstanding bugs, and eliminate ~130 lines of duplicated open/close boilerplate that had accumulated across 23 incremental features.
+
+**Key mapping changes:**
+
+| Key | Action |
+|-----|--------|
+| I | Inventory |
+| C | Character info |
+| K | Skills (was L) |
+| L | Abilities (was J) |
+| J | Quest log (was Q) |
+| M | Map |
+| O | Settings (new) |
+| ESCAPE | Contextual: close view / go back / open menu |
+| E | Interaction |
+| W/A/S/D + Arrows | Movement + menu navigation |
+| Alt+1–6 | Switch active overworld character |
+
+**Bugs fixed:**
+
+- **CHARACTER view softlock** — The CHARACTER priority block consumed all keys including C and ESCAPE, making it impossible to close the view from the keyboard. Fixed by running view-toggle logic before priority blocks.
+- **View switching** — Pressing a view key (K, L, I, etc.) while a different view was already open did nothing. Fixed with a `handleViewToggle()` helper that detects the current view and switches directly, bypassing priority blocks.
+- **Settings background leak** — Pressing O to close settings hid the `SettingsView` but left `BackgroundView` visible. Root cause: `SettingsViewModel` fires `SettingsClosedEvent` on `uiStage` while `GameScreen` listens on `gameStage`, so the close event was never received by the background hide logic. Fixed by detecting the "opened from overworld" context (MenuView not visible) directly in the SETTINGS ESCAPE handler.
+- **Movement direction tracking** — When two arrow/WASD keys were held simultaneously, releasing one key always snapped direction to the last-released key rather than the remaining held key. Fixed with cross-scheme partner checks on `keyUp` (UP checks if W is still held, W checks if UP is still held, etc.) plus a post-update direction correction pass.
+
+**Architecture introduced:**
+
+- `handleViewToggle(keycode)` — runs before all priority blocks; maps I/C/K/L/J/M/O to their ViewType and handles three cases: (1) no view open → pause and open target, (2) same view open → close gracefully, (3) different view open → force-hide current and open target
+- `getViewActor(viewType)` — resolves the `Actor` instance from `uiStage` for any view type
+- `openViewActor(viewType)` — shows the actor and fires open events (InventoryOpenEvent, SkillViewOpenEvent, AbilityViewOpenEvent) where required
+- `closeViewGracefully(viewType)` — fires cancel/confirm dialogs for SKILL/ABILITY, handles the SETTINGS uiStage/gameStage split, and fires GameResumeEvent for all other views
+- `forceHideCurrentView(viewType)` — used when switching views without close confirmation
+
+**Reworked:** `PlayerKeyboardInputProcessor` completely rewritten. `GameScreen.kt` updated to construct and hold `skillViewModel` as a named field (same pattern as `abilityViewModel`) and pass both into the input processor constructor.
+
+**Added:** `skillViewModel` field in `GameScreen`; `handleViewToggle`, `getViewActor`, `openViewActor`, `closeViewGracefully`, `forceHideCurrentView` helpers in `PlayerKeyboardInputProcessor`.
+
+---
+
+*End of roadmap report. 24 major features scoped and implemented, covering foundational framework setup, map design, turn-based combat, character progression, inventory, shops, quests, multi-enemy encounters, a full multi-character party system, a stat system redesign, a complete save system overhaul, a dead code cleanup of the overworld combat infrastructure, and a complete input processor overhaul with unified key mappings and view-switching architecture.*

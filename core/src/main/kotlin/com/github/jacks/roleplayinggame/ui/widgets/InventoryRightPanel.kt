@@ -1,5 +1,6 @@
 package com.github.jacks.roleplayinggame.ui.widgets
 
+import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.ui.Image
@@ -15,6 +16,7 @@ import com.github.jacks.roleplayinggame.configurations.ConsumableItemData
 import com.github.jacks.roleplayinggame.configurations.EquipmentItemData
 import com.github.jacks.roleplayinggame.configurations.QuestItemData
 import com.github.jacks.roleplayinggame.systems.InventorySystem
+import com.github.jacks.roleplayinggame.ui.Colors
 import com.github.jacks.roleplayinggame.ui.Drawables
 import com.github.jacks.roleplayinggame.ui.Labels
 import com.github.jacks.roleplayinggame.ui.get
@@ -86,12 +88,16 @@ class InventoryRightPanel(
     }
 
     private fun updateTabHighlights() {
+        val labelStyle = skin.get(Labels.SMALL.skinKey, Label.LabelStyle::class.java)
         tabLabels.forEach { (tab, lbl) ->
             val isActive = tab == model.activeTab
             val isFaded  = model.isCombatMode && tab != InventoryTab.CONSUMABLES
-            val styleKey = if (isActive) Labels.SMALL_WHITE_BGD.skinKey else Labels.SMALL.skinKey
-            lbl.style = skin.get(styleKey, Label.LabelStyle::class.java)
-            lbl.color = if (isFaded) com.badlogic.gdx.graphics.Color(1f, 1f, 1f, 0.35f) else com.badlogic.gdx.graphics.Color.WHITE
+            lbl.style = labelStyle
+            lbl.color = when {
+                isFaded  -> Color(1f, 1f, 1f, 0.35f)
+                isActive -> Colors.ORANGE.color
+                else     -> Color.WHITE
+            }
         }
     }
 
@@ -107,7 +113,7 @@ class InventoryRightPanel(
         items.forEachIndexed { index, entry ->
             val row = Table(skin).apply { defaults().minSize(0f) }
             val isFocused = index == model.focusedItemIndex
-            if (isFocused) row.background = skin[Drawables.BACKGROUND_GREY]
+            if (isFocused) row.background = skin[Drawables.ROW_HIGHLIGHT]
 
             val item = entry.item as Any
             addIconToRow(row, item.uiAtlasKey())
@@ -121,10 +127,14 @@ class InventoryRightPanel(
                     else -> ""
                 }
                 if (actionLabel.isNotEmpty()) {
-                    val actionStyle = if (model.actionMenuFocusIndex == 0) Labels.SMALL_WHITE_BGD.skinKey else Labels.SMALL.skinKey
-                    val cancelStyle = if (model.actionMenuFocusIndex == 1) Labels.SMALL_WHITE_BGD.skinKey else Labels.SMALL.skinKey
-                    row.add(Label(actionLabel, skin, actionStyle)).right().padRight(2f)
-                    row.add(Label("Cancel",    skin, cancelStyle)).right().padRight(3f)
+                    val actionLbl = Label(actionLabel, skin, Labels.SMALL.skinKey).apply {
+                        color = if (model.actionMenuFocusIndex == 0) Colors.ORANGE.color else Color.WHITE
+                    }
+                    val cancelLbl = Label("Cancel", skin, Labels.SMALL.skinKey).apply {
+                        color = if (model.actionMenuFocusIndex == 1) Colors.ORANGE.color else Color.WHITE
+                    }
+                    row.add(actionLbl).right().padRight(2f)
+                    row.add(cancelLbl).right().padRight(3f)
                 }
             } else {
                 row.add(Label(item.displayName(), skin, Labels.SMALL.skinKey)).expandX().left()
@@ -166,7 +176,7 @@ class InventoryRightPanel(
         itemListTable.cells.forEachIndexed { index, cell ->
             val actor = cell.actor
             if (actor is Table) {
-                actor.background = if (index == model.focusedItemIndex) skin[Drawables.BACKGROUND_GREY] else null
+                actor.background = if (index == model.focusedItemIndex) skin[Drawables.ROW_HIGHLIGHT] else null
             }
         }
     }

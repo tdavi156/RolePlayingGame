@@ -60,6 +60,7 @@ import com.github.jacks.roleplayinggame.systems.MoveSystem
 import com.github.jacks.roleplayinggame.systems.PhysicsSystem
 import com.github.jacks.roleplayinggame.systems.PortalSystem
 import com.github.jacks.roleplayinggame.systems.RenderSystem
+import com.github.jacks.roleplayinggame.DevConfig
 import com.github.jacks.roleplayinggame.saveManager.SaveManager
 import com.github.jacks.roleplayinggame.systems.SpawnerSystem
 import com.github.jacks.roleplayinggame.systems.StateSystem
@@ -120,7 +121,9 @@ class GameScreen(game : RolePlayingGame) : KtxScreen, EventListener {
     private var currentBattleEnemy: Entity? = null
 
     /** Central save/load manager — injected into the ECS world so any system can receive it. */
-    val saveManager = SaveManager()
+    val saveManager = SaveManager().also {
+        if (DevConfig.CLEAR_SAVE_ON_START) it.clearSave()
+    }
 
     private val entityWorld : World = world {
         injectables {

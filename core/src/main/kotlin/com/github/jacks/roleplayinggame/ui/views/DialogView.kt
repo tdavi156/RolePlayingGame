@@ -30,9 +30,11 @@ class DialogView(
 
     init {
         setFillParent(true)
+        defaults().minSize(0f)
         this.alpha = 0f
 
         table {
+            defaults().minSize(0f)
             background = skin[Drawables.FRAME_BGD]
 
             this@DialogView.dialogText = label(text = "", style = Labels.FRAME.skinKey) { labelCell ->
@@ -42,7 +44,7 @@ class DialogView(
             }
 
             this@DialogView.buttonArea = table { buttonAreaCell ->
-                this.defaults().expand()
+                this.defaults().expand().minSize(0f)
                 buttonAreaCell.expandX().fillX().pad(0f, 8f, 8f, 8f)
             }
 

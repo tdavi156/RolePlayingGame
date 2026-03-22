@@ -54,7 +54,7 @@
    </properties>
    <ellipse/>
   </object>
-  <object id="32" name="slime_spawner_2" x="403" y="339.5" width="26" height="26">
+  <object id="32" name="slime_spawner_2" x="187.667" y="359.833" width="26" height="26">
    <properties>
     <property name="entityToSpawn" value="slimeGreen"/>
     <property name="id" type="int" value="3"/>
@@ -63,16 +63,16 @@
    </properties>
    <ellipse/>
   </object>
-  <object id="33" name="player_spawner" x="404" y="530.5" width="26" height="26">
+  <object id="33" name="player_spawner" x="170.333" y="459.5" width="26" height="26">
    <properties>
     <property name="entityToSpawn" value="player"/>
     <property name="id" type="int" value="1"/>
     <property name="mapId" type="int" value="1"/>
-    <property name="spawnTimer" type="float" value="0"/>
+    <property name="spawnTimer" type="float" value="1"/>
    </properties>
    <ellipse/>
   </object>
-  <object id="41" name="slime_spawner_3" x="460.333" y="360" width="26" height="26">
+  <object id="41" name="slime_spawner_3" x="263.333" y="389" width="26" height="26">
    <properties>
     <property name="entityToSpawn" value="slimeBlue"/>
     <property name="id" type="int" value="4"/>
@@ -81,7 +81,7 @@
    </properties>
    <ellipse/>
   </object>
-  <object id="42" name="slime_spawner_4" x="377.333" y="382.667" width="26" height="26">
+  <object id="42" name="slime_spawner_4" x="202.666" y="418.334" width="26" height="26">
    <properties>
     <property name="entityToSpawn" value="slimeRed"/>
     <property name="id" type="int" value="5"/>

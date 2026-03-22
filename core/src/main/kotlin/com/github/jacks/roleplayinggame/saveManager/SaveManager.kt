@@ -45,6 +45,18 @@ class SaveManager {
     /** Returns true if a save file exists on disk. False means first-time / new game. */
     fun hasSave(): Boolean = gameSaveFile.exists()
 
+    // ── Dev utilities ─────────────────────────────────────────────────────────
+
+    /**
+     * Delete the game save file and clear the in-memory cache.
+     * Settings are intentionally left intact.
+     * Call this at startup when [DevConfig.CLEAR_SAVE_ON_START] is true.
+     */
+    fun clearSave() {
+        if (gameSaveFile.exists()) gameSaveFile.delete()
+        cachedSave = null
+    }
+
     // ── Full game save ─────────────────────────────────────────────────────────
 
     /**

@@ -64,6 +64,7 @@ class SkillView(
         setFillParent(true)
 
         table { outerCell ->
+            defaults().minSize(0f)
             background = skin[Drawables.FRAME_BGD]
             pad(12f)
 
@@ -92,7 +93,7 @@ class SkillView(
                     override fun changed(event: ChangeEvent, actor: Actor) { vm.addStamina() }
                 })
             }
-            label("+10 Max HP per point", Labels.SMALL.skinKey) { it.width(140f).right() }
+            label("+10 Max HP per point", Labels.SMALL.skinKey) { it.width(200f).right() }
             row()
 
             // ── Strength row ─────────────────────────────────────────────────
@@ -111,7 +112,7 @@ class SkillView(
                     override fun changed(event: ChangeEvent, actor: Actor) { vm.addStrength() }
                 })
             }
-            label("+3 Attack Damage per point", Labels.SMALL.skinKey) { it.width(140f).right() }
+            label("+3 Attack Damage per point", Labels.SMALL.skinKey) { it.width(200f).right() }
             row()
 
             // ── Agility row ──────────────────────────────────────────────────
@@ -130,7 +131,7 @@ class SkillView(
                     override fun changed(event: ChangeEvent, actor: Actor) { vm.addAgility() }
                 })
             }
-            label("+Acc/Eva/Speed per point", Labels.SMALL.skinKey) { it.width(140f).right() }
+            label("+Acc/Eva/Speed per point", Labels.SMALL.skinKey) { it.width(200f).right() }
             row()
 
             // ── Intelligence row ─────────────────────────────────────────────
@@ -149,7 +150,7 @@ class SkillView(
                     override fun changed(event: ChangeEvent, actor: Actor) { vm.addIntelligence() }
                 })
             }
-            label("+3 Spell Dmg, +5 Mana per point", Labels.SMALL.skinKey) { it.width(140f).right() }
+            label("+3 Spell Dmg, +5 Mana per point", Labels.SMALL.skinKey) { it.width(200f).right() }
             row()
 
             // ── Wisdom row ───────────────────────────────────────────────────
@@ -168,7 +169,7 @@ class SkillView(
                     override fun changed(event: ChangeEvent, actor: Actor) { vm.addWisdom() }
                 })
             }
-            label("+2 Resistance, +3 Mana per point", Labels.SMALL.skinKey) { it.width(140f).right() }
+            label("+2 Resistance, +3 Mana per point", Labels.SMALL.skinKey) { it.width(200f).right() }
             row()
 
             // ── Footer ───────────────────────────────────────────────────────
@@ -231,7 +232,7 @@ class SkillView(
                 stackCell.colspan(5).center().padTop(8f).height(70f)
             }
 
-            outerCell.expand().center().width(460f)
+            outerCell.expand().center().width(520f)
         }
 
         // ── Data bindings ────────────────────────────────────────────────────

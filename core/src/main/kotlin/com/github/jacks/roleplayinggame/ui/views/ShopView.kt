@@ -1,5 +1,6 @@
 package com.github.jacks.roleplayinggame.ui.views
 
+import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
@@ -20,6 +21,7 @@ import com.github.jacks.roleplayinggame.events.ShopBuyConfirmedEvent
 import com.github.jacks.roleplayinggame.events.ShopClosedEvent
 import com.github.jacks.roleplayinggame.events.ShopSellConfirmedEvent
 import com.github.jacks.roleplayinggame.events.fire
+import com.github.jacks.roleplayinggame.ui.Colors
 import com.github.jacks.roleplayinggame.ui.Drawables
 import com.github.jacks.roleplayinggame.ui.Labels
 import com.github.jacks.roleplayinggame.ui.get
@@ -161,10 +163,11 @@ class ShopView(
     // ─── Top bar ─────────────────────────────────────────────────────────────
 
     private fun updateModeHighlights() {
-        val buyStyle  = if (model.shopMode == ShopMode.BUY)  Labels.SMALL_WHITE_BGD.skinKey else Labels.SMALL.skinKey
-        val sellStyle = if (model.shopMode == ShopMode.SELL) Labels.SMALL_WHITE_BGD.skinKey else Labels.SMALL.skinKey
-        buyModeLabel?.style  = skin.get(buyStyle,  Label.LabelStyle::class.java)
-        sellModeLabel?.style = skin.get(sellStyle, Label.LabelStyle::class.java)
+        val labelStyle = skin.get(Labels.SMALL.skinKey, Label.LabelStyle::class.java)
+        buyModeLabel?.style  = labelStyle
+        sellModeLabel?.style = labelStyle
+        buyModeLabel?.color  = if (model.shopMode == ShopMode.BUY)  Colors.ORANGE.color else Color.WHITE
+        sellModeLabel?.color = if (model.shopMode == ShopMode.SELL) Colors.ORANGE.color else Color.WHITE
         updateGoldLabel()
     }
 
@@ -191,9 +194,10 @@ class ShopView(
     }
 
     private fun updateTabHighlights() {
+        val labelStyle = skin.get(Labels.SMALL.skinKey, Label.LabelStyle::class.java)
         tabLabels.forEach { (tab, lbl) ->
-            val style = if (tab == model.activeTab) Labels.SMALL_WHITE_BGD.skinKey else Labels.SMALL.skinKey
-            lbl.style = skin.get(style, Label.LabelStyle::class.java)
+            lbl.style = labelStyle
+            lbl.color = if (tab == model.activeTab) Colors.ORANGE.color else Color.WHITE
         }
     }
 
@@ -219,7 +223,7 @@ class ShopView(
             val isPending = !isLeave && row.id == model.pendingItemId
 
             val rowTable = Table(skin).apply { defaults().minSize(0f) }
-            if (isFocused) rowTable.background = skin[Drawables.BACKGROUND_GREY]
+            if (isFocused) rowTable.background = skin[Drawables.ROW_HIGHLIGHT]
 
             if (!isLeave) addIconToRow(rowTable, row.iconKey)
 
@@ -233,9 +237,9 @@ class ShopView(
                     rowTable.add(Label("Leave", skin, Labels.SMALL.skinKey)).expandX().left().colspan(2).padLeft(4f)
                 }
                 else -> {
-                    val nameStyle = if (row.canAfford) Labels.SMALL.skinKey else Labels.SMALL_GREY_BGD.skinKey
-                    rowTable.add(Label(row.name, skin, nameStyle)).expandX().left()
-                    rowTable.add(Label("${row.goldValue}g", skin, nameStyle)).right().padRight(3f)
+                    val nameColor = if (row.canAfford) Color.WHITE else Color(0.5f, 0.5f, 0.5f, 1f)
+                    rowTable.add(Label(row.name, skin, Labels.SMALL.skinKey).apply { color = nameColor }).expandX().left()
+                    rowTable.add(Label("${row.goldValue}g", skin, Labels.SMALL.skinKey).apply { color = nameColor }).right().padRight(3f)
                 }
             }
 
@@ -256,7 +260,7 @@ class ShopView(
             val isPending = !isLeave && row.id == model.pendingItemId
 
             val rowTable = Table(skin).apply { defaults().minSize(0f) }
-            if (isFocused) rowTable.background = skin[Drawables.BACKGROUND_GREY]
+            if (isFocused) rowTable.background = skin[Drawables.ROW_HIGHLIGHT]
 
             if (!isLeave) addIconToRow(rowTable, row.iconKey)
 
@@ -270,13 +274,13 @@ class ShopView(
                     rowTable.add(Label("Leave", skin, Labels.SMALL.skinKey)).expandX().left().colspan(2).padLeft(4f)
                 }
                 else -> {
-                    val nameStyle = if (row.sellable) Labels.SMALL.skinKey else Labels.SMALL_GREY_BGD.skinKey
-                    rowTable.add(Label(row.name, skin, nameStyle)).expandX().left()
+                    val nameColor = if (row.sellable) Color.WHITE else Color(0.5f, 0.5f, 0.5f, 1f)
+                    rowTable.add(Label(row.name, skin, Labels.SMALL.skinKey).apply { color = nameColor }).expandX().left()
                     if (row.availableQty > 1) {
-                        rowTable.add(Label("x${row.availableQty}", skin, nameStyle)).right().padRight(2f)
+                        rowTable.add(Label("x${row.availableQty}", skin, Labels.SMALL.skinKey).apply { color = nameColor }).right().padRight(2f)
                     }
                     if (row.sellable) {
-                        rowTable.add(Label("${row.sellPrice}g", skin, nameStyle)).right().padRight(3f)
+                        rowTable.add(Label("${row.sellPrice}g", skin, Labels.SMALL.skinKey).apply { color = nameColor }).right().padRight(3f)
                     }
                 }
             }
@@ -335,7 +339,7 @@ class ShopView(
         itemListTable.cells.forEachIndexed { index, cell ->
             val actor = cell.actor
             if (actor is Table) {
-                actor.background = if (index == model.focusedItemIndex) skin[Drawables.BACKGROUND_GREY] else null
+                actor.background = if (index == model.focusedItemIndex) skin[Drawables.ROW_HIGHLIGHT] else null
             }
         }
     }

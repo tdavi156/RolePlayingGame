@@ -7,8 +7,6 @@ import com.github.jacks.roleplayinggame.ui.get
 import com.github.jacks.roleplayinggame.ui.viewmodels.InventoryViewModel
 import com.github.jacks.roleplayinggame.ui.widgets.InventoryLeftPanel
 import com.github.jacks.roleplayinggame.ui.widgets.InventoryRightPanel
-import com.github.jacks.roleplayinggame.ui.widgets.inventoryLeftPanel
-import com.github.jacks.roleplayinggame.ui.widgets.inventoryRightPanel
 import ktx.scene2d.KTable
 import ktx.scene2d.KWidget
 import ktx.scene2d.Scene2DSkin
@@ -26,10 +24,14 @@ class InventoryView(
     init {
         setFillParent(true)
         defaults().minSize(0f)
-        background = skin[Drawables.FRAME_BGD]
 
-        leftPanel  = inventoryLeftPanel(model)  { it.expand().fill().padRight(2f) }
-        rightPanel = inventoryRightPanel(model) { it.expand().fill() }
+        val innerTable = Table(skin).apply { defaults().minSize(0f) }
+        innerTable.background = skin[Drawables.FRAME_BGD]
+        leftPanel  = InventoryLeftPanel(model, skin)
+        rightPanel = InventoryRightPanel(model, skin)
+        innerTable.add(leftPanel).fill().width(160f).padRight(2f)
+        innerTable.add(rightPanel).expand().fill()
+        add(innerTable).expand().center().width(640f)
     }
 }
 

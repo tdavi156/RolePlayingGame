@@ -92,7 +92,7 @@ class InventoryLeftPanel(
 
     private fun buildCharacterRow(name: String, hpPct: Float, focused: Boolean): Table {
         val row = Table(skin).apply { defaults().minSize(0f) }
-        if (focused) row.background = skin[Drawables.BACKGROUND_GREY]
+        if (focused) row.background = skin[Drawables.ROW_HIGHLIGHT]
 
         // Portrait placeholder
         val portrait = Image(skin[Drawables.PLAYER])

@@ -258,7 +258,7 @@ class SettingsView(
         }
         model.onPropertyChange(SettingsViewModel::focusedRow) { row ->
             rowTables.forEachIndexed { index, table ->
-                table.background = if (index == row) skin[Drawables.BACKGROUND_GREY] else null
+                table.background = if (index == row) skin[Drawables.ROW_HIGHLIGHT] else null
             }
         }
         model.onPropertyChange(SettingsViewModel::row5FocusedButton) { btn ->

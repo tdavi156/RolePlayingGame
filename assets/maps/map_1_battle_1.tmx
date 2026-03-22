@@ -28,7 +28,7 @@
  <objectgroup id="6" name="entities"/>
  <objectgroup id="8" name="portals"/>
  <objectgroup color="#00aa00" id="7" name="spawners">
-  <object id="1" name="player_spawner_1" x="171.5" y="171.375" width="26" height="26">
+  <object id="1" name="player_spawner" x="171.5" y="171.375" width="26" height="26">
    <properties>
     <property name="entityToSpawn" value="player"/>
     <property name="id" type="int" value="1"/>
