@@ -450,4 +450,23 @@ A targeted pass across six views and widgets to eliminate a class of layout infl
 
 ---
 
-*End of roadmap report. 25 major features scoped and implemented, covering foundational framework setup, map design, turn-based combat, character progression, inventory, shops, quests, multi-enemy encounters, a full multi-character party system, a stat system redesign, a complete save system overhaul, a dead code cleanup of the overworld combat infrastructure, a complete input processor overhaul with unified key mappings and view-switching architecture, and a UI cleanup pass eliminating 9-patch inflation across all major views.*
+## Feature 26 — Dead Code Cleanup: Orphaned Files and Commented Debris
+
+A pass over the architecture to remove code confirmed to have zero live references anywhere in the codebase. Orphaned files from replaced systems, a commented-out tooltip system that was never activated, and a test/debug artifact. Items that appeared dormant but are scoped for future roadmap features were explicitly preserved (see CLAUDE.md for the preserved list).
+
+**Deleted entirely (6 files):**
+- `screens/InventoryScreen.kt` — Dev/test harness screen that created its own isolated mini-world with just `PlayerComponent` and `InventoryComponent`; never navigated to from `GameScreen`, never referenced by any other file
+- `ui/widgets/InventoryDragSourceTarget.kt` — The old drag-and-drop inventory system (`InventoryDragSource` + `InventoryDragTarget`) from before the Feature 12 overhaul; noted as "preserved as a generic UI utility" in the roadmap but never imported after decoupling
+- `ui/widgets/InventorySlot.kt` — Companion widget to the drag-and-drop system; only referenced by `InventoryDragSourceTarget.kt`
+- `ui/viewmodels/ItemModel.kt` — ViewModel data class for the drag-and-drop system; only referenced by the two deleted files above
+- `quest/Quests.kt` — Contained a `Quest` sealed interface and `KillQuest` with `TODO("Not yet implemented")`; never imported by any file; the real quest system uses `QuestConfigurations.kt` and `QuestSystem.kt` exclusively
+- `ui/widgets/CharacterInfo.kt` — Compact portrait+HP+mana bar widget; never instantiated anywhere in the codebase; `CharacterInfoView` has its own inline stat labels
+
+**Cleaned up across 3 files:**
+- `MainGameView.kt`: Removed the entire commented-out tooltip system — 5 field declarations (`characterInfoToolTipLabel`, `inventoryToolTipLabel`, `skillToolTipLabel`, `questToolTipLabel`, `mapToolTipLabel`), the commented `stack {}` build block, all commented hover listener bodies across 4 buttons, and the now-orphaned `getTooltipLocation()` helper method. Removed 6 now-unused imports (`Button`, `Label`, `InputEvent`, `InputListener`, `Align`, `ktx label`)
+- `Skin.kt`: Removed `TEST_LABEL` from the `Labels` enum and its 3-line skin registration block from `loadLabels()` — only ever referenced by the removed tooltip code
+- `MapView.kt`: Removed the hardcoded `label("test label on Map view", ...)` from the view's `init` block; the view skeleton, `MapViewModel`, and DSL extension function are preserved as the structure for a future map display feature
+
+---
+
+*End of roadmap report. 26 major features scoped and implemented, covering foundational framework setup, map design, turn-based combat, character progression, inventory, shops, quests, multi-enemy encounters, a full multi-character party system, a stat system redesign, a complete save system overhaul, two dead code cleanup passes removing overworld combat infrastructure and orphaned file debris, a complete input processor overhaul with unified key mappings and view-switching architecture, and a UI cleanup pass eliminating 9-patch inflation across all major views.*

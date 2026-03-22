@@ -44,13 +44,21 @@
 
 ## Next Feature
 
-# Feature 23 — Remove Dead Life/Death/Attack Systems
+# Feature 26 — Dead Code Cleanup: Orphaned Files and Commented Debris
 
-All overworld combat infrastructure (`LifeSystem`, `DeathSystem`, `AttackSystem`, `LifeComponent`, `DeathComponent`) became dead code when turn-based battle replaced real-time overworld combat. These systems still exist in the codebase, register in the ECS world, and run every tick — but process nothing. `AttackSystem` is permanently disabled via `overworldDisabledSystems`. `LifeSystem` runs but `takeDamage` is never set (no attacker). `DeathSystem` iterates zero entities (no `DeathComponent` is ever added). Three events they fire (`EntityAttackEvent`, `EntityDeathEvent`, `EntityTakeDamageEvent`, `EntityRespawnEvent`) are never received in a meaningful way. All real battle death logic lives in `BattleSystem` and is unaffected.
+A pass over the architecture to remove code that is no longer referenced anywhere in the codebase — orphaned files from replaced systems, commented-out dead blocks, and test/debug artifacts. All removals confirmed via grep to have zero live references. Items that appear "unused" but are intentional placeholders for future roadmap features are explicitly preserved.
 
-**Audio note:** `AudioSystem` currently handles `EntityAttackEvent` and `EntityDeathEvent` for attack/death sounds — both of which never fire. Wiring battle audio to `BattleSystem` is a future feature; for now these dead handlers are simply removed.
+---
 
-**`AttackComponent` is preserved** — `AiEntity` references it and the AI system will use it for future complex battle enemy behavior.
+## Intentionally Preserved (NOT cleaned up)
+
+These appear dormant but are scoped for future development:
+
+- **`AttackComponent`** — Referenced by `AiEntity`/`AiSystem` for future complex battle AI behavior (per Feature 23 decision)
+- **`MapView` structure** — The M key opens this view; kept as the skeleton for a future map display feature. Only the test label inside it is removed (see Part 4)
+- **`BattleCompositions` id=5 "boss comp placeholder"** — Intentional boss encounter slot
+- **`InventoryLeftPanel` quest items stub section** — Intentionally skeletal; waiting on quest item feature expansion
+- **`AbilityView` geometric placeholder icons** — Code comments describing circles/rectangles used as icon proxies until real sprite assets exist; not dead code
 
 ---
 
@@ -58,49 +66,32 @@ All overworld combat infrastructure (`LifeSystem`, `DeathSystem`, `AttackSystem`
 
 | File | Reason |
 |------|--------|
-| `systems/LifeSystem.kt` | Dead — `takeDamage` never set, `isDead` never true in overworld |
-| `systems/DeathSystem.kt` | Dead — `DeathComponent` never added, iterates zero entities |
-| `systems/AttackSystem.kt` | Dead — permanently in `overworldDisabledSystems`, never runs |
-| `components/LifeComponent.kt` | Dead — only `takeDamage` field was relevant; all other fields superseded by `StatsProvider` |
-| `components/DeathComponent.kt` | Dead — never added to any entity |
+| `screens/InventoryScreen.kt` | Dev/test harness screen — creates its own isolated mini-world, never referenced by any other file, never navigated to from `GameScreen` |
+| `ui/widgets/InventoryDragSourceTarget.kt` | Old drag-and-drop system from before Feature 12 overhaul — "preserved as generic UI utility" per roadmap but never imported anywhere after decoupling |
+| `ui/widgets/InventorySlot.kt` | Only referenced by `InventoryDragSourceTarget.kt` (deleted above); zero live references after that deletion |
+| `ui/viewmodels/ItemModel.kt` | ViewModel for the old drag-and-drop inventory — only referenced by `InventorySlot.kt` and `InventoryDragSourceTarget.kt`, both deleted |
+| `quest/Quests.kt` | Contains `Quest` sealed interface and `KillQuest` with `TODO("Not yet implemented")` — never imported by any file; the real quest system uses `QuestConfigurations.kt` and `QuestSystem.kt` exclusively |
+| `ui/widgets/CharacterInfo.kt` | Compact portrait+HP+mana bar widget — never instantiated anywhere; `CharacterInfoView` has its own inline stat labels |
 
 ---
 
 ## What Gets Modified
 
-### Part 1 — `events/Events.kt`
-Remove 4 dead events that are never fired (or whose only firer is being deleted):
-- `EntityAttackEvent` — only fired by `AttackSystem` (deleted)
-- `EntityDeathEvent` — only fired by `LifeSystem` (deleted)
-- `EntityRespawnEvent` — only fired by `DeathSystem` (deleted)
-- `EntityTakeDamageEvent` — only fired by `LifeSystem` (deleted)
+### Part 1 — `ui/views/MainGameView.kt`
+Remove the large block of commented-out tooltip infrastructure (~40 lines total):
+- 5 commented-out field declarations (`characterInfoToolTipLabel`, `inventoryToolTipLabel`, `skillToolTipLabel`, `questToolTipLabel`, `mapToolTipLabel`) at lines ~56–60
+- The entire commented-out `stack { }` / `row()` block that builds tooltip labels at lines ~75–108
+- All commented-out tooltip visibility/positioning calls scattered through the hover listeners (~12 additional lines)
 
-### Part 2 — `screens/GameScreen.kt`
-- Remove `add<AttackSystem>()`, `add<DeathSystem>()`, `add<LifeSystem>()` from ECS world setup
-- Remove `AttackSystem::class` from `overworldDisabledSystems` (keep `AiSystem::class` — the set remains valid with one entry)
-- Remove `attackMapper` field (`by lazy { entityWorld.mapper<AttackComponent>() }`)
-- Remove the attack state reset block in `exitBattleMode()` (the `playerFamily.forEach` block that clears `doAttack`/`AttackState.READY`) and its comment
-- Remove imports: `AttackSystem`, `DeathSystem`, `LifeSystem`, `AttackComponent`, `AttackState`
+### Part 2 — `ui/Skin.kt`
+Remove the `TEST_LABEL` enum entry and its skin registration (only ever referenced by the commented-out tooltip code above):
+- Remove `TEST_LABEL;` from the `Labels` enum
+- Remove the `// test label` comment and the 3-line `label(Labels.TEST_LABEL.skinKey) { ... }` block from `loadLabels()`
 
-### Part 3 — `systems/EntityCreationSystem.kt`
-Remove `LifeComponent` additions from NPC entity creation. There are 3 `add<LifeComponent> { ... }` blocks — all in the NPC/non-player creation paths. These set `maxHealth` and `health` fields that `LifeSystem` never read.
-- Remove all 3 `add<LifeComponent> { ... }` blocks
-- Remove `LifeComponent` import
-- `AttackComponent` additions are **kept** (used by `AiEntity` for future AI logic)
-
-### Part 4 — `ui/viewmodels/MainGameViewModel.kt`
-The view model listened to events that are now removed, and held properties that are already commented out in the view.
-- Remove `lifeComponents` mapper field
-- Remove `EntityTakeDamageEvent` handler block
-- Remove `EntityRespawnEvent` handler block
-- Remove `playerLife` and `enemyLife` `propertyNotify` fields (the `MainGameView` binding to `playerLife` is already commented out; `enemyLife` is never bound)
-- Remove imports: `LifeComponent`, `EntityTakeDamageEvent`, `EntityRespawnEvent`
-
-### Part 5 — `systems/AudioSystem.kt`
-Remove the two dead event handlers whose source events are being deleted:
-- Remove `EntityAttackEvent` handler (`queueSound(..._attack.wav)`)
-- Remove `EntityDeathEvent` handler (`queueSound(..._death.wav)`)
-- Remove imports: `EntityAttackEvent`, `EntityDeathEvent`
+### Part 3 — `ui/views/MapView.kt`
+Remove the hardcoded test label (the view skeleton, `MapViewModel`, and DSL extension function are all kept):
+- Remove the `table { label("test label on Map view", ...) }` block from the `init` block
+- Remove the now-unused `label` import
 
 ---
 
@@ -108,11 +99,9 @@ Remove the two dead event handlers whose source events are being deleted:
 
 | File | Path |
 |------|------|
-| GameScreen | `core/src/main/kotlin/.../screens/GameScreen.kt` |
-| Events | `core/src/main/kotlin/.../events/Events.kt` |
-| EntityCreationSystem | `core/src/main/kotlin/.../systems/EntityCreationSystem.kt` |
-| MainGameViewModel | `core/src/main/kotlin/.../ui/viewmodels/MainGameViewModel.kt` |
-| AudioSystem | `core/src/main/kotlin/.../systems/AudioSystem.kt` |
+| MainGameView | `core/src/main/kotlin/.../ui/views/MainGameView.kt` |
+| Skin | `core/src/main/kotlin/.../ui/Skin.kt` |
+| MapView | `core/src/main/kotlin/.../ui/views/MapView.kt` |
 
 ## Verification
 
